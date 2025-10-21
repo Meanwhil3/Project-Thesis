@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
+@layer base {
+  :root {
+    --font-kanit: 'Kanit', sans-serif;
+  }
+
+  body {
+    @apply bg-[linear-gradient(117deg,_#E9FFEE_0%,_#FFFBE3_100%)] font-[var(--font-kanit)];
+  }
+}

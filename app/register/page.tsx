@@ -1,15 +1,29 @@
-import React from 'react';
-import { Header } from '@/components//Header';
-import { RegisterForm } from '@/components//RegisterForm';
+import React from "react";
+import WoodCertifyLogo from "@/components/woodlogo";
+import { RegisterForm } from "@/components/RegisterForm";
+import { GiTreeBranch } from "react-icons/gi";
 
-export const Register: React.FC = () => {
+const Register: React.FC = () => {
   return (
-    <main className="flex flex-col overflow-hidden items-center font-normal pt-[138px] pb-56 px-20 max-md:px-5 max-md:py-[100px] min-h-screen bg-gray-50">
-      <div className="flex w-[619px] max-w-full flex-col items-stretch">
-        <Header />
-        <RegisterForm />
+    <div>
+      {/*ฉากหลังลายเงาใบไม้ */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <GiTreeBranch
+          className="text-green-900/5 absolute -left-40 top-0"
+          size={700}
+        />
+        <GiTreeBranch
+          className="text-green-900/5 absolute right-[-80px] bottom-[-40px] rotate-180"
+          size={700}
+        />
       </div>
-    </main>
+      <div className="min-h-screen wood-pattern flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <WoodCertifyLogo />
+          <RegisterForm />
+        </div>
+      </div>
+    </div>
   );
 };
 
