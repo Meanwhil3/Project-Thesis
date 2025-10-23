@@ -1,9 +1,16 @@
-const TreeSearch = () => {
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+
+const treesearch = () => {
   return (
-    <div>
-      <div className="min-h-screen wood-pattern flex items-center justify-center p-4"></div>
-    </div>
+    <>
+    <Header/>
+      <div className="min-h-screen wood-pattern flex items-center justify-center p-4">
+        Tree Search
+      </div>
+    <Footer/>
+    </>
   );
 };
 
-export default TreeSearch;
+export default treesearch;

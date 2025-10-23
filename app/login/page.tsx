@@ -17,8 +17,8 @@ const Index = () => {
         />
       </div>
     <div className="min-h-screen wood-pattern flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <WoodCertifyLogo />
+      <div className="w-full max-w-md ">
+        <WoodCertifyLogo className="justify-center p-4"/>
         <LoginForm />
       </div>
     </div>

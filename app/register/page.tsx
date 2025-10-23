@@ -19,7 +19,7 @@ const Register: React.FC = () => {
       </div>
       <div className="min-h-screen wood-pattern flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <WoodCertifyLogo />
+          <WoodCertifyLogo className="justify-center p-4"/>
           <RegisterForm />
         </div>
       </div>
