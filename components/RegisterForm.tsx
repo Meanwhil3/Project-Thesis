@@ -1,16 +1,19 @@
-"use client"
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { FormField } from './FormField';
+"use client";
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 const registerSchema = z.object({
-  firstName: z.string().min(1, 'กรุณากรอกชื่อ'),
-  lastName: z.string().min(1, 'กรุณากรอกนามสกุล'),
-  email: z.string().email('กรุณากรอกอีเมลที่ถูกต้อง'),
-  password: z.string().min(6, 'รหัสผ่านต้องมีความยาวมากกว่า 6 ตัวอักษร'),
-  agreeTerms: z.boolean().refine(val => val === true, 'กรุณายอมรับเงื่อนไขการใช้งาน')
+  firstName: z.string().min(1, "กรุณากรอกชื่อ"),
+  lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
+  email: z.string().email("กรุณากรอกอีเมลที่ถูกต้อง"),
+  password: z.string().min(6, "รหัสผ่านต้องมีความยาวมากกว่า 6 ตัวอักษร"),
+  agreeTerms: z.boolean().refine((val) => val === true, "กรุณายอมรับเงื่อนไขการใช้งาน"),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -23,126 +26,148 @@ export const RegisterForm: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
-    setValue
+    setValue,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      agreeTerms: false
-    }
+    defaultValues: { agreeTerms: false },
   });
 
   const onSubmit = (data: RegisterFormData) => {
-    console.log('Registration data:', data);
-    // Handle form submission here
+    console.log("Registration data:", data);
   };
 
   const handleTermsChange = (checked: boolean) => {
     setAgreeTerms(checked);
-    setValue('agreeTerms', checked);
+    setValue("agreeTerms", checked);
   };
 
   return (
-    <div className="bg-white shadow-[0px_0px_10px_rgba(202,224,188,1)] flex w-full flex-col items-stretch mt-[46px] px-[38px] py-[27px] rounded-[20px] max-md:max-w-full max-md:mt-10 max-md:px-5">
-      <h2 className="text-green-900 text-[32px] font-medium self-center">
-        ลงทะเบียน
-      </h2>
-      <p className="text-green-600 text-base self-center mt-[9px]">
-        ลงทะเบียนเพื่อบันทึกข้อมูลให้อยู่ในระบบ
-      </p>
-      
-      <form onSubmit={handleSubmit(onSubmit)} className="w-full mt-4 max-md:max-w-full">
-        <fieldset className="w-full">
-          <legend className="sr-only">ข้อมูลส่วนตัว</legend>
-          <div className="flex w-full items-start gap-[30px] text-xl whitespace-nowrap flex-wrap max-md:max-w-full">
-            <FormField
-              label="ชื่อ"
-              name="firstName"
-              placeholder="กรอกชื่อ"
-              register={register}
-              error={errors.firstName}
-              className="min-w-60 grow shrink w-[206px]"
-            />
-            <FormField
-              label="นามสกุล"
-              name="lastName"
-              placeholder="กรอกนามสกุล"
-              register={register}
-              error={errors.lastName}
-              className="min-w-60 grow shrink w-[206px]"
-            />
-          </div>
-          
-          <div className="w-full mt-5 max-md:max-w-full">
-            <FormField
-              label="Email"
-              name="email"
-              type="email"
-              placeholder="youremail@gmail.com"
-              register={register}
-              error={errors.email}
-              icon="https://api.builder.io/api/v1/image/assets/TEMP/d3e92e7bc7075172a3cb0ca9502dcd034339d480?placeholderIfAbsent=true"
-            />
-          </div>
-          
-          <div className="flex w-full flex-col items-stretch mt-5 py-0.5 max-md:max-w-full">
-            <FormField
-              label="รหัสผ่าน"
-              name="password"
-              placeholder="********"
-              register={register}
-              error={errors.password}
-              icon="https://api.builder.io/api/v1/image/assets/TEMP/cf59f6744d5ff1593dcaa27679bd5a37fbb70d03?placeholderIfAbsent=true"
-              showPasswordToggle={true}
-              showPassword={showPassword}
-              onTogglePassword={() => setShowPassword(!showPassword)}
-            />
-            <div className="text-[rgba(17,139,62,1)] text-sm mt-1.5">
-              รหัสผ่านต้องมีความยาวมากกว่า 6 ตัวอักษร มีทั้งตัวอังษรและเลข
+    <div className="w-full max-w-md mx-auto bg-white rounded-xl p-8 shadow-lg">
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-semibold text-card-foreground mb-2">ลงทะเบียน</h1>
+        <p className="text-brand-green text-sm">ลงทะเบียนเพื่อบันทึกข้อมูลให้อยู่ในระบบ</p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* ชื่อ - นามสกุล */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <Label htmlFor="firstName" className="text-card-foreground font-medium">
+              ชื่อ
+            </Label>
+            <div className="relative mt-1">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+              <Input
+                id="firstName"
+                {...register("firstName")}
+                placeholder="กรอกชื่อ"
+                className="pl-10 h-12"
+              />
             </div>
+            {errors.firstName && (
+              <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
+            )}
           </div>
-        </fieldset>
-        
-        <div className="flex items-stretch gap-[9px] text-sm text-[rgba(17,139,62,1)] mt-2 max-md:ml-0.5">
-          <div className="relative">
-            <input
-              type="checkbox"
-              id="agreeTerms"
-              checked={agreeTerms}
-              onChange={(e) => handleTermsChange(e.target.checked)}
-              className="sr-only"
-              aria-describedby={errors.agreeTerms ? 'terms-error' : undefined}
+
+          <div className="flex-1">
+            <Label htmlFor="lastName" className="text-card-foreground font-medium">
+              นามสกุล
+            </Label>
+            <div className="relative mt-1">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+              <Input
+                id="lastName"
+                {...register("lastName")}
+                placeholder="กรอกนามสกุล"
+                className="pl-10 h-12"
+              />
+            </div>
+            {errors.lastName && (
+              <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Email */}
+        <div>
+          <Label htmlFor="email" className="text-card-foreground font-medium">
+            Email
+          </Label>
+          <div className="relative mt-1">
+            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+            <Input
+              id="email"
+              type="email"
+              {...register("email")}
+              placeholder="youremail@gmail.com"
+              className="pl-10 h-12"
             />
-            <label
-              htmlFor="agreeTerms"
-              className="bg-white shadow-[0px_0px_3px_rgba(22,163,74,1)] flex w-[19px] h-[19px] cursor-pointer relative"
-              aria-label="ยอมรับเงื่อนไขการใช้งาน"
-            >
-              {agreeTerms && (
-                <span className="absolute inset-0 flex items-center justify-center text-green-600 text-xs">
-                  ✓
-                </span>
-              )}
-            </label>
           </div>
-          <label htmlFor="agreeTerms" className="basis-auto grow shrink cursor-pointer">
+          {errors.email && (
+            <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+          )}
+        </div>
+
+        {/* Password */}
+        <div>
+          <Label htmlFor="password" className="text-card-foreground font-medium">
+            รหัสผ่าน
+          </Label>
+          <div className="relative mt-1">
+            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              {...register("password")}
+              placeholder="********"
+              className="pl-10 pr-10 h-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-brand-green"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+          )}
+        </div>
+
+        {/* Terms Checkbox */}
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="agreeTerms"
+            checked={agreeTerms}
+            onChange={(e) => handleTermsChange(e.target.checked)}
+            className="h-4 w-4 accent-green-600"
+          />
+          <label htmlFor="agreeTerms" className="text-sm text-muted-foreground">
             Agree our{" "}
-            <span className="underline">Terms of Service</span>{" "}
+            <span className="text-brand-green underline cursor-pointer">Terms of Service</span>{" "}
             and{" "}
-            <span className="underline">Privacy Policy</span>
+            <span className="text-brand-green underline cursor-pointer">Privacy Policy</span>
           </label>
         </div>
         {errors.agreeTerms && (
-          <span id="terms-error" className="text-red-500 text-sm mt-1 block" role="alert">
-            {errors.agreeTerms.message}
-          </span>
+          <p className="text-red-500 text-sm mt-1">{errors.agreeTerms.message}</p>
         )}
-        
-        <button
+
+        {/* Button */}
+        <Button
           type="submit"
-          className="bg-green-600 flex flex-col items-center text-base text-white whitespace-nowrap justify-center mt-[17px] px-[62px] py-2 rounded-[5px] w-full max-md:px-5 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+          className="w-full h-12 bg-green-600 hover:bg-brand-green/90 text-white font-medium rounded-lg"
         >
           ลงทะเบียน
-        </button>
+        </Button>
+
+        <div className="text-center">
+          <a href="/login" className="text-brand-green text-sm underline">
+            มีบัญชีอยู่แล้ว? เข้าสู่ระบบ
+          </a>
+        </div>
       </form>
     </div>
   );

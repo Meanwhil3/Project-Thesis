@@ -13,7 +13,7 @@ const LoginForm = () => {
   const [agreed, setAgreed] = useState(false);
 
   return (
-    <div className="w-full max-w-md mx-auto bg-card rounded-xl p-8 shadow-lg">
+    <div className="w-full max-w-md mx-auto bg-white rounded-xl p-8 shadow-lg">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-semibold text-card-foreground mb-2">เข้าสู่ระบบ</h1>
         <p className="text-brand-green text-sm">กรอกEmailและรหัสผ่านที่ได้รับ เพื่อเข้าใช้งาน</p>
@@ -73,14 +73,14 @@ const LoginForm = () => {
 
         <Button 
           type="submit" 
-          className="w-full h-12 bg-brand-green hover:bg-brand-green/90 text-white font-medium rounded-lg"
+          className="w-full h-12 bg-green-600 hover:bg-brand-green/90 text-white font-medium rounded-lg"
         >
           เข้าสู่ระบบ
         </Button>
 
         <div className="text-center">
-          <a href="#" className="text-brand-green text-sm underline">
-            ไม่สามารถเข้าสู่ระบบได้ <span className="underline">ติดต่อ</span>
+          <a href="/register" className="text-brand-green text-sm underline">
+            ยังไม่มีบัญชีผู้ใช้งาน<span className="underline">ลงทะเบียน</span>
           </a>
         </div>
       </form>
