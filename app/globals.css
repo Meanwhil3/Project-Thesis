@@ -2,8 +2,8 @@
 @import "tw-animate-css";
 
 @layer base {
-  :root {
-    --font-kanit: 'Kanit', sans-serif;
+  html, body {
+    @apply h-full min-h-screen overflow-x-hidden;
   }
 
   body {
