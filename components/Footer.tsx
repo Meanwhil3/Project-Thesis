@@ -1,16 +1,28 @@
 "use client";
 import Image from "next/image";
+
 export default function Footer() {
   return (
     <footer className="relative mt-12 border-t border-emerald-100 bg-white">
-      <div className="pointer-events-none absolute right-[-30] bottom-[-60] h-20 sm:h-48 md:h-56 lg:h-84 w-auto overflow-hidden flex justify-end">
+      {/* Tree shadow (responsive) */}
+      <div className="pointer-events-none absolute bottom-0 right-0">
         <Image
           src="/TreeShadow.png"
           alt="Tree silhouette background"
-          width={600}
-          height={300}
+          width={420}
+          height={240}
           priority
-          className="object-cover object-bottom opacity-20"
+          className="
+            w-[140px]
+            sm:w-[200px]
+            md:w-[260px]
+            lg:w-[320px]
+            xl:w-[380px]
+            h-auto
+            object-contain
+            object-bottom
+            opacity-20
+          "
         />
       </div>
 
