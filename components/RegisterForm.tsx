@@ -7,6 +7,7 @@ import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import Link from "next/link"; // **เพิ่ม Link**
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "กรุณากรอกชื่อ"),
@@ -49,7 +50,7 @@ export const RegisterForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* ชื่อ - นามสกุล */}
+        
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Label htmlFor="firstName" className="text-card-foreground font-medium">
@@ -88,7 +89,7 @@ export const RegisterForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Email */}
+        
         <div>
           <Label htmlFor="email" className="text-card-foreground font-medium">
             Email
@@ -108,7 +109,7 @@ export const RegisterForm: React.FC = () => {
           )}
         </div>
 
-        {/* Password */}
+        
         <div>
           <Label htmlFor="password" className="text-card-foreground font-medium">
             รหัสผ่าน
@@ -135,40 +136,24 @@ export const RegisterForm: React.FC = () => {
           )}
         </div>
 
-        {/* Terms Checkbox */}
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="agreeTerms"
-            checked={agreeTerms}
-            onChange={(e) => handleTermsChange(e.target.checked)}
-            className="h-4 w-4 accent-green-600"
-          />
-          <label htmlFor="agreeTerms" className="text-sm text-muted-foreground">
-            Agree our{" "}
-            <span className="text-brand-green underline cursor-pointer">Terms of Service</span>{" "}
-            and{" "}
-            <span className="text-brand-green underline cursor-pointer">Privacy Policy</span>
-          </label>
-        </div>
-        {errors.agreeTerms && (
-          <p className="text-red-500 text-sm mt-1">{errors.agreeTerms.message}</p>
-        )}
+        
 
-        {/* Button */}
+        
         <Button
           type="submit"
           className="w-full h-12 bg-green-600 hover:bg-brand-green/90 text-white font-medium rounded-lg"
         >
           ลงทะเบียน
         </Button>
+      </form> 
+      
+      
+      <div className="text-center mt-4"> 
+        <Link href="/login" className="text-brand-green text-sm underline">
+          มีบัญชีอยู่แล้ว? เข้าสู่ระบบ
+        </Link>
+      </div>
 
-        <div className="text-center">
-          <a href="/login" className="text-brand-green text-sm underline">
-            มีบัญชีอยู่แล้ว? เข้าสู่ระบบ
-          </a>
-        </div>
-      </form>
     </div>
   );
 };

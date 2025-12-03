@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import Link from "next/link"; // ถูกต้อง
 
 const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -57,19 +58,7 @@ const LoginForm = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="terms" 
-            checked={agreed}
-            onCheckedChange={(checked) => setAgreed(checked as boolean)}
-          />
-          <label htmlFor="terms" className="text-sm text-muted-foreground">
-            Agree our{" "}
-            <span className="text-brand-green underline cursor-pointer">Terms of Service</span>
-            {" "}and{" "}
-            <span className="text-brand-green underline cursor-pointer">Privacy Policy</span>
-          </label>
-        </div>
+      
 
         <Button 
           type="submit" 
@@ -77,13 +66,15 @@ const LoginForm = () => {
         >
           เข้าสู่ระบบ
         </Button>
+      </form> 
 
-        <div className="text-center">
-          <a href="/register" className="text-brand-green text-sm underline">
-            ยังไม่มีบัญชีผู้ใช้งาน<span className="underline">ลงทะเบียน</span>
-          </a>
-        </div>
-      </form>
+      
+      <div className="text-center mt-4"> 
+        <Link href="/register" className="text-brand-green text-sm underline">
+          ยังไม่มีบัญชีผู้ใช้งาน<span className="underline">ลงทะเบียน</span>
+        </Link>
+      </div>
+
     </div>
   );
 };

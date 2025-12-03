@@ -5,8 +5,8 @@ import { GiTreeBranch } from "react-icons/gi";
 const Index = () => {
   return (
     <div>
-      {/*ฉากหลังลายเงาใบไม้ */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      {/*ฉากหลังลายเงาใบไม้ (เพิ่ม z-0) */}
+      <div className="absolute inset-0 flex items-center justify-center z-0">
         <GiTreeBranch
           className="text-green-900/5 absolute -left-40 top-0"
           size={700}
@@ -16,7 +16,9 @@ const Index = () => {
           size={700}
         />
       </div>
-    <div className="min-h-screen wood-pattern flex items-center justify-center p-4">
+      
+    {/* ฟอร์ม Login (เพิ่ม relative z-10) */}
+    <div className="min-h-screen wood-pattern flex items-center justify-center p-4 relative z-10">
       <div className="w-full max-w-md ">
         <WoodCertifyLogo className="justify-center p-4"/>
         <LoginForm />
