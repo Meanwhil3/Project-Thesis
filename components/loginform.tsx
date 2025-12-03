@@ -58,18 +58,18 @@ const LoginForm = () => {
           </div>
         </div>
 
-      
 
-        <Button 
-          type="submit" 
-          className="w-full h-12 bg-green-600 hover:bg-brand-green/90 text-white font-medium rounded-lg"
+
+        <Link
+          href="/tree/treesearch"
+          className="w-full h-12 bg-green-600 hover:bg-brand-green/90 text-white font-medium rounded-lg flex items-center justify-center" // เพิ่ม flex/items-center/justify-center เพื่อให้ข้อความ "เข้าสู่ระบบ" อยู่ตรงกลางสวยงาม
         >
           เข้าสู่ระบบ
-        </Button>
-      </form> 
+        </Link>
+      </form>
 
-      
-      <div className="text-center mt-4"> 
+
+      <div className="text-center mt-4">
         <Link href="/register" className="text-brand-green text-sm underline">
           ยังไม่มีบัญชีผู้ใช้งาน<span className="underline">ลงทะเบียน</span>
         </Link>
