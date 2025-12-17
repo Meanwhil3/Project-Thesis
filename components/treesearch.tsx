@@ -9,7 +9,8 @@ import {
   Edit,
   Trash2,
   User,
-  TreeDeciduous
+  TreeDeciduous,
+  X
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,8 @@ import { Label } from '@/components/ui/label';
 import woodTexture1 from '@/app/561621902_1332789158575088_4537468548849723627_n-removebg-preview.png';
 import woodTexture2 from '@/app/561621902_1332789158575088_4537468548849723627_n-removebg-preview.png';
 import woodTexture3 from '@/app/561621902_1332789158575088_4537468548849723627_n-removebg-preview.png';
+import Navbar from "@/components/์Navbar";
+
 
 interface WoodSpecies {
   id: number;
@@ -28,17 +31,19 @@ interface WoodSpecies {
   scent: 'มีกลิ่น' | 'ไม่มีกลิ่น';
   isCertified: 'เห็นชัดเจน' | 'เห็นไม่ชัดเจน';
   region: 'ภาคกลาง' | 'ภาคเหนือ' | 'ภาคใต้';
+  texture?: string;
+  durability?: string;
 }
 
 const MOCK_DATA: WoodSpecies[] = [
-  { id: 1, thaiName: 'กะทังหัน', scientificName: 'Calophyllum thorelii Pierre', image: woodTexture1.src, weightCategory: '0.40-0.75', densityValue: 0.65, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคกลาง' },
-  { id: 2, thaiName: 'งิ้วป่า', scientificName: 'Bombax anceps Pierre', image: woodTexture2.src, weightCategory: '<= 0.40', densityValue: 0.38, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นชัดเจน', region: 'ภาคใต้' },
-  { id: 3, thaiName: 'สมอไทย', scientificName: 'Terminalia chebula Retz. var. chebula', image: woodTexture3.src, weightCategory: '> 0.75', densityValue: 0.81, scent: 'มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคเหนือ' },
-  { id: 4, thaiName: 'สมอไทย', scientificName: 'Terminalia chebula Retz. var. chebula', image: woodTexture3.src, weightCategory: '0.40-0.75', densityValue: 0.70, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคกลาง' },
-  { id: 5, thaiName: 'กะทังหัน', scientificName: 'Calophyllum thorelii Pierre', image: woodTexture1.src, weightCategory: '> 0.75', densityValue: 0.78, scent: 'มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคเหนือ' },
-  { id: 6, thaiName: 'งิ้วป่า', scientificName: 'Bombax anceps Pierre', image: woodTexture2.src, weightCategory: '<= 0.40', densityValue: 0.40, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นชัดเจน', region: 'ภาคใต้' },
-  { id: 7, thaiName: 'กะทังหัน', scientificName: 'Calophyllum thorelii Pierre', image: woodTexture1.src, weightCategory: '0.40-0.75', densityValue: 0.60, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคกลาง' },
-  { id: 8, thaiName: 'สมอไทย', scientificName: 'Terminalia chebula Retz. var. chebula', image: woodTexture3.src, weightCategory: '0.40-0.75', densityValue: 0.72, scent: 'มีกลิ่น', isCertified: 'เห็นชัดเจน', region: 'ภาคใต้' },
+  { id: 1, thaiName: 'กะทังหัน', scientificName: 'Calophyllum thorelii Pierre', image: woodTexture1.src, weightCategory: '0.40-0.75', densityValue: 0.65, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคกลาง', texture: 'fine', durability: 'high' },
+  { id: 2, thaiName: 'งิ้วป่า', scientificName: 'Bombax anceps Pierre', image: woodTexture2.src, weightCategory: '<= 0.40', densityValue: 0.38, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นชัดเจน', region: 'ภาคใต้', texture: 'coarse', durability: 'low' },
+  { id: 3, thaiName: 'สมอไทย', scientificName: 'Terminalia chebula Retz. var. chebula', image: woodTexture3.src, weightCategory: '> 0.75', densityValue: 0.81, scent: 'มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคเหนือ', texture: 'fine', durability: 'high' },
+  { id: 4, thaiName: 'สมอไทย', scientificName: 'Terminalia chebula Retz. var. chebula', image: woodTexture3.src, weightCategory: '0.40-0.75', densityValue: 0.70, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคกลาง', texture: 'coarse', durability: 'medium' },
+  { id: 5, thaiName: 'กะทังหัน', scientificName: 'Calophyllum thorelii Pierre', image: woodTexture1.src, weightCategory: '> 0.75', densityValue: 0.78, scent: 'มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคเหนือ', texture: 'fine', durability: 'high' },
+  { id: 6, thaiName: 'งิ้วป่า', scientificName: 'Bombax anceps Pierre', image: woodTexture2.src, weightCategory: '<= 0.40', densityValue: 0.40, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นชัดเจน', region: 'ภาคใต้', texture: 'coarse', durability: 'low' },
+  { id: 7, thaiName: 'กะทังหัน', scientificName: 'Calophyllum thorelii Pierre', image: woodTexture1.src, weightCategory: '0.40-0.75', densityValue: 0.60, scent: 'ไม่มีกลิ่น', isCertified: 'เห็นไม่ชัดเจน', region: 'ภาคกลาง', texture: 'fine', durability: 'medium' },
+  { id: 8, thaiName: 'สมอไทย', scientificName: 'Terminalia chebula Retz. var. chebula', image: woodTexture3.src, weightCategory: '0.40-0.75', densityValue: 0.72, scent: 'มีกลิ่น', isCertified: 'เห็นชัดเจน', region: 'ภาคใต้', texture: 'fine', durability: 'high' },
 ];
 
 const WoodCard: React.FC<{ species: WoodSpecies }> = ({ species }) => (
@@ -57,13 +62,13 @@ const WoodCard: React.FC<{ species: WoodSpecies }> = ({ species }) => (
 
       <div className="flex justify-center gap-4 pt-2 border-t border-border">
         <button className="text-destructive hover:text-destructive/80 transition-colors" aria-label="ลบ">
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="h-4 w-4 text-[#DC2626]" />
         </button>
         <button className="text-muted-foreground hover:text-foreground transition-colors" aria-label="ดูรายละเอียด">
           <Eye className="w-4 h-4" />
         </button>
         <button className="text-primary hover:text-primary/80 transition-colors" aria-label="แก้ไข">
-          <Edit className="w-4 h-4" />
+          <Edit className="w-4 h-4 text-[#16A34A]" />
         </button>
       </div>
     </div>
@@ -77,6 +82,8 @@ interface FilterState {
   weight: string;
   scent: string;
   certifiedStatus: string;
+  texture: string;
+  durability: string;
 }
 
 const initialFilters: FilterState = {
@@ -86,31 +93,115 @@ const initialFilters: FilterState = {
   weight: '',
   scent: '',
   certifiedStatus: '',
+  texture: '',
+  durability: '',
 };
+
+interface MoreFiltersDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  filters: FilterState;
+  setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
+  applyFilter: () => void;
+}
+
+const MoreFiltersDialog: React.FC<MoreFiltersDialogProps> = ({ isOpen, onClose, filters, setFilters, applyFilter }) => {
+  if (!isOpen) return null;
+
+  const handleApply = () => {
+    applyFilter();
+    onClose();
+  };
+
+  const handleReset = () => {
+    setFilters(f => ({
+      ...f,
+      texture: '',
+      durability: '',
+    }));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 m-4">
+        <div className="flex justify-between items-center border-b pb-3 mb-4">
+          <h2 className="text-xl font-bold text-foreground flex items-center">
+            <Filter className="w-5 h-5 mr-2" /> ตัวกรองเพิ่มเติม
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+          <div>
+            <Label className="font-medium text-foreground mb-2 block">เนื้อไม้</Label>
+            <Select
+              value={filters.texture}
+              onValueChange={(value) => setFilters(f => ({ ...f, texture: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกเนื้อไม้" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-border shadow-lg">
+                <SelectItem value="all">เลือกทั้งหมด</SelectItem>
+                <SelectItem value="fine">ละเอียด</SelectItem>
+                <SelectItem value="coarse">หยาบ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="font-medium text-foreground mb-2 block">ความทนทาน</Label>
+            <Select
+              value={filters.durability}
+              onValueChange={(value) => setFilters(f => ({ ...f, durability: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="ระดับความทนทาน" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-border shadow-lg">
+                <SelectItem value="all">เลือกทั้งหมด</SelectItem>
+                <SelectItem value="high">สูง</SelectItem>
+                <SelectItem value="medium">ปานกลาง</SelectItem>
+                <SelectItem value="low">ต่ำ</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex justify-between mt-6 pt-4 border-t">
+          <Button variant="link" onClick={handleReset} className="text-primary hover:text-primary/80">
+            ล้างตัวกรองเพิ่มเติม
+          </Button>
+          <Button onClick={handleApply} className="bg-[#14532D] hover:bg-[#14532D]/90 text-white">
+            <Search className="w-4 h-4 mr-2" /> ใช้ตัวกรอง
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const SidebarFilters: React.FC<{
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   applyFilter: () => void;
-}> = ({ filters, setFilters, applyFilter }) => {
+  onOpenMoreFilters: () => void; // ✅ เพิ่มที่ขาดไป
+}> = ({ filters, setFilters, applyFilter, onOpenMoreFilters }) => {
   const handleReset = () => {
     setFilters(initialFilters);
-    console.log(initialFilters)
     applyFilter();
   };
 
   return (
     <div className="p-6 space-y-6 bg-card rounded-lg shadow-sm border border-border">
       <div className="flex justify-between items-center">
-        {/* เปลี่ยนข้อความเป็น 'ตัวกรอง' ตามภาพ */}
         <h3 className="font-semibold text-lg flex items-center text-foreground">
           <Filter className="w-5 h-5 mr-2" /> ตัวกรอง
         </h3>
-        {/* เปลี่ยนข้อความเป็น 'ล้าง' ตามภาพ */}
-        <button
-          onClick={handleReset}
-          className="text-sm text-primary hover:text-primary/80 font-medium"
-        >
+        <button onClick={handleReset} className="text-sm text-primary hover:text-primary/80 font-medium">
           ล้าง
         </button>
       </div>
@@ -130,7 +221,6 @@ const SidebarFilters: React.FC<{
       </div>
 
       <div>
-        {/* เปลี่ยน Label เป็น 'สีหน้าตัด' เพื่อให้ตรงกับตัวกรอง region (ซึ่งใน UI น่าจะหมายถึงสี) */}
         <Label className="font-medium text-foreground mb-2 block">ถิ่นกำเนิด</Label>
         <Select
           value={filters.region}
@@ -180,7 +270,6 @@ const SidebarFilters: React.FC<{
               value={item.value}
               checked={filters.weight === item.value}
               onChange={() => setFilters(f => ({ ...f, weight: item.value }))}
-              // ปรับสีให้ใกล้เคียงโทนสีเขียว-น้ำตาลของธีม
               className="h-4 w-4 text-[#14532D] border-input focus:ring-[#14532D] focus:ring-2"
             />
             <label htmlFor={`weight-${item.value}`} className="ml-3 text-sm text-foreground">
@@ -206,7 +295,6 @@ const SidebarFilters: React.FC<{
         </Select>
       </div>
 
-
       <div className="space-y-3">
         <Label className="font-medium text-foreground block">วงเจริญเติบโต</Label>
         {[
@@ -221,7 +309,6 @@ const SidebarFilters: React.FC<{
               value={item.value}
               checked={filters.certifiedStatus === item.value}
               onChange={() => setFilters(f => ({ ...f, certifiedStatus: item.value }))}
-              // ปรับสีให้ใกล้เคียงโทนสีเขียว-น้ำตาลของธีม
               className="h-4 w-4 text-[#14532D] border-input focus:ring-[#14532D] focus:ring-2"
             />
             <label htmlFor={`certifiedStatus-${item.value}`} className="ml-3 text-sm text-foreground">
@@ -232,17 +319,14 @@ const SidebarFilters: React.FC<{
       </div>
 
       <Button
+        onClick={onOpenMoreFilters}
         className="w-full text-sm font-medium text-primary border-primary hover:bg-primary hover:text-primary-foreground"
         variant="outline"
       >
         <Plus className="w-4 h-4 mr-2" /> เพิ่มตัวกรอง
       </Button>
 
-      {/* ปรับสีปุ่มค้นหาให้เป็นสีเขียวหลัก (Primary Color) */}
-      <Button
-        onClick={applyFilter}
-        className="w-full bg-[#14532D] hover:bg-[#14532D]/90 text-white"
-      >
+      <Button onClick={applyFilter} className="w-full bg-[#14532D] hover:bg-[#14532D]/90 text-white">
         <Search className="w-4 h-4 mr-2" /> ค้นหา
       </Button>
     </div>
@@ -252,6 +336,7 @@ const SidebarFilters: React.FC<{
 const Treesearch: React.FC = () => {
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(initialFilters);
+  const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState(false);
 
   const applyFilter = () => {
     setAppliedFilters(filters);
@@ -259,90 +344,74 @@ const Treesearch: React.FC = () => {
 
   const filteredSpecies = useMemo(() => {
     return MOCK_DATA.filter(species => {
-      if (appliedFilters.name && !species.thaiName.toLowerCase().includes(appliedFilters.name.toLowerCase())) {
-        return false;
-      }
-      if (appliedFilters.region && species.region !== appliedFilters.region) {
-        return false;
-      }
-      if (appliedFilters.weight && species.weightCategory !== appliedFilters.weight) {
-        return false;
-      }
-      if (appliedFilters.scent && species.scent !== appliedFilters.scent) {
-        return false;
-      }
-      if (appliedFilters.certifiedStatus && species.isCertified !== appliedFilters.certifiedStatus) {
-        return false;
-      }
+      if (appliedFilters.name && !species.thaiName.toLowerCase().includes(appliedFilters.name.toLowerCase())) return false;
+      if (appliedFilters.region && species.region !== appliedFilters.region) return false;
+      if (appliedFilters.weight && species.weightCategory !== appliedFilters.weight) return false;
+      if (appliedFilters.scent && species.scent !== appliedFilters.scent) return false;
+      if (appliedFilters.certifiedStatus && species.isCertified !== appliedFilters.certifiedStatus) return false;
+      if (appliedFilters.texture && species.texture !== appliedFilters.texture) return false;
+      if (appliedFilters.durability && species.durability !== appliedFilters.durability) return false;
+
       return true;
     });
   }, [appliedFilters]);
 
-  const navItems = ['ภาพรวม', 'อบรม', 'พันธุ์ไม้', 'ผู้ใช้งาน'];
-
   return (
-    // ลบ class ที่จัดการ layout หลักออก แล้วห่อด้วย div ธรรมดา
     <div className="bg-white">
+      <Navbar
+        items={[
+          { key: "overview", label: "ภาพรวม", href: "/users" },
+          { key: "training", label: "อบรม", href: "/users/training" },
+          { key: "species", label: "พันธุ์ไม้", href: "/tree/treesearch" },
+          { key: "users", label: "ผู้ใช้งาน", href: "/users/manage" },
+        ]}
+        topOffsetClassName="top-16"
+      />
 
-      {/* 🛑 เพิ่ม Sub-Navigation Bar 🛑 */}
-      <nav className="bg-white border-b border-emerald-100 shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex space-x-4">
-            {navItems.map((item) => (
-              <a
-                key={item}
-                href="#"
-                className={`py-3 px-4 text-sm font-medium transition-colors ${item === 'พันธุ์ไม้'
-                    ? 'border-b-2 border-[#14532D] text-[#14532D]'
-                    : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                {item}
-              </a>
-            ))}
-          </div>
-        </div>
-      </nav>
-
-      {/* ปรับปรุง main ให้เป็นเพียงเนื้อหาหลัก */}
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-foreground">ข้อมูลพันธุ์ไม้</h1>
-          {/* ปรับสีปุ่ม 'เพิ่มพันธุ์ไม้' ให้เป็นสีเขียวหลัก */}
           <Button className="bg-[#14532D] hover:bg-[#14532D]/90 text-white">
             <Plus className="w-4 h-4 mr-2" /> เพิ่มพันธุ์ไม้
           </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
           <div className="lg:col-span-3">
-            <div className="mb-4">
-              <span className="text-muted-foreground text-sm">
-                แสดงผล {filteredSpecies.length} จาก {MOCK_DATA.length} รายการ
-              </span>
+            <div className="mb-4 text-muted-foreground text-sm">
+              แสดงผล {filteredSpecies.length} จาก {MOCK_DATA.length} รายการ
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredSpecies.map(species => (
                 <WoodCard key={species.id} species={species} />
               ))}
-
               {filteredSpecies.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <p className="text-muted-foreground">ไม่พบพันธุ์ไม้ที่ตรงกับเงื่อนไขการค้นหา</p>
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  ไม่พบพันธุ์ไม้ที่ตรงกับเงื่อนไขการค้นหา
                 </div>
               )}
             </div>
           </div>
 
-
           <div className="lg:col-span-1">
-            <SidebarFilters filters={filters} setFilters={setFilters} applyFilter={applyFilter} />
+            <SidebarFilters
+              filters={filters}
+              setFilters={setFilters}
+              applyFilter={applyFilter}
+              onOpenMoreFilters={() => setIsMoreFiltersOpen(true)}
+            />
           </div>
         </div>
       </main>
 
+      <MoreFiltersDialog
+        isOpen={isMoreFiltersOpen}
+        onClose={() => setIsMoreFiltersOpen(false)}
+        filters={filters}
+        setFilters={setFilters}
+        applyFilter={applyFilter}
+      />
     </div>
   );
 };
