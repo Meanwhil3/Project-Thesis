@@ -11,10 +11,10 @@ export default function Page() {
 
       <Navbar
         items={[
-          { key: "overview", label: "ภาพรวม", href: "/users" },
+          { key: "overview", label: "ภาพรวม", href: "/login" },
           { key: "training", label: "อบรม", href: "/users/training" },
           { key: "species", label: "พันธุ์ไม้", href: "/tree/treesearch" },
-          { key: "users", label: "ผู้ใช้งาน", href: "/users/manage" },
+          { key: "users", label: "ผู้ใช้งาน", href: "/users" },
         ]}
         topOffsetClassName="top-16"
       />
