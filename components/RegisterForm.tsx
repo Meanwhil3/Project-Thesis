@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link"; // **เพิ่ม Link**
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "กรุณากรอกชื่อ"),
   lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
   email: z.string().email("กรุณากรอกอีเมลที่ถูกต้อง"),
-  password: z.string().min(6, "รหัสผ่านต้องมีความยาวมากกว่า 6 ตัวอักษร"),
-  agreeTerms: z.boolean().refine((val) => val === true, "กรุณายอมรับเงื่อนไขการใช้งาน"),
+  password: z.string().min(6, "รหัสผ่านต้องมีความยาวมากกว่า 6 ตัวอักษร")
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -33,9 +35,48 @@ export const RegisterForm: React.FC = () => {
     defaultValues: { agreeTerms: false },
   });
 
-  const onSubmit = (data: RegisterFormData) => {
-    console.log("Registration data:", data);
-  };
+const router = useRouter();
+
+const onSubmit = async (data: RegisterFormData) => {
+  try {
+    // 1) Register
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        password: data.password,
+      }),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.message || "Register failed");
+    }
+
+    // 2) Auto login (Credentials)
+    const loginRes = await signIn("credentials", {
+      email: data.email,
+      password: data.password,
+      redirect: false, // เราคุมเอง
+    });
+
+    if (!loginRes?.ok) {
+      throw new Error("สมัครสำเร็จ แต่เข้าสู่ระบบไม่สำเร็จ");
+    }
+
+    // 3) Redirect หลัง login
+    router.push("/tree/treesearch");
+    router.refresh();
+  } catch (err: any) {
+    alert(err.message);
+  }
+};
+
+
 
   const handleTermsChange = (checked: boolean) => {
     setAgreeTerms(checked);
@@ -135,16 +176,14 @@ export const RegisterForm: React.FC = () => {
             <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
           )}
         </div>
-
         
+<button
+  type="submit"
+  className="w-full h-12 bg-green-600 text-white rounded-lg cursor-pointer"
+>
+  ลงทะเบียน
+</button>
 
-        
-        <Button
-          type="submit"
-          className="w-full h-12 bg-green-600 hover:bg-brand-green/90 text-white font-medium rounded-lg"
-        >
-          ลงทะเบียน
-        </Button>
       </form> 
       
       

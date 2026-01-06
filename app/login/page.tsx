@@ -1,5 +1,5 @@
 import WoodCertifyLogo from "@/components/woodlogo";
-import LoginForm from "@/components/loginform";
+import LoginForm from "@/components/LoginForm";
 import { GiTreeBranch } from "react-icons/gi";
 
 const Index = () => {
