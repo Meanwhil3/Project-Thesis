@@ -1,43 +1,45 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+type UiRole = "admin" | "examiner" | "trainee";
+type UiStatus = "active" | "blocked";
 
 export async function GET() {
   const users = await prisma.user.findMany({
-    orderBy: { created_at: "desc" },
+    where: { deleted_at: null },
+    orderBy: [{ created_at: "desc" }, { user_id: "desc" }],
     select: {
-      id: true,
+      user_id: true,
       first_name: true,
       last_name: true,
       email: true,
+      is_active: true,
       created_at: true,
-      is_active: true, // 1/0 หรือ boolean ตาม schema
-      role: true,      // ถ้าเป็น string enum เช่น "ADMIN" / "EXAMINER" / "TRAINEE"
+      role: { select: { name: true } },
     },
   });
 
   const data = users.map((u) => ({
-    id: u.id,
-    fullName: `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim(),
+    id: u.user_id.toString(), // ✅ BigInt -> string
+    fullName: `${u.first_name} ${u.last_name}`.trim(),
     email: u.email,
-    joinedAt: new Date(u.created_at).toLocaleDateString("th-TH"),
-    role: normalizeRole(u.role),
-    status: normalizeStatus(u.is_active),
+    joinedAt: formatTHDate(u.created_at),
+    role: normalizeRole(u.role?.name),
+    status: (u.is_active ?? false) ? ("active" as UiStatus) : ("blocked" as UiStatus),
   }));
 
   return NextResponse.json({ data });
 }
 
-function normalizeStatus(isActive: any): "active" | "blocked" {
-  // รองรับทั้ง boolean และ 1/0
-  const v = typeof isActive === "boolean" ? isActive : Number(isActive) === 1;
-  return v ? "active" : "blocked";
+function formatTHDate(d: Date | null) {
+  if (!d) return "-";
+  return d.toLocaleDateString("th-TH");
 }
 
-function normalizeRole(role: any): "admin" | "examiner" | "trainee" {
-  const r = String(role ?? "").toLowerCase();
-  if (r.includes("admin")) return "admin";
-  if (r.includes("exam")) return "examiner";
+function normalizeRole(name?: string | null): UiRole {
+  const r = String(name ?? "").toLowerCase();
+  // รองรับชื่อ role ได้ทั้งไทย/อังกฤษ
+  if (r.includes("admin") || r.includes("ผู้ดูแล")) return "admin";
+  if (r.includes("examiner") || r.includes("ผู้สอบ")) return "examiner";
   return "trainee";
 }

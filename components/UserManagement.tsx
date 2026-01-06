@@ -5,12 +5,13 @@ import { Search, Pencil, Ban, Trash2, Users } from "lucide-react";
 import { BiBlock } from "react-icons/bi";
 import ConfirmModal from "@/components/modals/ConfirmModal";
 import EditUserModal from "@/components/modals/EditUserModal";
+import { useEffect } from "react";
 
 export type Role = "admin" | "examiner" | "trainee";
 export type Status = "active" | "blocked";
 
 export interface UserItem {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   joinedAt: string;
@@ -18,32 +19,8 @@ export interface UserItem {
   status: Status;
 }
 
-const defaultUsers: UserItem[] = [
-  {
-    id: 1,
-    fullName: "นางสาวสวัสดี วันจันทร์",
-    email: "hellomonday@gmail.com",
-    joinedAt: "25/10/2567",
-    role: "admin",
-    status: "active",
-  },
-  {
-    id: 2,
-    fullName: "นายอังคาร ลานวัด",
-    email: "tuesdaytemple@gmail.com",
-    joinedAt: "11/11/2567",
-    role: "examiner",
-    status: "active",
-  },
-  {
-    id: 3,
-    fullName: "นางพุธ ละมุดอร่อย",
-    email: "wednesdaylamud@gmail.com",
-    joinedAt: "10/12/2567",
-    role: "trainee",
-    status: "blocked",
-  },
-];
+
+
 
 const roleOptions: { value: "all" | Role; label: string }[] = [
   { value: "all", label: "บทบาท" },
@@ -59,7 +36,7 @@ const statusOptions: { value: "all" | Status; label: string }[] = [
 ];
 
 export default function UserManagement({
-  users = defaultUsers,
+  users = [],
   title = "จัดการผู้ใช้งาน",
 }: {
   users?: UserItem[];
@@ -68,18 +45,32 @@ export default function UserManagement({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | Role>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
-  const [userList, setUserList] = useState<UserItem[]>(users);
-
+  const [userList, setUserList] = useState<UserItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const totalUsers = userList.length;
   const blockedCount = userList.filter((u) => u.status === "blocked").length;
   const [editOpen, setEditOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserItem | null>(null);
-
+  
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/users", { cache: "no-store" });
+      const json = await res.json();
+      setUserList(json.data ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
   const filteredUsers = useMemo(() => {
     const q = search.toLowerCase();
     return userList.filter((u) => {
       const matchesSearch =
-        u.fullName.toLowerCase().includes(q) ||
+      u.fullName.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q);
       const matchesRole = roleFilter === "all" || u.role === roleFilter;
       const matchesStatus = statusFilter === "all" || u.status === statusFilter;
@@ -123,37 +114,50 @@ export default function UserManagement({
     setEditOpen(false);
   }, []);
 
-  const saveEditUser = useCallback(
-    (updated: UserItem) => {
-      setUserList((prev) =>
-        prev.map((u) => (u.id === updated.id ? updated : u))
-      );
-      closeEditModal();
-    },
-    [closeEditModal]
-  );
+const saveEditUser = useCallback(
+  async (updated: UserItem) => {
+    await fetch(`/api/admin/users/${updated.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: updated.fullName,
+        role: updated.role,
+        status: updated.status,
+      }),
+    });
 
-  const confirmAction = useCallback(() => {
-    if (!targetUser || !pendingAction) return;
+    closeEditModal();
+    await fetchUsers();
+  },
+  [closeEditModal, fetchUsers]
+);
 
-    if (pendingAction === "delete") {
-      setUserList((prev) => prev.filter((x) => x.id !== targetUser.id));
-      closeModal();
-      return;
-    }
 
-    if (pendingAction === "toggleStatus") {
-      setUserList((prev) =>
-        prev.map((x) =>
-          x.id === targetUser.id
-            ? { ...x, status: x.status === "active" ? "blocked" : "active" }
-            : x
-        )
-      );
-      closeModal();
-      return;
-    }
-  }, [targetUser, pendingAction, closeModal]);
+const confirmAction = useCallback(async () => {
+  if (!targetUser || !pendingAction) return;
+
+  if (pendingAction === "delete") {
+    await fetch(`/api/admin/users/${targetUser.id}`, { method: "DELETE" });
+    closeModal();
+    await fetchUsers();
+    return;
+  }
+
+  if (pendingAction === "toggleStatus") {
+    const nextStatus: Status =
+      targetUser.status === "active" ? "blocked" : "active";
+
+    await fetch(`/api/admin/users/${targetUser.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+
+    closeModal();
+    await fetchUsers();
+  }
+}, [targetUser, pendingAction, closeModal, fetchUsers]);
+
 
   const isTargetActive = targetUser?.status === "active";
 
@@ -245,6 +249,7 @@ export default function UserManagement({
             </p>
           )}
         </div>
+        
 
         {/* Modal */}
         <ConfirmModal
