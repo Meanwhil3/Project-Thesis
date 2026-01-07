@@ -121,7 +121,7 @@ export default function AddWoodPage() {
                 <Label>น้ำหนักไม้</Label>
                 <Select name="wood_weight">
                   <SelectTrigger><SelectValue placeholder="เลือก..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white border-border shadow-lg">
                     <SelectItem value="LIGHT">LIGHT (เบา)</SelectItem>
                     <SelectItem value="MEDIUM">MEDIUM (ปานกลาง)</SelectItem>
                     <SelectItem value="HEAVY">HEAVY (หนัก)</SelectItem>
@@ -165,7 +165,7 @@ export default function AddWoodPage() {
                 <Label>จำนวนรังสี (ต่อ มม.)</Label>
                 <Select name="rays_per_mm">
                   <SelectTrigger><SelectValue placeholder="เลือก..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white border-border shadow-lg">
                     <SelectItem value="LOW">LOW</SelectItem>
                     <SelectItem value="MEDIUM">MEDIUM</SelectItem>
                     <SelectItem value="HIGH">HIGH</SelectItem>
