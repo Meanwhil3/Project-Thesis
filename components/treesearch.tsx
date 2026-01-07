@@ -14,8 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Navbar from "@/components/์Navbar";
+import Link from 'next/link';
 
 // --- Types สำหรับข้อมูลจาก DB ---
+interface WoodImage {
+  image_url: string;
+  image_description?: string | null;
+}
+
 interface WoodFromDB {
   wood_id: string;
   scientific_name: string | null;
@@ -25,7 +31,8 @@ interface WoodFromDB {
   wood_odor: string | null;
   wood_Texture: string | null;
   growth_rings: string | null;
-  image: string;
+  // เปลี่ยนจาก image: string เป็น images array
+  images: WoodImage[];
 }
 
 interface FilterState {
@@ -51,32 +58,49 @@ const initialFilters: FilterState = {
 };
 
 // --- WoodCard Component ---
-const WoodCard: React.FC<{ wood: WoodFromDB }> = ({ wood }) => (
-  <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden hover:shadow-md transition-shadow">
-    <div className="h-40 overflow-hidden bg-muted">
-      <img
-        src={wood.image}
-        alt={wood.common_name || "wood texture"}
-        className="w-full h-full object-cover"
-      />
-    </div>
-    <div className="p-4">
-      <h3 className="text-base font-semibold text-foreground mb-1">{wood.common_name || 'ไม่ทราบชื่อ'}</h3>
-      <p className="text-xs text-muted-foreground italic truncate mb-3">{wood.scientific_name || 'N/A'}</p>
-      <div className="flex justify-center gap-4 pt-2 border-t border-border">
-        <button className="text-destructive hover:text-destructive/80 transition-colors">
-          <Trash2 className="h-4 w-4 text-[#DC2626]" />
-        </button>
-        <button className="text-muted-foreground hover:text-foreground transition-colors">
-          <Eye className="w-4 h-4" />
-        </button>
-        <button className="text-primary hover:text-primary/80 transition-colors">
-          <Edit className="w-4 h-4 text-[#16A34A]" />
-        </button>
+const WoodCard: React.FC<{ wood: WoodFromDB }> = ({ wood }) => {
+  // ดึง URL รูปภาพจาก Array images ตัวแรก
+  // ถ้าไม่มีรูปใน Array หรือไม่มีก้อน images เลย ให้ใช้รูป default
+  const displayImage = wood.images && wood.images.length > 0
+    ? wood.images[0].image_url
+    : '/image/woods/default.jpg';
+
+  return (
+    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden hover:shadow-md transition-shadow">
+      <div className="h-40 overflow-hidden bg-muted">
+        <img
+          src={displayImage}
+          alt={wood.common_name || "wood texture"}
+          className="w-full h-full object-cover"
+          // ป้องกันรูปแตกด้วยการใส่ placeholder หากหาไฟล์ local ไม่เจอ
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=No+Image';
+          }}
+        />
+      </div>
+      <div className="p-4">
+        <h3 className="text-base font-semibold text-foreground mb-1">
+          {wood.common_name || 'ไม่ทราบชื่อ'}
+        </h3>
+        <p className="text-xs text-muted-foreground italic truncate mb-3">
+          {wood.scientific_name || 'N/A'}
+        </p>
+
+        <div className="flex justify-center gap-4 pt-2 border-t border-border">
+          <button className="text-destructive hover:text-destructive/80 transition-colors">
+            <Trash2 className="h-4 w-4 text-[#DC2626]" />
+          </button>
+          <button className="text-muted-foreground hover:text-foreground transition-colors">
+            <Eye className="w-4 h-4" />
+          </button>
+          <button className="text-primary hover:text-primary/80 transition-colors">
+            <Edit className="w-4 h-4 text-[#16A34A]" />
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // --- MoreFiltersDialog (อันเดิมของคุณ) ---
 const MoreFiltersDialog: React.FC<{
@@ -336,9 +360,13 @@ const Treesearch: React.FC = () => {
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-foreground">ข้อมูลพันธุ์ไม้</h1>
-          <Button className="bg-[#14532D] hover:bg-[#14532D]/90 text-white">
-            <Plus className="w-4 h-4 mr-2" /> เพิ่มพันธุ์ไม้
-          </Button>
+
+          {/* เปลี่ยนจาก <Button> เฉยๆ เป็นการใช้ <Link> ครอบ */}
+          <Link href="/tree/addtree">
+            <Button className="bg-[#14532D] hover:bg-[#14532D]/90 text-white cursor-pointer">
+              <Plus className="w-4 h-4 mr-2" /> เพิ่มพันธุ์ไม้
+            </Button>
+          </Link>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3">

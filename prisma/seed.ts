@@ -45,7 +45,7 @@ async function main() {
       images: {
         create: [
           {
-            image_url: 'https://placehold.co/600x400/8B4513/white?text=กะทังหัน',
+            image_url: '/images/woods/test1.jpg',
             image_description: 'ลายเนื้อไม้กะทังหัน',
             date_added: new Date(),
           },
@@ -72,7 +72,7 @@ async function main() {
       images: {
         create: [
           {
-            image_url: 'https://placehold.co/600x400/5C4033/white?text=สมอไทย',
+            image_url: '/images/woods/test2.jpg',
             image_description: 'ลายเนื้อไม้สมอไทย',
             date_added: new Date(),
           },
