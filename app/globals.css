@@ -4,6 +4,7 @@
 @layer base {
   html, body {
     @apply h-full min-h-screen overflow-x-hidden;
+    overflow-y: scroll;
   }
 
   body {
