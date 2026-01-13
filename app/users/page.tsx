@@ -12,7 +12,7 @@ export default function Page() {
       <Navbar
         items={[
           { key: "overview", label: "ภาพรวม", href: "/login" },
-          { key: "training", label: "อบรม", href: "/users/training" },
+          { key: "training", label: "อบรม", href: "/admin/courses" },
           { key: "species", label: "พันธุ์ไม้", href: "/tree/treesearch" },
           { key: "users", label: "ผู้ใช้งาน", href: "/users" },
         ]}

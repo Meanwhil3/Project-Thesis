@@ -32,14 +32,13 @@ export const RegisterForm: React.FC = () => {
     setValue,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { agreeTerms: false },
   });
 
 const router = useRouter();
 
 const onSubmit = async (data: RegisterFormData) => {
   try {
-    // 1) Register
+    //Register
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -57,18 +56,16 @@ const onSubmit = async (data: RegisterFormData) => {
       throw new Error(result.message || "Register failed");
     }
 
-    // 2) Auto login (Credentials)
     const loginRes = await signIn("credentials", {
       email: data.email,
       password: data.password,
-      redirect: false, // เราคุมเอง
+      redirect: false,
     });
 
     if (!loginRes?.ok) {
       throw new Error("สมัครสำเร็จ แต่เข้าสู่ระบบไม่สำเร็จ");
     }
 
-    // 3) Redirect หลัง login
     router.push("/tree/treesearch");
     router.refresh();
   } catch (err: any) {
@@ -76,12 +73,10 @@ const onSubmit = async (data: RegisterFormData) => {
   }
 };
 
-
-
-  const handleTermsChange = (checked: boolean) => {
-    setAgreeTerms(checked);
-    setValue("agreeTerms", checked);
-  };
+  // const handleTermsChange = (checked: boolean) => {
+  //   setAgreeTerms(checked);
+  //   setValue("agreeTerms", checked);
+  // };
 
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-xl p-8 shadow-lg">
@@ -91,7 +86,6 @@ const onSubmit = async (data: RegisterFormData) => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Label htmlFor="firstName" className="text-card-foreground font-medium">
