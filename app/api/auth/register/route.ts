@@ -27,6 +27,18 @@ export async function POST(req: Request) {
       );
     }
 
+    const traineeRole = await prisma.role.findUnique({
+      where: { name: "TRAINEE" },
+      select: { role_id: true },
+    });
+
+    if (!traineeRole) {
+      return NextResponse.json(
+        { message: "Role TRAINEE not found in system" },
+        { status: 500 }
+      );
+    }
+
     // check duplicate email
     const existing = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -50,11 +62,9 @@ export async function POST(req: Request) {
         last_name: String(last_name).trim(),
         email: normalizedEmail,
         password: hashed,
-        // คุณตั้ง default ไว้ false ใน schema
-        // ถ้าต้องการ "สมัครแล้วเข้าได้ทันที" ให้เปลี่ยนเป็น true
         is_active: true,
-        // created_at ถ้า DB ไม่ auto ใส่ให้ ให้เปิดใช้บรรทัดนี้
-        // created_at: new Date(),
+        role_id: traineeRole.role_id,
+        created_at: new Date(),
       },
       select: {
         user_id: true,

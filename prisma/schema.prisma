@@ -67,7 +67,7 @@ model User {
   email        String    @unique @db.VarChar(255)
   password     String    @db.Text
   is_active    Boolean?  @default(false)
-  created_at   DateTime? @db.Timestamptz
+  created_at   DateTime @db.Timestamptz @default(now())
   deleted_at   DateTime? @db.Timestamptz
 
   role         Role?     @relation(fields: [role_id], references: [role_id])

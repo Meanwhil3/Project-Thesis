@@ -1,19 +1,34 @@
+// /api/admin/users/[id]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 type UiRole = "admin" | "examiner" | "trainee";
 type UiStatus = "active" | "blocked";
 
+const ROLE_NAME_MAP: Record<UiRole, "ADMIN" | "EXAMINER" | "TRAINEE"> = {
+  admin: "ADMIN",
+  examiner: "EXAMINER",
+  trainee: "TRAINEE",
+};
+
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const userId = BigInt(params.id);
-  const body = (await req.json()) as Partial<{
-    fullName: string;
-    role: UiRole;
-    status: UiStatus;
-  }>;
+  let userId: bigint;
+  try {
+    userId = BigInt(params.id);
+  } catch {
+    return NextResponse.json({ message: "Invalid user id" }, { status: 400 });
+  }
+
+  const body = (await req.json().catch(() => null)) as
+    | Partial<{ fullName: string; role: UiRole; status: UiStatus }>
+    | null;
+
+  if (!body) {
+    return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
+  }
 
   const data: {
     first_name?: string;
@@ -29,11 +44,31 @@ export async function PATCH(
   }
 
   if (typeof body.status === "string") {
+    if (body.status !== "active" && body.status !== "blocked") {
+      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
+    }
     data.is_active = body.status === "active";
   }
 
   if (typeof body.role === "string") {
-    data.role_id = await resolveRoleId(body.role);
+    if (body.role !== "admin" && body.role !== "examiner" && body.role !== "trainee") {
+      return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+    }
+
+    const roleName = ROLE_NAME_MAP[body.role];
+    const role = await prisma.role.findUnique({
+      where: { name: roleName },
+      select: { role_id: true },
+    });
+
+    if (!role) {
+      return NextResponse.json(
+        { message: `Role '${roleName}' not found in DB. Please seed Role table.` },
+        { status: 400 }
+      );
+    }
+
+    data.role_id = role.role_id;
   }
 
   await prisma.user.update({
@@ -48,39 +83,17 @@ export async function DELETE(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
-  const userId = BigInt(params.id);
+  let userId: bigint;
+  try {
+    userId = BigInt(params.id);
+  } catch {
+    return NextResponse.json({ message: "Invalid user id" }, { status: 400 });
+  }
 
-  // ✅ Soft delete ตาม schema
   await prisma.user.update({
     where: { user_id: userId },
     data: { deleted_at: new Date() },
   });
 
   return NextResponse.json({ ok: true });
-}
-
-async function resolveRoleId(role: UiRole): Promise<bigint> {
-  // ปรับ mapping ตามค่า Role.name ใน DB ของคุณ
-  const candidates =
-    role === "admin"
-      ? ["ADMIN", "admin", "ผู้ดูแล", "ผู้ดูแลระบบ"]
-      : role === "examiner"
-      ? ["EXAMINER", "examiner", "ผู้สอบ"]
-      : ["TRAINEE", "trainee", "ผู้อบรม"];
-
-  const found = await prisma.role.findFirst({
-    where: {
-      OR: candidates.map((name) => ({
-        name: { equals: name, mode: "insensitive" as const },
-      })),
-    },
-    select: { role_id: true },
-  });
-
-  if (!found) {
-    // อย่าเงียบ ให้รู้ว่า DB ไม่มี role นี้จริง
-    throw new Error(`Role not found for UI role: ${role}`);
-  }
-
-  return found.role_id;
 }
