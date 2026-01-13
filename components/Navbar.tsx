@@ -87,7 +87,7 @@ export default function Navbar({
   return (
     <div
       className={cn(
-        "sticky z-50 w-full transition-transform duration-300 will-change-transform",
+        "sticky z-100 w-full transition-transform duration-300 will-change-transform",
         topOffsetClassName,
         isVisible ? "translate-y-0" : "-translate-y-[120%]"
       )}
