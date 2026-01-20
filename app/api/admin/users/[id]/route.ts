@@ -2,12 +2,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-type UiRole = "admin" | "examiner" | "trainee";
+type UiRole = "admin" | "instructor" | "trainee";
 type UiStatus = "active" | "blocked";
 
-const ROLE_NAME_MAP: Record<UiRole, "ADMIN" | "EXAMINER" | "TRAINEE"> = {
+const ROLE_NAME_MAP: Record<UiRole, "ADMIN" | "INSTRUCTOR" | "TRAINEE"> = {
   admin: "ADMIN",
-  examiner: "EXAMINER",
+  instructor: "INSTRUCTOR",
   trainee: "TRAINEE",
 };
 
@@ -22,9 +22,11 @@ export async function PATCH(
     return NextResponse.json({ message: "Invalid user id" }, { status: 400 });
   }
 
-  const body = (await req.json().catch(() => null)) as
-    | Partial<{ fullName: string; role: UiRole; status: UiStatus }>
-    | null;
+  const body = (await req.json().catch(() => null)) as Partial<{
+    fullName: string;
+    role: UiRole;
+    status: UiStatus;
+  }> | null;
 
   if (!body) {
     return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
@@ -51,7 +53,11 @@ export async function PATCH(
   }
 
   if (typeof body.role === "string") {
-    if (body.role !== "admin" && body.role !== "examiner" && body.role !== "trainee") {
+    if (
+      body.role !== "admin" &&
+      body.role !== "instructor" &&
+      body.role !== "trainee"
+    ) {
       return NextResponse.json({ message: "Invalid role" }, { status: 400 });
     }
 
@@ -63,7 +69,9 @@ export async function PATCH(
 
     if (!role) {
       return NextResponse.json(
-        { message: `Role '${roleName}' not found in DB. Please seed Role table.` },
+        {
+          message: `Role '${roleName}' not found in DB. Please seed Role table.`,
+        },
         { status: 400 }
       );
     }

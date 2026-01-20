@@ -2,11 +2,15 @@
 @import "tw-animate-css";
 
 @layer base {
-  html, body {
+  html {
     @apply h-full min-h-screen overflow-x-hidden overflow-y-scroll;
+    scrollbar-gutter: stable;
   }
 
   body {
-    @apply bg-[linear-gradient(117deg,_#E9FFEE_0%,_#FFFBE3_100%)] font-[var(--font-kanit)];
+    @apply h-full min-h-screen overflow-x-hidden
+      bg-[linear-gradient(117deg,_#E9FFEE_0%,_#FFFBE3_100%)]
+      font-[var(--font-kanit)];
   }
 }
+

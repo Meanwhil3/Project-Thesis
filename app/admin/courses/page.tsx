@@ -1,4 +1,4 @@
-import UserManagement from "@/components/UserManagement";
+import CourseManagement from "@/components/Courses/CoursesManagement";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
@@ -19,9 +19,9 @@ export default function Page() {
       />
 
       <main className="flex-1 overflow-y-auto">
-        <UserManagement />
+        <CourseManagement />
+        <Footer />
       </main>
-      <Footer />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import ConfirmModal from "@/components/modals/ConfirmModal";
 import EditUserModal from "@/components/modals/EditUserModal";
 
 
-export type Role = "admin" | "examiner" | "trainee";
+export type Role = "admin" | "instructor" | "trainee";
 export type Status = "active" | "blocked";
 
 export interface UserItem {
@@ -22,9 +22,9 @@ export interface UserItem {
 
 const roleOptions: SelectOption<"all" | Role>[] = [
   { value: "all", label: "บทบาท" },
-  { value: "admin", label: "ผู้ดูแล" },
-  { value: "examiner", label: "ผู้สอบ" },
-  { value: "trainee", label: "ผู้อบรม" },
+  { value: "admin", label: "ผู้ดูแลระบบ" },
+  { value: "instructor", label: "ผู้สอน" },
+  { value: "trainee", label: "ผู้เรียน" },
 ];
 
 const statusOptions: SelectOption<"all" | Status>[] = [
@@ -369,7 +369,7 @@ function UserCard({
           </div>
 
           <div className="flex h-7 items-center rounded-full border border-black/15 bg-white px-4 text-xs text-black">
-            {user.role === "admin" ? "Admin" : user.role === "examiner" ? "ผู้สอบ" : "ผู้อบรม"}
+            {user.role === "admin" ? "Admin" : user.role === "instructor" ? "ผู้สอน" : "ผู้อบรม"}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
