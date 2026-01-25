@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, X, Save, ChevronRight, Microscope, TreeDeciduous, Info } from 'lucide-react'; // แก้ไขชื่อ Navbar ให้ถูกต้อง
-import Navbar from "@/components/์Navbar";
+import Navbar from "@/components/Navbar";
 
 
 export default function AddWoodPage() {
