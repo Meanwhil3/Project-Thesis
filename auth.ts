@@ -15,7 +15,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email?.trim();
+        const email = credentials?.email?.trim().toLowerCase();;
         const password = credentials?.password;
         if (!email || !password) return null;
 
@@ -38,7 +38,7 @@ export const authOptions: NextAuthOptions = {
         if (!ok) return null;
 
         return {
-          id: user.user_id.toString(), // BigInt -> string (สำคัญ)
+          id: user.user_id.toString(),
           email: user.email,
           name: `${user.first_name} ${user.last_name}`,
         };

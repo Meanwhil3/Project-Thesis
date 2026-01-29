@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   Image as ImageIcon,
@@ -20,8 +21,7 @@ type CourseFormState = {
   title: string;
   subtitle: string;
   imageUrl: string;
-  location: string;
-  locationPlaceId: string;
+  location: string; // เก็บเป็นข้อความอย่างเดียว
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   status: CourseStatus;
@@ -32,7 +32,6 @@ const initialState: CourseFormState = {
   subtitle: "",
   imageUrl: "https://placehold.co/760x380",
   location: "",
-  locationPlaceId: "",
   startDate: "",
   endDate: "",
   status: "open",
@@ -45,6 +44,14 @@ function toThaiDateRange(start: string, end: string) {
   return `${start} - ${end}`;
 }
 
+// ลิงก์เปิด Google Maps แบบไม่ต้องใช้ API key/billing (เป็น URL search ธรรมดา)
+function buildGoogleMapsSearchUrl(query: string) {
+  const q = query.trim();
+  if (!q) return "https://www.google.com/maps";
+  const params = new URLSearchParams({ api: "1", query: q });
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
 export default function NewCoursePage() {
   const router = useRouter();
   const [form, setForm] = useState<CourseFormState>(initialState);
@@ -55,7 +62,6 @@ export default function NewCoursePage() {
       subtitle: false,
       imageUrl: false,
       location: false,
-      locationPlaceId: false,
       startDate: false,
       endDate: false,
       status: false,
@@ -80,14 +86,16 @@ export default function NewCoursePage() {
 
   const isValid = Object.keys(errors).length === 0;
 
-  function setField<K extends keyof CourseFormState>(key: K, value: CourseFormState[K]) {
+  function setField<K extends keyof CourseFormState>(
+    key: K,
+    value: CourseFormState[K]
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // mark touched
     setTouched((prev) => ({
       ...prev,
       title: true,
@@ -104,15 +112,23 @@ export default function NewCoursePage() {
     try {
       setSubmitting(true);
 
-      // TODO: ถ้ามี API แล้วให้เปิดใช้ fetch ส่วนนี้
+      // ส่งเฉพาะฟิลด์ที่จำเป็น (ไม่มี placeId แล้ว)
+      const payload = {
+        title: form.title,
+        subtitle: form.subtitle,
+        imageUrl: form.imageUrl,
+        location: form.location,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        status: form.status,
+      };
+
       const res = await fetch("/api/admin/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Create course failed");
-
-      console.log("CREATE COURSE:", form);
 
       router.push("/admin/courses");
       router.refresh();
@@ -155,6 +171,7 @@ export default function NewCoursePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          {/* Form */}
           <form
             onSubmit={onSubmit}
             className="rounded-2xl border border-[#CDE3BD] bg-white p-6 shadow-[0_0_4px_0_#CAE0BC]/50"
@@ -187,15 +204,15 @@ export default function NewCoursePage() {
                 onChange={(v) => setField("imageUrl", v)}
               />
 
+              {/* ✅ สถานที่เป็นข้อความ + แนะนำ format */}
               <Field
                 label="สถานที่"
                 icon={MapPin}
                 value={form.location}
-                placeholder="เช่น ห้องประชุม A / M 02"
+                placeholder="เช่น อาคาร A ชั้น 2 ห้องประชุม 201 (กรม/หน่วยงาน...)"
                 error={touched.location ? errors.location : undefined}
                 onChange={(v) => setField("location", v)}
               />
-              
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <DateField
@@ -282,7 +299,9 @@ export default function NewCoursePage() {
                     <span
                       className={[
                         "h-2 w-2 rounded-full",
-                        form.status === "open" ? "bg-[#16A34A]" : "bg-[#9CA3AF]",
+                        form.status === "open"
+                          ? "bg-[#16A34A]"
+                          : "bg-[#9CA3AF]",
                       ].join(" ")}
                     />
                     {form.status === "open" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
@@ -301,19 +320,33 @@ export default function NewCoursePage() {
                 <div className="mt-4 space-y-2 text-[13px] font-medium leading-[20px] text-[#111827]">
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-[#16A34A]" />
-                    <span>{toThaiDateRange(form.startDate, form.endDate) || "ช่วงวันที่อบรม"}</span>
+                    <span>
+                      {toThaiDateRange(form.startDate, form.endDate) ||
+                        "ช่วงวันที่อบรม"}
+                    </span>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-[#16A34A]" />
-                    <span>{form.location.trim() || "สถานที่อบรม"}</span>
+                    <MapPin className="h-4 w-4 shrink-0 text-[#16A34A]" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {form.location.trim() || "สถานที่อบรม"}
+                    </span>
+
+                    {form.location.trim() && (
+                      <a
+                        href={buildGoogleMapsSearchUrl(form.location)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#CDE3BD] bg-white px-3 py-1 text-xs font-semibold text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/40 transition hover:bg-[#F6FBF6]"
+                      >
+                        เปิดในแผนที่
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-
-            <p className="mt-4 text-xs text-[#6E8E59]">
-              * หลังคุณผูก API/DB แล้ว ค่อยให้พรีวิวแสดงข้อมูลจริง + อัปโหลดรูปได้
-            </p>
           </div>
         </div>
       </main>
@@ -422,14 +455,7 @@ function StatusChip({
           : "border-[#CDE3BD] bg-white hover:bg-[#F6FBF6]",
       ].join(" ")}
     >
-      <p
-        className={[
-          "text-sm font-semibold",
-          active ? "text-[#14532D]" : "text-[#14532D]",
-        ].join(" ")}
-      >
-        {title}
-      </p>
+      <p className="text-sm font-semibold text-[#14532D]">{title}</p>
       <p className="mt-1 text-xs text-[#6E8E59]">{desc}</p>
     </button>
   );
