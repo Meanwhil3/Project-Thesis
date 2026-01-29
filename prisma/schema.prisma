@@ -60,42 +60,42 @@ model Role {
 }
 
 model User {
-  user_id      BigInt    @id @default(autoincrement())
-  role_id      BigInt?
-  first_name   String    @db.VarChar(120)
-  last_name    String    @db.VarChar(120)
-  email        String    @unique @db.VarChar(255)
-  password     String    @db.Text
-  is_active    Boolean?  @default(false)
-  created_at   DateTime @db.Timestamptz @default(now())
-  deleted_at   DateTime? @db.Timestamptz
+  user_id    BigInt    @id @default(autoincrement())
+  role_id    BigInt?
+  first_name String    @db.VarChar(120)
+  last_name  String    @db.VarChar(120)
+  email      String    @unique @db.VarChar(255)
+  password   String    @db.Text
+  is_active  Boolean?  @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
 
-  role         Role?     @relation(fields: [role_id], references: [role_id])
-  
+  role Role? @relation(fields: [role_id], references: [role_id])
+
   // Relations
-  enrollments    CourseEnrollments[]
-  instructing    Instructor[]
-  announcements  Announcements[]
-  lessons        Lessons[]
-  exams          Exams[]
-  exam_attempts  Exam_Attempts[]
-  woods_created  Wood[]
+  enrollments   CourseEnrollments[]
+  instructing   Instructor[]
+  announcements Announcements[]
+  lessons       Lessons[]
+  exams         Exams[]
+  exam_attempts Exam_Attempts[]
+  woods_created Wood[]
 
   @@map("User")
 }
 
 model Course {
-  course_id          BigInt         @id @default(autoincrement())
-  course_name        String         @db.VarChar(255)
-  enroll_code        String?        @db.VarChar(255)
-  course_description String?        @db.Text
-  image_url          String?        @db.Text
-  location           String?        @db.Text
+  course_id          BigInt        @id @default(autoincrement())
+  course_name        String        @db.VarChar(255)
+  enroll_code        String?       @db.VarChar(255)
+  course_description String?       @db.Text
+  image_url          String?       @db.Text
+  location           String?       @db.Text
   course_status      CourseStatus?
-  start_date         DateTime?      @db.Timestamptz
-  end_date           DateTime?      @db.Timestamptz
-  created_at         DateTime?      @db.Timestamptz
-  deleted_at         DateTime?      @db.Timestamptz
+  start_date         DateTime?     @db.Timestamptz
+  end_date           DateTime?     @db.Timestamptz
+  created_at         DateTime      @default(now()) @db.Timestamptz
+  deleted_at         DateTime?     @db.Timestamptz
 
   enrollments   CourseEnrollments[]
   instructors   Instructor[]
@@ -108,133 +108,147 @@ model Course {
 
 model CourseEnrollments {
   enrollment_id   BigInt    @id @default(autoincrement())
-  user_id         BigInt?
-  course_id       BigInt?
-  enrollment_date DateTime  @db.Timestamptz
+  user_id         BigInt
+  course_id       BigInt
+  enrollment_date DateTime  @default(now()) @db.Timestamptz
   deleted_at      DateTime? @db.Timestamptz
 
-  user            User?     @relation(fields: [user_id], references: [user_id])
-  course          Course?   @relation(fields: [course_id], references: [course_id])
+  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
+  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
 
+  @@unique([user_id, course_id])
+  @@index([course_id])
+  @@index([user_id])
   @@map("Course_Enrollments")
 }
 
 model Instructor {
-  user_id   BigInt
-  course_id BigInt
+  user_id    BigInt
+  course_id  BigInt
+  created_at DateTime  @default(now()) @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
 
-  user      User   @relation(fields: [user_id], references: [user_id])
-  course    Course @relation(fields: [course_id], references: [course_id])
+  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
+  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
 
   @@id([user_id, course_id])
+  @@index([course_id])
   @@map("Instructor")
 }
 
 model Announcements {
   announcement_id BigInt    @id @default(autoincrement())
-  course_id       BigInt?
+  course_id       BigInt
   title           String    @db.Text
   content         String    @db.Text
-  created_at      DateTime  @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
   created_by      BigInt?
   deleted_at      DateTime? @db.Timestamptz
 
-  course          Course?   @relation(fields: [course_id], references: [course_id])
-  author          User?     @relation(fields: [created_by], references: [user_id])
+  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  author User?  @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
 
+  @@index([course_id])
   @@map("Announcements")
 }
 
 model Lessons {
-  lesson_id      BigInt          @id @default(autoincrement())
-  course_id      BigInt?
-  lesson_title   String          @db.Text
-  lesson_content String          @db.Text
+  lesson_id      BigInt        @id @default(autoincrement())
+  course_id      BigInt
+  lesson_title   String        @db.Text
+  lesson_content String        @db.Text
   lesson_status  LessonStatus?
-  created_at     DateTime        @db.Timestamptz
+  created_at     DateTime      @default(now()) @db.Timestamptz
   created_by     BigInt?
-  deleted_at     DateTime?       @db.Timestamptz
+  deleted_at     DateTime?     @db.Timestamptz
 
-  course         Course?         @relation(fields: [course_id], references: [course_id])
-  author         User?           @relation(fields: [created_by], references: [user_id])
-  attachments    Lesson_Attachments[]
+  course      Course               @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  author      User?                @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
+  attachments Lesson_Attachments[]
 
+  @@index([course_id])
   @@map("Lessons")
 }
 
 model Lesson_Attachments {
-  attachment_id BigInt    @id @default(autoincrement())
-  lesson_id     BigInt?
-  display_name  String    @db.VarChar(255)
-  file_path     String    @unique @db.Text
-  file_type     String    @db.Text
-  created_at    DateTime? @db.Timestamptz
+  attachment_id BigInt   @id @default(autoincrement())
+  lesson_id     BigInt
+  display_name  String   @db.VarChar(255)
+  file_path     String   @unique @db.Text
+  file_type     String   @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz
 
-  lesson        Lessons?  @relation(fields: [lesson_id], references: [lesson_id])
+  lesson Lessons @relation(fields: [lesson_id], references: [lesson_id], onDelete: Restrict)
 
+  @@index([lesson_id])
   @@map("Lesson_Attachments")
 }
 
 model Exams {
-  exam_id          BigInt           @id @default(autoincrement())
-  course_id        BigInt?
-  exam_title       String           @db.Text
-  exam_description String?          @db.Text
+  exam_id          BigInt      @id @default(autoincrement())
+  course_id        BigInt
+  exam_title       String      @db.Text
+  exam_description String?     @db.Text
   exam_type        ExamType?
   duration_minute  Int
   exam_status      ExamStatus?
-  created_at       DateTime         @db.Timestamptz
+  created_at       DateTime    @default(now()) @db.Timestamptz
   created_by       BigInt?
-  deleted_at       DateTime?        @db.Timestamptz
+  deleted_at       DateTime?   @db.Timestamptz
 
-  course           Course?          @relation(fields: [course_id], references: [course_id])
-  author           User?            @relation(fields: [created_by], references: [user_id])
-  questions        Questions[]
-  attempts         Exam_Attempts[]
+  course    Course          @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  author    User?           @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
+  questions Questions[]
+  attempts  Exam_Attempts[]
 
+  @@index([course_id])
   @@map("Exams")
 }
 
 model Questions {
   question_id     BigInt    @id @default(autoincrement())
-  exam_id         BigInt?
+  exam_id         BigInt
   score           Int
   question_detail String    @db.Text
-  created_at      DateTime? @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
   deleted_at      DateTime? @db.Timestamptz
 
-  exam            Exams?    @relation(fields: [exam_id], references: [exam_id])
-  choices         Choices[]
+  exam    Exams     @relation(fields: [exam_id], references: [exam_id], onDelete: Restrict)
+  choices Choices[]
 
+  @@index([exam_id])
   @@map("Questions")
 }
 
 model Choices {
   choice_id     BigInt    @id @default(autoincrement())
-  question_id   BigInt?
+  question_id   BigInt
   choice_detail String    @db.Text
-  is_correct    Boolean?
-  created_at    DateTime? @db.Timestamptz
+  is_correct    Boolean   @default(false)
+  created_at    DateTime  @default(now()) @db.Timestamptz
   deleted_at    DateTime? @db.Timestamptz
 
-  question      Questions? @relation(fields: [question_id], references: [question_id])
+  question Questions @relation(fields: [question_id], references: [question_id], onDelete: Restrict)
 
+  @@index([question_id])
   @@map("Choices")
 }
 
 model Exam_Attempts {
   attempt_id      BigInt         @id @default(autoincrement())
-  user_id         BigInt?
-  exam_id         BigInt?
+  user_id         BigInt
+  exam_id         BigInt
   attempt_status  AttemptStatus?
-  total_score     Int
-  submit_datetime DateTime       @db.Timestamptz
-  created_at      DateTime       @db.Timestamptz
+  total_score     Int            @default(0)
+  submit_datetime DateTime?      @db.Timestamptz
+  created_at      DateTime       @default(now()) @db.Timestamptz
   deleted_at      DateTime?      @db.Timestamptz
 
-  user            User?          @relation(fields: [user_id], references: [user_id])
-  exam            Exams?         @relation(fields: [exam_id], references: [exam_id])
+  user User  @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
+  exam Exams @relation(fields: [exam_id], references: [exam_id], onDelete: Restrict)
 
+  @@index([user_id])
+  @@index([exam_id])
   @@map("Exam_Attempts")
 }
 
@@ -278,8 +292,8 @@ model Wood {
   created_at                   DateTime?   @db.Timestamptz
   updated_at                   DateTime?   @db.Timestamptz
 
-  author                       User?       @relation(fields: [created_by], references: [user_id])
-  images                       Wood_Images[]
+  author User?         @relation(fields: [created_by], references: [user_id])
+  images Wood_Images[]
 
   @@map("Wood")
 }
@@ -291,7 +305,7 @@ model Wood_Images {
   image_description String?  @db.Text
   date_added        DateTime @db.Timestamptz
 
-  wood              Wood?    @relation(fields: [wood_id], references: [wood_id])
+  wood Wood? @relation(fields: [wood_id], references: [wood_id])
 
   @@map("Wood_Images")
 }

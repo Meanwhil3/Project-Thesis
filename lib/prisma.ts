@@ -1,7 +1,6 @@
 // lib/prisma.ts
 import { PrismaClient } from '@prisma/client'
 
-// 1. จัดการเรื่อง BigInt ให้เรียบร้อยก่อน (ทำครั้งเดียวตอนโหลดไฟล์)
 if (!(BigInt.prototype as any).toJSON) {
   (BigInt.prototype as any).toJSON = function () {
     return this.toString();
