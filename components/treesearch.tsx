@@ -8,7 +8,8 @@ import {
   Eye,
   Edit,
   Trash2,
-  X
+  X,
+  AlertTriangle 
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import Navbar from "@/components/Navbar";
 import Link from 'next/link';
 
-// --- Types สำหรับข้อมูลจาก DB ---
+// --- Types ---
 interface WoodImage {
   image_url: string;
   image_description?: string | null;
@@ -30,8 +31,11 @@ interface WoodFromDB {
   wood_weight: 'LIGHT' | 'MEDIUM' | 'HEAVY' | null;
   wood_odor: string | null;
   wood_Texture: string | null;
+  wood_grain: string | null;      // เพิ่มตาม Schema
+  wood_luster: string | null;     // เพิ่มตาม Schema
   growth_rings: string | null;
-  // เปลี่ยนจาก image: string เป็น images array
+  vp_Pores_size: string | null;   // เพิ่มตาม Schema
+  vp_vessel_grouping: string | null; // เพิ่มตาม Schema
   images: WoodImage[];
 }
 
@@ -44,6 +48,11 @@ interface FilterState {
   certifiedStatus: string;
   texture: string;
   durability: string;
+  // --- ฟิลด์ใหม่ที่เพิ่มให้ครอบคลุม DB ---
+  grain: string;
+  luster: string;
+  poresSize: string;
+  vesselGrouping: string;
 }
 
 const initialFilters: FilterState = {
@@ -55,12 +64,46 @@ const initialFilters: FilterState = {
   certifiedStatus: '',
   texture: '',
   durability: '',
+  grain: '',
+  luster: '',
+  poresSize: '',
+  vesselGrouping: '',
+};
+
+// --- Delete Confirmation Popup ---
+const DeleteConfirmDialog: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+  woodName: string;
+}> = ({ isOpen, onClose, onConfirm, isLoading, woodName }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="p-6 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+            <AlertTriangle className="h-6 w-6 text-red-600" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">ยืนยันการลบ?</h3>
+          <p className="text-sm text-gray-500">
+            คุณต้องการลบข้อมูล <span className="font-semibold text-gray-900">"{woodName}"</span> ใช่หรือไม่?
+          </p>
+        </div>
+        <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row-reverse gap-2">
+          <Button onClick={onConfirm} disabled={isLoading} className="bg-red-600 hover:bg-red-700 text-white">
+            {isLoading ? "กำลังลบ..." : "ลบข้อมูล"}
+          </Button>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>ยกเลิก</Button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // --- WoodCard Component ---
-const WoodCard: React.FC<{ wood: WoodFromDB }> = ({ wood }) => {
-  // ดึง URL รูปภาพจาก Array images ตัวแรก
-  // ถ้าไม่มีรูปใน Array หรือไม่มีก้อน images เลย ให้ใช้รูป default
+const WoodCard: React.FC<{ wood: WoodFromDB; onDelete: (wood: WoodFromDB) => void }> = ({ wood, onDelete }) => {
   const displayImage = wood.images && wood.images.length > 0
     ? wood.images[0].image_url
     : '/image/woods/default.jpg';
@@ -72,10 +115,7 @@ const WoodCard: React.FC<{ wood: WoodFromDB }> = ({ wood }) => {
           src={displayImage}
           alt={wood.common_name || "wood texture"}
           className="w-full h-full object-cover"
-          // ป้องกันรูปแตกด้วยการใส่ placeholder หากหาไฟล์ local ไม่เจอ
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=No+Image';
-          }}
+          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=No+Image'; }}
         />
       </div>
       <div className="p-4">
@@ -87,7 +127,7 @@ const WoodCard: React.FC<{ wood: WoodFromDB }> = ({ wood }) => {
         </p>
 
         <div className="flex justify-center gap-4 pt-2 border-t border-border">
-          <button className="text-destructive hover:text-destructive/80 transition-colors">
+          <button onClick={() => onDelete(wood)} className="text-destructive hover:scale-110 transition-transform">
             <Trash2 className="h-4 w-4 text-[#DC2626]" />
           </button>
           <button className="text-muted-foreground hover:text-foreground transition-colors">
@@ -102,22 +142,29 @@ const WoodCard: React.FC<{ wood: WoodFromDB }> = ({ wood }) => {
   );
 };
 
-// --- MoreFiltersDialog (อันเดิมของคุณ) ---
+// --- MoreFiltersDialog ---
 const MoreFiltersDialog: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
-  applyFilter: () => void;
-}> = ({ isOpen, onClose, filters, setFilters, applyFilter }) => {
+}> = ({ isOpen, onClose, filters, setFilters }) => {
   if (!isOpen) return null;
-  const handleApply = () => { applyFilter(); onClose(); };
-  const handleReset = () => {
-    setFilters(f => ({ ...f, texture: '', durability: '' }));
+  
+  const handleReset = () => { 
+    setFilters(f => ({ 
+      ...f, 
+      texture: '', 
+      durability: '',
+      grain: '',
+      luster: '',
+      poresSize: '',
+      vesselGrouping: ''
+    })); 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6 m-4">
         <div className="flex justify-between items-center border-b pb-3 mb-4">
           <h2 className="text-xl font-bold text-foreground flex items-center">
@@ -128,8 +175,9 @@ const MoreFiltersDialog: React.FC<{
           </button>
         </div>
         <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+          {/* เนื้อไม้ (เดิม) */}
           <div>
-            <Label className="font-medium text-foreground mb-2 block">เนื้อไม้</Label>
+            <Label className="font-medium text-foreground mb-2 block">เนื้อไม้ (Texture)</Label>
             <Select
               value={filters.texture}
               onValueChange={(value) => setFilters(f => ({ ...f, texture: value === 'all' ? '' : value }))}
@@ -140,10 +188,88 @@ const MoreFiltersDialog: React.FC<{
               <SelectContent className="bg-white border-border shadow-lg">
                 <SelectItem value="all">เลือกทั้งหมด</SelectItem>
                 <SelectItem value="ละเอียด">ละเอียด</SelectItem>
+                <SelectItem value="ปานกลาง">ปานกลาง</SelectItem>
                 <SelectItem value="หยาบ">หยาบ</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* เสี้ยนไม้ (เพิ่มใหม่) */}
+          <div>
+            <Label className="font-medium text-foreground mb-2 block">เสี้ยนไม้ (Grain)</Label>
+            <Select
+              value={filters.grain}
+              onValueChange={(value) => setFilters(f => ({ ...f, grain: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกเสี้ยนไม้" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-border shadow-lg">
+                <SelectItem value="all">เลือกทั้งหมด</SelectItem>
+                <SelectItem value="ตรง">เสี้ยนตรง</SelectItem>
+                <SelectItem value="สน">เสี้ยนสน</SelectItem>
+                <SelectItem value="บิด">เสี้ยนบิด</SelectItem>
+                <SelectItem value="วน">เสี้ยนวน</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* ความเงา (เพิ่มใหม่) */}
+          <div>
+            <Label className="font-medium text-foreground mb-2 block">ความเงา (Luster)</Label>
+            <Select
+              value={filters.luster}
+              onValueChange={(value) => setFilters(f => ({ ...f, luster: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกความเงา" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-border shadow-lg">
+                <SelectItem value="all">เลือกทั้งหมด</SelectItem>
+                <SelectItem value="เป็นมันเงา">เป็นมันเงา</SelectItem>
+                <SelectItem value="ไม่เป็นมันเงา">ไม่เป็นมันเงา</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* ขนาดรูพรุน (เพิ่มใหม่) */}
+          <div>
+            <Label className="font-medium text-foreground mb-2 block">ขนาดรูพรุน (Pores Size)</Label>
+            <Select
+              value={filters.poresSize}
+              onValueChange={(value) => setFilters(f => ({ ...f, poresSize: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกขนาด" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-border shadow-lg">
+                <SelectItem value="all">เลือกทั้งหมด</SelectItem>
+                <SelectItem value="เล็ก">เล็ก</SelectItem>
+                <SelectItem value="ปานกลาง">ปานกลาง</SelectItem>
+                <SelectItem value="ใหญ่">ใหญ่</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* การเรียงตัวท่อลำเลียง (เพิ่มใหม่) */}
+          <div>
+            <Label className="font-medium text-foreground mb-2 block">การเรียงตัวท่อลำเลียง (Vessel Grouping)</Label>
+            <Select
+              value={filters.vesselGrouping}
+              onValueChange={(value) => setFilters(f => ({ ...f, vesselGrouping: value === 'all' ? '' : value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกรูปแบบ" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-border shadow-lg">
+                <SelectItem value="all">เลือกทั้งหมด</SelectItem>
+                <SelectItem value="ท่อเดี่ยว">ท่อเดี่ยว</SelectItem>
+                <SelectItem value="ท่อกลุ่ม">ท่อกลุ่ม</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* ความทนทาน (เดิม) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">ความทนทาน</Label>
             <Select
@@ -166,8 +292,8 @@ const MoreFiltersDialog: React.FC<{
           <Button variant="link" onClick={handleReset} className="text-primary hover:text-primary/80">
             ล้างตัวกรองเพิ่มเติม
           </Button>
-          <Button onClick={handleApply} className="bg-[#14532D] hover:bg-[#14532D]/90 text-white">
-            <Search className="w-4 h-4 mr-2" /> ใช้ตัวกรอง
+          <Button onClick={onClose} className="bg-[#14532D] hover:bg-[#14532D]/90 text-white px-8">
+            เสร็จสิ้น
           </Button>
         </div>
       </div>
@@ -175,16 +301,14 @@ const MoreFiltersDialog: React.FC<{
   );
 };
 
-// --- SidebarFilters (อันเดิมของคุณ) ---
+// --- SidebarFilters ---
 const SidebarFilters: React.FC<{
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
-  applyFilter: () => void;
   onOpenMoreFilters: () => void;
-}> = ({ filters, setFilters, applyFilter, onOpenMoreFilters }) => {
+}> = ({ filters, setFilters, onOpenMoreFilters }) => {
   const handleReset = () => {
     setFilters(initialFilters);
-    applyFilter();
   };
 
   return (
@@ -199,10 +323,10 @@ const SidebarFilters: React.FC<{
         <Label htmlFor="search" className="font-medium text-foreground mb-2 block">ค้นหาชื่อพันธุ์ไม้</Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
+          <input
             id="search"
-            placeholder="ค้นหาชื่อพันธุ์ไม้"
-            className="pl-10"
+            placeholder="พิมพ์เพื่อค้นหา..."
+            className="flex h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={filters.name}
             onChange={(e) => setFilters(f => ({ ...f, name: e.target.value }))}
           />
@@ -304,9 +428,6 @@ const SidebarFilters: React.FC<{
       >
         <Plus className="w-4 h-4 mr-2" /> เพิ่มตัวกรอง
       </Button>
-      <Button onClick={applyFilter} className="w-full bg-[#14532D] hover:bg-[#14532D]/90 text-white">
-        <Search className="w-4 h-4 mr-2" /> ค้นหา
-      </Button>
     </div>
   );
 };
@@ -316,8 +437,9 @@ const Treesearch: React.FC = () => {
   const [woods, setWoods] = useState<WoodFromDB[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
-  const [appliedFilters, setAppliedFilters] = useState<FilterState>(initialFilters);
   const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WoodFromDB | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetch('/api/woods')
@@ -329,22 +451,46 @@ const Treesearch: React.FC = () => {
       .catch(err => console.error("Error loading data:", err));
   }, []);
 
-  const applyFilter = () => setAppliedFilters(filters);
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/woods/${deleteTarget.wood_id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setWoods(prev => prev.filter(w => w.wood_id !== deleteTarget.wood_id));
+        setDeleteTarget(null);
+      } else {
+        alert("ลบไม่สำเร็จ");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const filteredWoods = useMemo(() => {
     return woods.filter(wood => {
-      if (appliedFilters.name && !wood.common_name?.toLowerCase().includes(appliedFilters.name.toLowerCase())) return false;
-      if (appliedFilters.region && wood.wood_origin !== appliedFilters.region) return false;
-      if (appliedFilters.weight) {
+      if (filters.name && !wood.common_name?.toLowerCase().includes(filters.name.toLowerCase())) return false;
+      if (filters.region && wood.wood_origin !== filters.region) return false;
+      if (filters.weight) {
         const map: any = { '<= 0.40': 'LIGHT', '0.40-0.75': 'MEDIUM', '> 0.75': 'HEAVY' };
-        if (wood.wood_weight !== map[appliedFilters.weight]) return false;
+        if (wood.wood_weight !== map[filters.weight]) return false;
       }
-      if (appliedFilters.scent && wood.wood_odor !== appliedFilters.scent) return false;
-      if (appliedFilters.certifiedStatus && wood.growth_rings !== appliedFilters.certifiedStatus) return false;
-      if (appliedFilters.texture && wood.wood_Texture !== appliedFilters.texture) return false;
+      if (filters.scent && wood.wood_odor !== filters.scent) return false;
+      if (filters.certifiedStatus && wood.growth_rings !== filters.certifiedStatus) return false;
+      
+      // --- เพิ่ม Logic การกรองใหม่ ---
+      if (filters.texture && wood.wood_Texture !== filters.texture) return false;
+      if (filters.grain && wood.wood_grain !== filters.grain) return false;
+      if (filters.luster && wood.wood_luster !== filters.luster) return false;
+      if (filters.poresSize && wood.vp_Pores_size !== filters.poresSize) return false;
+      if (filters.vesselGrouping && wood.vp_vessel_grouping !== filters.vesselGrouping) return false;
+
       return true;
     });
-  }, [appliedFilters, woods]);
+  }, [filters, woods]);
 
   return (
     <div className="bg-white min-h-screen">
@@ -360,8 +506,6 @@ const Treesearch: React.FC = () => {
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-foreground">ข้อมูลพันธุ์ไม้</h1>
-
-          {/* เปลี่ยนจาก <Button> เฉยๆ เป็นการใช้ <Link> ครอบ */}
           <Link href="/tree/addtree">
             <Button className="bg-[#14532D] hover:bg-[#14532D]/90 text-white cursor-pointer">
               <Plus className="w-4 h-4 mr-2" /> เพิ่มพันธุ์ไม้
@@ -375,26 +519,38 @@ const Treesearch: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredWoods.map(wood => (
-                <WoodCard key={wood.wood_id} wood={wood} />
+                <WoodCard key={wood.wood_id} wood={wood} onDelete={(w) => setDeleteTarget(w)} />
               ))}
             </div>
+            {!loading && filteredWoods.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                ไม่พบข้อมูลที่ตรงกับตัวกรอง
+              </div>
+            )}
           </div>
           <div className="lg:col-span-1">
             <SidebarFilters
               filters={filters}
               setFilters={setFilters}
-              applyFilter={applyFilter}
               onOpenMoreFilters={() => setIsMoreFiltersOpen(true)}
             />
           </div>
         </div>
       </main>
+
+      <DeleteConfirmDialog
+        isOpen={!!deleteTarget}
+        woodName={deleteTarget?.common_name || ""}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+      />
+
       <MoreFiltersDialog
         isOpen={isMoreFiltersOpen}
         onClose={() => setIsMoreFiltersOpen(false)}
         filters={filters}
         setFilters={setFilters}
-        applyFilter={applyFilter}
       />
     </div>
   );

@@ -1,210 +1,251 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, X, Save, ChevronRight, Microscope, TreeDeciduous, Info } from 'lucide-react'; // แก้ไขชื่อ Navbar ให้ถูกต้อง
-import Navbar from "@/components/Navbar";
-
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Upload, X, Save, Microscope, TreeDeciduous, 
+  Info, Layers, Search, Image as ImageIcon,
+  Dna, Ruler, ChevronRight, Loader2
+} from 'lucide-react';
 
 export default function AddWoodPage() {
+  const router = useRouter();
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('info');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setImages(prev => [...prev, ...files]);
     const newPreviews = files.map(file => URL.createObjectURL(file));
     setPreviews(prev => [...prev, ...newPreviews]);
+    e.target.value = '';
   };
 
   const removeImage = (index: number) => {
+    URL.revokeObjectURL(previews[index]);
     setImages(prev => prev.filter((_, i) => i !== index));
     setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
+  useEffect(() => {
+    return () => previews.forEach(url => URL.revokeObjectURL(url));
+  }, [previews]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    const formData = new FormData(e.currentTarget);
-    images.forEach(img => formData.append('images', img));
 
     try {
-      const res = await fetch('/api/woods/create', {
-        method: 'POST',
-        body: formData
+      const formData = new FormData(e.currentTarget);
+      
+      // เพิ่มรูปภาพจาก State
+      images.forEach((file) => {
+        formData.append('images', file);
       });
 
-      if (res.ok) {
-        alert("บันทึกข้อมูลเรียบร้อย!");
-        window.location.href = '/tree/treesearch';
-      } else {
-        const errorData = await res.json();
-        alert(`เกิดข้อผิดพลาด: ${errorData.error}`);
-      }
-    } catch (err) {
-      alert("ไม่สามารถติดต่อเซิร์ฟเวอร์ได้");
+      // หมายเหตุ: อย่าลืมส่ง user_id ของผู้ใช้ที่ Login มาใน 'created_by' ด้วยหากต้องการบันทึกข้อมูลผู้สร้าง
+      // ตัวอย่าง: formData.append('created_by', session.user.id);
+
+      const response = await fetch('/api/woods/create', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || 'Failed to save');
+
+      alert('บันทึกข้อมูลเรียบร้อยแล้ว');
+      router.push('/tree/treesearch');
+    } catch (error: any) {
+      console.error(error);
+      alert(`เกิดข้อผิดพลาด: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const menuItems = [
+    { id: 'info', label: 'ข้อมูลพื้นฐาน', icon: <Info size={18} /> },
+    { id: 'images', label: 'รูปภาพเนื้อไม้', icon: <ImageIcon size={18} /> },
+    { id: 'physical', label: 'ลักษณะกายภาพ', icon: <Ruler size={18} /> },
+    { id: 'vessels', label: 'ลักษณะรู (Vessels)', icon: <Search size={18} /> },
+    { id: 'rays-ap', label: 'รังสีและเนื้อเยื่อพื้น', icon: <Layers size={18} /> },
+  ];
+
   return (
-    <div className="bg-slate-50 min-h-screen">
-      <Navbar items={[{ key: "species", label: "พันธุ์ไม้", href: "/tree/treesearch" }]} />
-      
-      <main className="max-w-5xl mx-auto py-10 px-4">
-        <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-xl shadow-md border">
-          <div className="border-b pb-4">
-            <h1 className="text-3xl font-bold text-[#14532D]">เพิ่มข้อมูลพันธุ์ไม้</h1>
-            <p className="text-muted-foreground">กรอกข้อมูลคุณสมบัติไม้ให้ครบถ้วนตามมาตรฐานการจำแนก</p>
-          </div>
-
-          {/* ส่วนที่ 6: รูปภาพ */}
-          <section className="space-y-4 pt-4 border-b">
-            <h2 className="text-lg font-semibold flex items-center text-[#14532D]">
-              <Upload className="mr-2 w-5 h-5" /> รูปภาพเนื้อไม้
-            </h2>
-            <div className="flex items-center justify-center w-full border-2 border-dashed rounded-xl p-8 hover:bg-slate-50 transition-colors cursor-pointer relative bg-slate-50/50">
-               <input type="file" multiple onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
-               <div className="text-center text-slate-500">
-                  <Upload className="w-10 h-10 mx-auto mb-2" />
-                  <p>คลิกเพื่อเลือกรูปภาพ (เลือกได้หลายรูป)</p>
-               </div>
+    <div className="bg-[#FBFBFB] h-screen w-full flex flex-col overflow-hidden text-slate-900">
+      <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        
+        <header className="flex-none bg-white border-b z-50">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#14532D] p-2 rounded-lg">
+                <TreeDeciduous className="text-white w-6 h-6" />
+              </div>
+              <h1 className="text-xl font-bold">ลงทะเบียนข้อมูลพันธุ์ไม้ใหม่</h1>
             </div>
-            <div className="grid grid-cols-4 md:grid-cols-6 gap-4 mt-4">
-              {previews.map((src, i) => (
-                <div key={i} className="relative aspect-square border rounded-lg overflow-hidden shadow-sm">
-                  <img src={src} className="w-full h-full object-cover" alt="Preview" />
-                  <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1"><X size={12}/></button>
+            <div className="flex gap-3">
+              <Button variant="outline" type="button" onClick={() => router.back()}>ยกเลิก</Button>
+              <Button type="submit" className="bg-[#14532D] hover:bg-[#0f3d21]" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                บันทึกทั้งหมด
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 h-full py-8">
+            <div className="flex flex-col lg:flex-row gap-8 h-full">
+              
+              <aside className="w-full lg:w-72 flex-none">
+                <nav className="space-y-1 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+                  {menuItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
+                        activeTab === item.id ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100' : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.icon}
+                        <span className="font-medium text-sm">{item.label}</span>
+                      </div>
+                      {activeTab === item.id && <ChevronRight size={16} />}
+                    </button>
+                  ))}
+                </nav>
+              </aside>
+
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                
+                {/* Section 1: ข้อมูลพื้นฐาน */}
+                <div className={activeTab === 'info' ? 'block' : 'hidden'}>
+                  <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-[#14532D] flex items-center gap-2 text-lg"><Info className="w-5 h-5"/> ข้อมูลพื้นฐาน</CardTitle></CardHeader>
+                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2"><Label>ชื่อวิทยาศาสตร์</Label><Input name="scientific_name" placeholder="Dalbergia oliveri" required /></div>
+                      <div className="space-y-2"><Label>ชื่อพื้นเมือง</Label><Input name="common_name" placeholder="ชิงชัน" required /></div>
+                      <div className="space-y-2"><Label>ถิ่นกำเนิด</Label><Input name="wood_origin" /></div>
+                      <div className="space-y-2">
+                        <Label>สถานะการแสดงผล (WoodStatus)</Label>
+                        <Select name="wood_status" defaultValue="SHOW">
+                          <SelectTrigger><SelectValue placeholder="เลือกสถานะ..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SHOW">SHOW (แสดงผล)</SelectItem>
+                            <SelectItem value="HIDE">HIDE (ซ่อน)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="md:col-span-2 space-y-2"><Label>คำอธิบาย</Label><Textarea name="wood_description" rows={5} /></div>
+                    </CardContent>
+                  </Card>
                 </div>
-              ))}
-            </div>
-          </section>
 
-          {/* ส่วนที่ 1: ข้อมูลพื้นฐาน */}
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center text-[#14532D]">
-              <Info className="mr-2 w-5 h-5" /> ข้อมูลทั่วไป (General)
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>ชื่อพื้นเมือง</Label>
-                <Input name="common_name" required placeholder="เช่น ประดู่" />
+                {/* Section 2: รูปภาพ */}
+                <div className={activeTab === 'images' ? 'block' : 'hidden'}>
+                  <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-[#14532D] flex items-center gap-2 text-lg"><ImageIcon className="w-5 h-5"/> รูปภาพเนื้อไม้</CardTitle></CardHeader>
+                    <CardContent className="p-6">
+                      <label className="border-2 border-dashed border-slate-200 rounded-2xl p-12 bg-slate-50 hover:bg-emerald-50/50 cursor-pointer flex flex-col items-center transition-colors">
+                        <input type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" />
+                        <Upload className="text-emerald-600 mb-2" size={32} />
+                        <span className="font-medium text-slate-600">คลิกเพื่อเพิ่มรูปภาพเนื้อไม้</span>
+                      </label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                        {previews.map((src, i) => (
+                          <div key={i} className="relative aspect-square rounded-xl overflow-hidden border group shadow-sm">
+                            <img src={src} className="w-full h-full object-cover" alt="preview" />
+                            <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={14}/></button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Section 3: ลักษณะกายภาพ */}
+                <div className={activeTab === 'physical' ? 'block' : 'hidden'}>
+                  <Card className="border-l-4 border-l-emerald-600 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CardHeader className="border-b"><CardTitle className="text-emerald-800 text-sm font-bold uppercase tracking-widest">Physical Characteristics</CardTitle></CardHeader>
+                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label>น้ำหนักเนื้อไม้ (WoodWeight)</Label>
+                        <Select name="wood_weight" defaultValue="MEDIUM">
+                          <SelectTrigger><SelectValue placeholder="เลือกน้ำหนัก..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LIGHT">LIGHT (เบา)</SelectItem>
+                            <SelectItem value="MEDIUM">MEDIUM (ปานกลาง)</SelectItem>
+                            <SelectItem value="HEAVY">HEAVY (หนัก)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2"><Label>รสชาติ</Label><Input name="wood_taste" /></div>
+                      <div className="space-y-2"><Label>กลิ่น</Label><Input name="wood_odor" /></div>
+                      <div className="space-y-2"><Label>เนื้อสัมผัส</Label><Input name="wood_Texture" /></div>
+                      <div className="space-y-2"><Label>ความเงา</Label><Input name="wood_luster" /></div>
+                      <div className="space-y-2"><Label>เสี้ยนไม้</Label><Input name="wood_grain" /></div>
+                      <div className="space-y-2"><Label>สีเนื้อไม้</Label><Input name="wood_colors" /></div>
+                      <div className="space-y-2"><Label>ต่างสีแก่น/กระพี้</Label><Input name="sapwood_heartwood_color_diff" /></div>
+                      <div className="space-y-2"><Label>วงปี</Label><Input name="growth_rings" /></div>
+                      <div className="space-y-2"><Label>Included phloem</Label><Input name="included_phloem" /></div>
+                      <div className="space-y-2"><Label>ท่อ (Canals)</Label><Input name="intercellular_canals" /></div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Section 4: Vessels */}
+                <div className={activeTab === 'vessels' ? 'block' : 'hidden'}>
+                  <Card className="border-l-4 border-l-amber-500 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CardHeader className="border-b"><CardTitle className="text-amber-800 flex items-center gap-2"><Microscope size={20} /> ลักษณะรู (Vessels)</CardTitle></CardHeader>
+                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {['vp_porosity', 'vp_vessel_arrangement', 'vp_vessel_grouping', 'vp_inclusions_in_Pores', 'vp_Pores_frequency', 'vp_Pores_size', 'vp_Pores_rays_ratio'].map(field => (
+                        <div key={field} className="space-y-2"><Label>{field}</Label><Input name={field} /></div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Section 5: Rays & AP */}
+                <div className={activeTab === 'rays-ap' ? 'block' : 'hidden'}>
+                  <Card className="border-l-4 border-l-blue-500 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CardHeader className="border-b"><CardTitle className="text-blue-800 flex items-center gap-2"><Layers size={20} /> รังสีและเนื้อเยื่อพื้น</CardTitle></CardHeader>
+                    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label>ความถี่รังสี (RaysPerMm)</Label>
+                        <Select name="rays_per_mm" defaultValue="MEDIUM">
+                          <SelectTrigger><SelectValue placeholder="เลือกความถี่..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOW">LOW (ต่ำ)</SelectItem>
+                            <SelectItem value="MEDIUM">MEDIUM (กลาง)</SelectItem>
+                            <SelectItem value="HIGH">HIGH (สูง)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {['rays_width', 'rays_two_distinct_sizes', 'rays_aggregate', 'rays_storied_ripple_mark', 'rays_deposit_in_rays', 'ap_type', 'ap_paratracheal', 'ap_apotracheal', 'ap_banded'].map(field => (
+                        <div key={field} className="space-y-2"><Label>{field}</Label><Input name={field} /></div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="pb-10"></div>
               </div>
-              <div className="space-y-2">
-                <Label>ชื่อวิทยาศาสตร์</Label>
-                <Input name="scientific_name" className="italic" placeholder="Pterocarpus macrocarpus" />
-              </div>
-              <div className="space-y-2">
-                <Label>ถิ่นกำเนิด</Label>
-                <Input name="wood_origin" placeholder="เช่น เอเชียตะวันออกเฉียงใต้" />
-              </div>
             </div>
-            <div className="space-y-2">
-              <Label>คำอธิบายเพิ่มเติม</Label>
-              <Textarea name="wood_description" placeholder="รายละเอียดอื่นๆ..." />
-            </div>
-          </section>
-
-          {/* ส่วนที่ 2: ลักษณะทางกายภาพ */}
-          <section className="space-y-4 pt-4 border-t">
-            <h2 className="text-lg font-semibold flex items-center text-[#14532D]">
-              <TreeDeciduous className="mr-2 w-5 h-5" /> ลักษณะทางกายภาพ (Physical)
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>น้ำหนักไม้</Label>
-                <Select name="wood_weight">
-                  <SelectTrigger><SelectValue placeholder="เลือก..." /></SelectTrigger>
-                  <SelectContent className="bg-white border-border shadow-lg">
-                    <SelectItem value="LIGHT">LIGHT (เบา)</SelectItem>
-                    <SelectItem value="MEDIUM">MEDIUM (ปานกลาง)</SelectItem>
-                    <SelectItem value="HEAVY">HEAVY (หนัก)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2"><Label>สีเนื้อไม้</Label><Input name="wood_colors" /></div>
-              <div className="space-y-2"><Label>กลิ่น</Label><Input name="wood_odor" /></div>
-              <div className="space-y-2"><Label>รสชาติ</Label><Input name="wood_taste" /></div>
-              <div className="space-y-2"><Label>ความเงา</Label><Input name="wood_luster" /></div>
-              <div className="space-y-2"><Label>เสี้ยนไม้</Label><Input name="wood_grain" /></div>
-              <div className="space-y-2"><Label>เนื้อละเอียด/หยาบ</Label><Input name="wood_Texture" /></div>
-              <div className="space-y-2"><Label>วงเจริญ</Label><Input name="growth_rings" /></div>
-              <div className="space-y-2"><Label>สีแก่น/กระพี้ (ต่างกัน?)</Label><Input name="sapwood_heartwood_color_diff" /></div>
-            </div>
-          </section>
-
-          {/* ส่วนที่ 3: ลักษณะทางวิภาค (Vessels/Pores) */}
-          <section className="space-y-4 pt-4 border-t">
-            <h2 className="text-lg font-semibold flex items-center text-[#14532D]">
-              <Microscope className="mr-2 w-5 h-5" /> ลักษณะรู (Vessels/Pores)
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2"><Label>การกระจายรู (Porosity)</Label><Input name="vp_porosity" /></div>
-              <div className="space-y-2"><Label>การจัดกลุ่มรู</Label><Input name="vp_vessel_grouping" /></div>
-              <div className="space-y-2"><Label>การเรียงตัวของรู</Label><Input name="vp_vessel_arrangement" /></div>
-              <div className="space-y-2"><Label>สิ่งอุดตันในรู</Label><Input name="vp_inclusions_in_Pores" /></div>
-              <div className="space-y-2"><Label>ความถี่รู</Label><Input name="vp_Pores_frequency" /></div>
-              <div className="space-y-2"><Label>ขนาดรู</Label><Input name="vp_Pores_size" /></div>
-              <div className="space-y-2"><Label>สัดส่วนรู/รังสี</Label><Input name="vp_Pores_rays_ratio" /></div>
-            </div>
-          </section>
-
-          {/* ส่วนที่ 4: รังสีไม้ (Rays) และ เนื้อเยื่อ (Parenchyma) */}
-          <section className="space-y-4 pt-4 border-t">
-            <h2 className="text-lg font-semibold flex items-center text-[#14532D]">
-              <ChevronRight className="mr-2 w-5 h-5" /> รังสีและเนื้อเยื่อ (Rays & AP)
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>จำนวนรังสี (ต่อ มม.)</Label>
-                <Select name="rays_per_mm">
-                  <SelectTrigger><SelectValue placeholder="เลือก..." /></SelectTrigger>
-                  <SelectContent className="bg-white border-border shadow-lg">
-                    <SelectItem value="LOW">LOW</SelectItem>
-                    <SelectItem value="MEDIUM">MEDIUM</SelectItem>
-                    <SelectItem value="HIGH">HIGH</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2"><Label>ความกว้างรังสี</Label><Input name="rays_width" /></div>
-              <div className="space-y-2"><Label>รังสี 2 ขนาด</Label><Input name="rays_two_distinct_sizes" /></div>
-              <div className="space-y-2"><Label>รังสีแบบ Aggregate</Label><Input name="rays_aggregate" /></div>
-              <div className="space-y-2"><Label>Ripple Marks</Label><Input name="rays_storied_ripple_mark" /></div>
-              <div className="space-y-2"><Label>สิ่งสะสมในรังสี</Label><Input name="rays_deposit_in_rays" /></div>
-              <div className="space-y-2"><Label>AP Type</Label><Input name="ap_type" /></div>
-              <div className="space-y-2"><Label>AP Paratracheal</Label><Input name="ap_paratracheal" /></div>
-              <div className="space-y-2"><Label>AP Apotracheal</Label><Input name="ap_apotracheal" /></div>
-              <div className="space-y-2"><Label>AP Banded</Label><Input name="ap_banded" /></div>
-            </div>
-          </section>
-
-          {/* ส่วนที่ 5: คุณลักษณะพิเศษอื่นๆ */}
-          <section className="space-y-4 pt-4 border-t">
-            <h2 className="text-lg font-semibold flex items-center text-[#14532D]">
-              <ChevronRight className="mr-2 w-5 h-5" /> คุณลักษณะพิเศษอื่นๆ
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Phloem ในเนื้อไม้</Label><Input name="included_phloem" /></div>
-              <div className="space-y-2"><Label>ท่อทางเดินน้ำมัน/ชัน</Label><Input name="intercellular_canals" /></div>
-            </div>
-          </section>
-
-          
-
-          <div className="pt-6 border-t flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => window.history.back()}>ยกเลิก</Button>
-            <Button type="submit" className="bg-[#14532D] hover:bg-[#114023] px-10 text-white" disabled={isSubmitting}>
-              {isSubmitting ? "กำลังบันทึก..." : <><Save className="w-4 h-4 mr-2" /> บันทึกข้อมูลไม้</>}
-            </Button>
           </div>
-        </form>
-      </main>
+        </main>
+      </form>
     </div>
   );
 }
