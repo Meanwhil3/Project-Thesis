@@ -8,24 +8,32 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const commonName = formData.get('common_name') as string;
 
-    // ตรวจสอบว่ามีชื่อไม้ส่งมาหรือไม่ เพื่อใช้สร้างชื่อ Folder
     if (!commonName) {
       return NextResponse.json({ error: "Common name is required" }, { status: 400 });
     }
 
-    // เตรียมข้อมูล Data Object (เหมือนเดิม)
-    const data = {
+    // 1. ดึงค่า created_by และตรวจสอบให้แน่ใจว่าได้ค่ามาจริง
+    // ปรับให้รองรับทั้งชื่อ 'created_by' และ 'user_id' เผื่อหน้าบ้านส่งมาผิดชื่อ
+    const createdByRaw = (formData.get('created_by') || formData.get('user_id')) as string;
+
+    const data: any = {
       common_name: commonName,
       scientific_name: formData.get('scientific_name') as string,
       wood_origin: formData.get('wood_origin') as string,
       wood_description: formData.get('wood_description') as string,
-      wood_status: 'SHOW' as any,
+      wood_status: (formData.get('wood_status') as any) || 'SHOW',
+      
+      // 2. ปรับการบันทึก created_by
+      // หากไม่มีค่าส่งมา ให้ตรวจสอบว่าในระบบของคุณมี Default User ID หรือไม่ (เช่น Admin ID = 1)
+      // หรือหากต้องการให้ Error ถ้าไม่มีผู้สร้างให้เพิ่มเงื่อนไขตรวจสอบที่นี่
+      created_by: createdByRaw ? BigInt(createdByRaw) : null,
+      
       wood_taste: formData.get('wood_taste') as string,
       wood_odor: formData.get('wood_odor') as string,
       wood_Texture: formData.get('wood_Texture') as string,
       wood_luster: formData.get('wood_luster') as string,
       wood_grain: formData.get('wood_grain') as string,
-      wood_weight: formData.get('wood_weight') as any,
+      wood_weight: (formData.get('wood_weight') as any),
       wood_colors: formData.get('wood_colors') as string,
       sapwood_heartwood_color_diff: formData.get('sapwood_heartwood_color_diff') as string,
       growth_rings: formData.get('growth_rings') as string,
@@ -38,7 +46,7 @@ export async function POST(req: NextRequest) {
       vp_Pores_frequency: formData.get('vp_Pores_frequency') as string,
       vp_Pores_size: formData.get('vp_Pores_size') as string,
       vp_Pores_rays_ratio: formData.get('vp_Pores_rays_ratio') as string,
-      rays_per_mm: formData.get('rays_per_mm') as any,
+      rays_per_mm: (formData.get('rays_per_mm') as any),
       rays_width: formData.get('rays_width') as string,
       rays_two_distinct_sizes: formData.get('rays_two_distinct_sizes') as string,
       rays_aggregate: formData.get('rays_aggregate') as string,
@@ -52,34 +60,28 @@ export async function POST(req: NextRequest) {
       updated_at: new Date(),
     };
 
-    // 1. บันทึก Wood ลง DB ก่อนเพื่อเอา wood_id
+    // 3. บันทึก Wood ลง DB
     const newWood = await prisma.wood.create({ data });
 
-    // 2. จัดการรูปภาพและสร้าง Folder ตาม common_name
+    // 4. จัดการรูปภาพ
     const images = formData.getAll('images') as File[];
-    
-    // แปลงชื่อ commonName ให้ปลอดภัยสำหรับชื่อ Folder (ลบช่องว่าง)
     const folderName = commonName.replace(/\s+/g, '_');
-    
-    // Path สำหรับเก็บไฟล์จริงบน Server
     const uploadDir = path.join(process.cwd(), 'public/images/woods', folderName);
     
-    // mkdir แบบ recursive: true จะสร้าง Folder ให้ถ้ายังไม่มี (ถ้ามีแล้วจะไม่ทำอะไร)
     await mkdir(uploadDir, { recursive: true });
 
     const imageRecords = [];
     for (const file of images) {
+      if (!file.name || file.size === 0) continue;
+
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       
-      // ตั้งชื่อไฟล์: วันที่-ชื่อเดิม
       const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
       const filePath = path.join(uploadDir, fileName);
       
-      // เขียนไฟล์ลงใน Folder ใหม่
       await writeFile(filePath, buffer);
 
-      // Path สำหรับเก็บลง DB (ใช้เรียกผ่าน URL)
       imageRecords.push({
         wood_id: newWood.wood_id,
         image_url: `/images/woods/${folderName}/${fileName}`,
@@ -87,14 +89,20 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. บันทึกข้อมูลรูปลง Wood_Images
     if (imageRecords.length > 0) {
       await prisma.wood_Images.createMany({ data: imageRecords });
     }
 
-    return NextResponse.json({ success: true, wood_id: newWood.wood_id });
-  } catch (error) {
+    return NextResponse.json({ 
+      success: true, 
+      wood_id: newWood.wood_id.toString() 
+    });
+
+  } catch (error: any) {
     console.error("API Error:", error);
-    return NextResponse.json({ error: "Server Error" }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Server Error", 
+      details: error.message 
+    }, { status: 500 });
   }
 }
