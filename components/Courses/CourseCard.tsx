@@ -2,7 +2,6 @@
 
 import type { ElementType } from "react";
 import { ArrowUpRight, CalendarDays, MapPin, UserCheck } from "lucide-react";
-import { buildGoogleMapsSearchUrl } from "@/lib/maps";
 import Link from "next/link";
 
 export type CourseStatus = "open" | "closed";
@@ -18,6 +17,14 @@ export interface CourseItem {
   enrolledCount: number;
   status: CourseStatus;
 }
+
+function buildGoogleMapsSearchUrl(query: string) {
+  const q = query.trim();
+  if (!q) return "https://www.google.com/maps";
+  const params = new URLSearchParams({ api: "1", query: q });
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
 
 export default function CourseCard({ course }: { course: CourseItem }) {
   const isOpen = course.status === "open";
