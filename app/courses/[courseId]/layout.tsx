@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import { BookOpen, FileText, Users, Pencil } from "lucide-react";
+import { notFound } from "next/navigation";
 import CourseTabs from "@/components/Courses/CourseTabs";
 import BackButton from "@/components/Courses/BackButton";
+import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 type Course = {
   id: string;
@@ -13,15 +17,45 @@ type Course = {
   membersCount: number;
 };
 
-function getMockCourse(courseId: string): Course {
+async function getCourse(courseIdStr: string): Promise<Course> {
+  let courseId: bigint;
+  try {
+    courseId = BigInt(courseIdStr);
+  } catch {
+    notFound();
+  }
+
+  const c = await prisma.course.findUnique({
+    where: { course_id: courseId },
+    select: {
+      course_id: true,
+      course_name: true,
+      course_description: true,
+      image_url: true,
+      deleted_at: true,
+    },
+  });
+
+  if (!c || c.deleted_at) notFound();
+
+  // ✅ นับสมาชิกจริงจากตาราง enrollments
+  // (อิงจากไฟล์ api ของคุณที่ใช้ prisma.courseEnrollments อยู่แล้ว)
+  const membersCount = await prisma.courseEnrollments.count({
+    where: {
+      course_id: courseId,
+      deleted_at: null,
+    },
+  });
+
   return {
-    id: courseId,
-    title: "อบรมการจำแนกไม้เบื้องต้น",
-    subtitle: "อบรมรุ่นที่ 1",
-    bannerUrl: "https://placehold.co/1200x250",
-    lessonsCount: 127,
-    examsCount: 127,
-    membersCount: 127,
+    id: c.course_id.toString(),
+    title: c.course_name,
+    subtitle: c.course_description ?? "",
+    bannerUrl: c.image_url ?? "https://placehold.co/1200x250",
+    // ถ้ายังไม่มี schema lesson/exam ในโปรเจกต์ ให้เป็น 0 ไว้ก่อน (ไม่พังคอมไพล์)
+    lessonsCount: 0,
+    examsCount: 0,
+    membersCount,
   };
 }
 
@@ -39,7 +73,9 @@ function StatCard({
       <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#DCFCE7]/55 blur-2xl transition group-hover:scale-105" />
       <div className="flex items-center justify-between gap-4">
         <div className="font-kanit">
-          <div className="text-[16px] font-normal text-[#14532D]/80">{label}</div>
+          <div className="text-[16px] font-normal text-[#14532D]/80">
+            {label}
+          </div>
           <div className="mt-1 text-[34px] font-medium tracking-tight text-[#14532D]">
             {value}
           </div>
@@ -53,14 +89,15 @@ function StatCard({
   );
 }
 
-export default function CourseLayout({
+export default async function CourseLayout({
   params,
   children,
 }: {
-  params: { courseId: string };
+  params: Promise<{ courseId: string }>; // ✅ Next 15: params ต้อง await
   children: ReactNode;
 }) {
-  const course = getMockCourse(params.courseId);
+  const { courseId } = await params; // ✅ แก้ error "params should be awaited"
+  const course = await getCourse(courseId);
 
   // TODO: ผูกสิทธิ์จริงจาก session/role
   const canEditCourse = true;
@@ -70,7 +107,7 @@ export default function CourseLayout({
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Back */}
         <div className="mb-6">
-          <BackButton href="/admin/courses"/>
+          <BackButton href="/admin/courses" />
         </div>
 
         {/* Banner */}
@@ -92,7 +129,7 @@ export default function CourseLayout({
                 {course.title}
               </div>
               <div className="mt-1 text-[16px] font-medium text-white/90 sm:text-[20px]">
-                {course.subtitle}
+                {course.subtitle || " "}
               </div>
             </div>
           </div>
@@ -104,7 +141,9 @@ export default function CourseLayout({
               disabled={!canEditCourse}
               className={[
                 "inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur transition",
-                canEditCourse ? "hover:bg-white active:scale-[0.99]" : "cursor-not-allowed opacity-60",
+                canEditCourse
+                  ? "hover:bg-white active:scale-[0.99]"
+                  : "cursor-not-allowed opacity-60",
               ].join(" ")}
             >
               <Pencil className="h-4 w-4" />
@@ -121,7 +160,7 @@ export default function CourseLayout({
         </div>
 
         {/* Tabs */}
-        <CourseTabs courseId={params.courseId} />
+        <CourseTabs courseId={courseId} />
 
         {/* Content */}
         <div className="mt-6">{children}</div>

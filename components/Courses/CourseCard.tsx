@@ -77,7 +77,6 @@ export default function CourseCard({ course }: { course: CourseItem }) {
             text={`${course.startDate} - ${course.endDate}`}
           />
 
-          {/* Location row + maps link (no API key required) */}
           <div className="flex items-start gap-2">
             <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-[#F0FDF4] text-[#16A34A] ring-1 ring-black/5">
               <MapPin className="h-4 w-4" />

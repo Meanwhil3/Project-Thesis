@@ -1,73 +1,30 @@
+//components/CoursesManagement.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import SummaryCard from "@/components/Courses/SummaryCard";
 import CourseCard, { type CourseItem } from "@/components/Courses/CourseCard";
 
-import {
-  ArrowUpRight,
-  CalendarDays,
-  GraduationCap,
-  MapPin,
-  Search,
-  UserCheck,
-  Users,
-  FolderOpen,
-  Plus,
-} from "lucide-react";
+import { GraduationCap, Search, Users, FolderOpen, Plus } from "lucide-react";
 
-export type CourseStatus = "open" | "closed";
 export type CourseManagementMode = "admin" | "instructor" | "trainee";
-
-
-const mockCourses: CourseItem[] = [
-  {
-    id: "1",
-    title: "อบรมรุ่นที่ 1",
-    subtitle: "อบรมพื้นฐานการพิสูจน์ไม้",
-    imageUrl: "https://placehold.co/380x190",
-    location: "คณะเทคโนโลยีสารสนเทศ สจล",
-    startDate: "15 มี.ค 2568",
-    endDate: "17 มี.ค 2568",
-    enrolledCount: 10,
-    status: "open",
-  },
-  {
-    id: "2",
-    title: "อบรมรุ่นที่ 2",
-    subtitle: "อบรมเชิงปฏิบัติการ (ภาคสนาม)",
-    imageUrl: "https://placehold.co/380x190",
-    location: "ห้องประชุม A",
-    startDate: "20 มี.ค 2568",
-    endDate: "22 มี.ค 2568",
-    enrolledCount: 24,
-    status: "open",
-  },
-  {
-    id: "3",
-    title: "อบรมรุ่นที่ 3",
-    subtitle: "อบรมทบทวนก่อนสอบ",
-    imageUrl: "https://placehold.co/380x190",
-    location: "M 03",
-    startDate: "28 มี.ค 2568",
-    endDate: "28 มี.ค 2568",
-    enrolledCount: 16,
-    status: "closed",
-  },
-];
 
 export default function CourseManagement({
   title = "อบรมทั้งหมด",
-  mode, // ถ้าไม่ส่งมา จะเดาจาก pathname
+  mode,
 }: {
   title?: string;
   mode?: CourseManagementMode;
 }) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-  const [courseList] = useState<CourseItem[]>(mockCourses);
+
+  const [courseList, setCourseList] = useState<CourseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const resolvedMode: CourseManagementMode = useMemo(() => {
     if (mode) return mode;
@@ -82,12 +39,47 @@ export default function CourseManagement({
     resolvedMode === "admin"
       ? "/admin/courses/new"
       : resolvedMode === "instructor"
-      ? "/instructor/courses/new"
-      : "#";
+        ? "/instructor/courses/new"
+        : "#";
+
+  // ✅ Fetch from DB (API)
+  useEffect(() => {
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch("/api/admin/courses", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          const msg = await res.text().catch(() => "");
+          throw new Error(msg || "โหลดข้อมูลคอร์สไม่สำเร็จ");
+        }
+
+        const data = (await res.json()) as CourseItem[];
+        setCourseList(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if ((e as any)?.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "โหลดข้อมูลคอร์สไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, []);
 
   const totalCourses = courseList.length;
   const openCount = courseList.filter((c) => c.status === "open").length;
-  const totalUsers = 127; // mock
+
+  // NOTE: ยังเป็น mock เหมือนเดิม ถ้าจะให้จริงค่อยทำ endpoint นับ user
+  const totalUsers = 127;
 
   const filteredCourses = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -96,13 +88,6 @@ export default function CourseManagement({
       `${c.title} ${c.subtitle} ${c.location}`.toLowerCase().includes(q)
     );
   }, [courseList, search]);
-
-  // const listHref =
-  // resolvedMode === "admin"
-  //   ? "/admin/courses"
-  //   : resolvedMode === "instructor"
-  //     ? "/instructor/courses"
-  //     : "/admin/courses";
 
   return (
     <div className="min-h-screen">
@@ -171,18 +156,43 @@ export default function CourseManagement({
               className="h-11 w-full rounded-xl border border-[#CDE3BD] bg-white pl-9 pr-4 text-sm text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:border-[#4CA771] focus:ring-2 focus:ring-[#4CA771]/25"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              disabled={loading}
             />
           </div>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-[0_0_4px_0_#CAE0BC]/50">
+            โหลดข้อมูลไม่สำเร็จ: {error}
+          </div>
+        )}
+
         {/* Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCourses.map((c) => (
-            <CourseCard key={c.id} course={c}  />
-          ))}
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[360px] w-full max-w-[380px] justify-self-center overflow-hidden rounded-[20px] border border-[#E6F1DF] bg-white shadow-[0_0_4px_0_#CAE0BC]/50"
+                >
+                  <div className="h-[190px] w-full animate-pulse bg-[#F6FBF6]" />
+                  <div className="p-5">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-[#F6FBF6]" />
+                    <div className="mt-3 h-3 w-full animate-pulse rounded bg-[#F6FBF6]" />
+                    <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-[#F6FBF6]" />
+                    <div className="mt-6 space-y-3">
+                      <div className="h-3 w-1/2 animate-pulse rounded bg-[#F6FBF6]" />
+                      <div className="h-3 w-2/3 animate-pulse rounded bg-[#F6FBF6]" />
+                      <div className="h-3 w-3/5 animate-pulse rounded bg-[#F6FBF6]" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            : filteredCourses.map((c) => <CourseCard key={c.id} course={c} />)}
         </div>
 
-        {filteredCourses.length === 0 && (
+        {!loading && !error && filteredCourses.length === 0 && (
           <div className="mt-10 rounded-2xl border border-[#CDE3BD] bg-white p-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50">
             <p className="text-sm font-medium text-[#14532D]">
               ไม่พบอบรมตามเงื่อนไขที่ค้นหา
