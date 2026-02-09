@@ -13,7 +13,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import Navbar from "@/components/์Navbar";
+import Navbar from "@/components/Navbar";
 import Link from 'next/link';
 
 // --- Types สำหรับข้อมูลจาก DB ---

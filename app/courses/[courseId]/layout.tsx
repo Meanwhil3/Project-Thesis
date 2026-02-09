@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import CourseTabs from "@/components/Courses/CourseTabs";
 import BackButton from "@/components/Courses/BackButton";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export const runtime = "nodejs";
 
@@ -136,27 +137,47 @@ export default async function CourseLayout({
 
           {/* Edit */}
           <div className="absolute right-5 top-5">
-            <button
-              type="button"
-              disabled={!canEditCourse}
-              className={[
-                "inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur transition",
-                canEditCourse
-                  ? "hover:bg-white active:scale-[0.99]"
-                  : "cursor-not-allowed opacity-60",
-              ].join(" ")}
-            >
-              <Pencil className="h-4 w-4" />
-              แก้ไข
-            </button>
+            {canEditCourse ? (
+              <Link
+                href={`/admin/courses/${courseId}/edit`}
+                className={[
+                  "inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur transition",
+                  "hover:bg-white active:scale-[0.99]",
+                ].join(" ")}
+              >
+                <Pencil className="h-4 w-4" />
+                แก้ไข
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur opacity-60"
+              >
+                <Pencil className="h-4 w-4" />
+                แก้ไข
+              </button>
+            )}
           </div>
         </section>
 
         {/* Stats */}
         <div className="mt-7 grid gap-4 md:grid-cols-3">
-          <StatCard label="จำนวนบทเรียน" value={course.lessonsCount} icon={BookOpen} />
-          <StatCard label="จำนวนการสอบ" value={course.examsCount} icon={FileText} />
-          <StatCard label="สมาชิกทั้งหมด" value={course.membersCount} icon={Users} />
+          <StatCard
+            label="จำนวนบทเรียน"
+            value={course.lessonsCount}
+            icon={BookOpen}
+          />
+          <StatCard
+            label="จำนวนการสอบ"
+            value={course.examsCount}
+            icon={FileText}
+          />
+          <StatCard
+            label="สมาชิกทั้งหมด"
+            value={course.membersCount}
+            icon={Users}
+          />
         </div>
 
         {/* Tabs */}
