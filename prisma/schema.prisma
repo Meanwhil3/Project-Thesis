@@ -261,7 +261,7 @@ model Wood {
   wood_status                  WoodStatus?
   wood_taste                   String?     @db.VarChar(255)
   wood_odor                    String?     @db.VarChar(255)
-  wood_Texture                 String?     @db.VarChar(255)
+  wood_texture                 String?     @db.VarChar(255)
   wood_luster                  String?     @db.VarChar(255)
   wood_grain                   String?     @db.VarChar(255)
   wood_weight                  WoodWeight?

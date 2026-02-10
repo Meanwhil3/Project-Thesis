@@ -12,8 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Common name is required" }, { status: 400 });
     }
 
-    // 1. ดึงค่า created_by และตรวจสอบให้แน่ใจว่าได้ค่ามาจริง
-    // ปรับให้รองรับทั้งชื่อ 'created_by' และ 'user_id' เผื่อหน้าบ้านส่งมาผิดชื่อ
+    // 1. ดึงค่าผู้สร้าง
     const createdByRaw = (formData.get('created_by') || formData.get('user_id')) as string;
 
     const data: any = {
@@ -23,14 +22,17 @@ export async function POST(req: NextRequest) {
       wood_description: formData.get('wood_description') as string,
       wood_status: (formData.get('wood_status') as any) || 'SHOW',
       
-      // 2. ปรับการบันทึก created_by
-      // หากไม่มีค่าส่งมา ให้ตรวจสอบว่าในระบบของคุณมี Default User ID หรือไม่ (เช่น Admin ID = 1)
-      // หรือหากต้องการให้ Error ถ้าไม่มีผู้สร้างให้เพิ่มเงื่อนไขตรวจสอบที่นี่
-      created_by: createdByRaw ? BigInt(createdByRaw) : null,
+      // ✅ แก้ไขจุดที่ 1: ใช้ relation 'author' แทนการใส่ scalar field 'created_by' โดยตรง
+      author: createdByRaw ? {
+        connect: { user_id: BigInt(createdByRaw) }
+      } : undefined,
       
       wood_taste: formData.get('wood_taste') as string,
       wood_odor: formData.get('wood_odor') as string,
-      wood_Texture: formData.get('wood_Texture') as string,
+
+      // ✅ แก้ไขจุดที่ 2: เปลี่ยนจาก wood_Texture เป็น wood_texture (t ตัวเล็ก) ให้ตรงกับ schema
+      wood_texture: formData.get('wood_texture') as string, 
+
       wood_luster: formData.get('wood_luster') as string,
       wood_grain: formData.get('wood_grain') as string,
       wood_weight: (formData.get('wood_weight') as any),

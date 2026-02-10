@@ -6,13 +6,13 @@ import {
   Search,
   Filter,
   Eye,
+  EyeOff, // เพิ่มไอคอนลูกตาปิด
   Edit,
   Trash2,
   X,
   AlertTriangle 
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Navbar from "@/components/Navbar";
 import Link from 'next/link';
@@ -31,11 +31,12 @@ interface WoodFromDB {
   wood_weight: 'LIGHT' | 'MEDIUM' | 'HEAVY' | null;
   wood_odor: string | null;
   wood_Texture: string | null;
-  wood_grain: string | null;      // เพิ่มตาม Schema
-  wood_luster: string | null;     // เพิ่มตาม Schema
+  wood_grain: string | null;
+  wood_luster: string | null;
   growth_rings: string | null;
-  vp_Pores_size: string | null;   // เพิ่มตาม Schema
-  vp_vessel_grouping: string | null; // เพิ่มตาม Schema
+  vp_Pores_size: string | null;
+  vp_vessel_grouping: string | null;
+  wood_status: 'SHOW' | 'HIDE' | null; // เพิ่มสถานะ wood_status
   images: WoodImage[];
 }
 
@@ -48,7 +49,6 @@ interface FilterState {
   certifiedStatus: string;
   texture: string;
   durability: string;
-  // --- ฟิลด์ใหม่ที่เพิ่มให้ครอบคลุม DB ---
   grain: string;
   luster: string;
   poresSize: string;
@@ -103,39 +103,73 @@ const DeleteConfirmDialog: React.FC<{
 };
 
 // --- WoodCard Component ---
-const WoodCard: React.FC<{ wood: WoodFromDB; onDelete: (wood: WoodFromDB) => void }> = ({ wood, onDelete }) => {
+const WoodCard: React.FC<{ 
+  wood: WoodFromDB; 
+  onDelete: (wood: WoodFromDB) => void;
+  onToggleStatus: (wood: WoodFromDB) => void; // ฟังก์ชันสลับสถานะ
+}> = ({ wood, onDelete, onToggleStatus }) => {
   const displayImage = wood.images && wood.images.length > 0
     ? wood.images[0].image_url
     : '/image/woods/default.jpg';
 
-  return (
-    <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden hover:shadow-md transition-shadow">
-      <div className="h-40 overflow-hidden bg-muted">
-        <img
-          src={displayImage}
-          alt={wood.common_name || "wood texture"}
-          className="w-full h-full object-cover"
-          onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=No+Image'; }}
-        />
-      </div>
-      <div className="p-4">
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          {wood.common_name || 'ไม่ทราบชื่อ'}
-        </h3>
-        <p className="text-xs text-muted-foreground italic truncate mb-3">
-          {wood.scientific_name || 'N/A'}
-        </p>
+  const isHidden = wood.wood_status === 'HIDE';
 
-        <div className="flex justify-center gap-4 pt-2 border-t border-border">
-          <button onClick={() => onDelete(wood)} className="text-destructive hover:scale-110 transition-transform">
+  return (
+    <div className={`bg-white rounded-lg shadow-sm border border-border overflow-hidden hover:shadow-md transition-all flex flex-col h-full ${isHidden ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+      <Link href={`/tree/${wood.wood_id}`} className="group cursor-pointer relative">
+        <div className="h-40 overflow-hidden bg-muted">
+          <img
+            src={displayImage}
+            alt={wood.common_name || "wood texture"}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x300?text=No+Image'; }}
+          />
+        </div>
+        {isHidden && (
+          <div className="absolute top-2 left-2 bg-gray-800/80 text-white text-[10px] px-2 py-1 rounded">
+            ปิดการแสดงผล
+          </div>
+        )}
+        <div className="p-4 pb-2">
+          <h3 className="text-base font-semibold text-foreground mb-1 group-hover:text-[#14532D] transition-colors">
+            {wood.common_name || 'ไม่ทราบชื่อ'}
+          </h3>
+          <p className="text-xs text-muted-foreground italic truncate mb-3">
+            {wood.scientific_name || 'N/A'}
+          </p>
+        </div>
+      </Link>
+
+      <div className="p-4 pt-0 mt-auto">
+        <div className="flex justify-center gap-6 pt-3 border-t border-border">
+          <button 
+            onClick={() => onDelete(wood)} 
+            className="text-destructive hover:scale-125 transition-transform"
+            title="ลบข้อมูล"
+          >
             <Trash2 className="h-4 w-4 text-[#DC2626]" />
           </button>
-          <button className="text-muted-foreground hover:text-foreground transition-colors">
-            <Eye className="w-4 h-4" />
+          
+          {/* ปุ่มสลับสถานะ SHOW/HIDE */}
+          <button 
+            onClick={() => onToggleStatus(wood)} 
+            className="text-muted-foreground hover:text-foreground hover:scale-125 transition-transform"
+            title={isHidden ? "แสดงข้อมูล" : "ซ่อนข้อมูล"}
+          >
+            {isHidden ? (
+              <EyeOff className="w-4 h-4 text-gray-400" />
+            ) : (
+              <Eye className="w-4 h-4 text-blue-600" />
+            )}
           </button>
-          <button className="text-primary hover:text-primary/80 transition-colors">
+
+          <Link 
+            href={`/tree/edittree/${wood.wood_id}`} 
+            className="text-primary hover:text-primary/80 hover:scale-125 transition-transform"
+            title="แก้ไขข้อมูล"
+          >
             <Edit className="w-4 h-4 text-[#16A34A]" />
-          </button>
+          </Link>
         </div>
       </div>
     </div>
@@ -175,7 +209,6 @@ const MoreFiltersDialog: React.FC<{
           </button>
         </div>
         <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
-          {/* เนื้อไม้ (เดิม) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">เนื้อไม้ (Texture)</Label>
             <Select
@@ -194,7 +227,6 @@ const MoreFiltersDialog: React.FC<{
             </Select>
           </div>
 
-          {/* เสี้ยนไม้ (เพิ่มใหม่) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">เสี้ยนไม้ (Grain)</Label>
             <Select
@@ -214,7 +246,6 @@ const MoreFiltersDialog: React.FC<{
             </Select>
           </div>
 
-          {/* ความเงา (เพิ่มใหม่) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">ความเงา (Luster)</Label>
             <Select
@@ -232,7 +263,6 @@ const MoreFiltersDialog: React.FC<{
             </Select>
           </div>
 
-          {/* ขนาดรูพรุน (เพิ่มใหม่) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">ขนาดรูพรุน (Pores Size)</Label>
             <Select
@@ -251,7 +281,6 @@ const MoreFiltersDialog: React.FC<{
             </Select>
           </div>
 
-          {/* การเรียงตัวท่อลำเลียง (เพิ่มใหม่) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">การเรียงตัวท่อลำเลียง (Vessel Grouping)</Label>
             <Select
@@ -269,7 +298,6 @@ const MoreFiltersDialog: React.FC<{
             </Select>
           </div>
 
-          {/* ความทนทาน (เดิม) */}
           <div>
             <Label className="font-medium text-foreground mb-2 block">ความทนทาน</Label>
             <Select
@@ -312,7 +340,7 @@ const SidebarFilters: React.FC<{
   };
 
   return (
-    <div className="p-6 space-y-6 bg-card rounded-lg shadow-sm border border-border">
+    <div className="bg-white p-6 space-y-6 bg-card rounded-lg shadow-sm border border-border">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold text-lg flex items-center text-foreground">
           <Filter className="w-5 h-5 mr-2" /> ตัวกรอง
@@ -470,6 +498,29 @@ const Treesearch: React.FC = () => {
     }
   };
 
+  // ฟังก์ชันสลับสถานะ SHOW/HIDE
+  const handleToggleStatus = async (wood: WoodFromDB) => {
+    const nextStatus = wood.wood_status === 'SHOW' ? 'HIDE' : 'SHOW';
+    try {
+      const res = await fetch(`/api/woods/${wood.wood_id}`, {
+        method: 'PATCH', // หรือ PUT ขึ้นอยู่กับ API ของคุณ
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wood_status: nextStatus })
+      });
+
+      if (res.ok) {
+        setWoods(prev => prev.map(w => 
+          w.wood_id === wood.wood_id ? { ...w, wood_status: nextStatus } : w
+        ));
+      } else {
+        alert("ไม่สามารถเปลี่ยนสถานะได้");
+      }
+    } catch (err) {
+      console.error("Error updating status:", err);
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+    }
+  };
+
   const filteredWoods = useMemo(() => {
     return woods.filter(wood => {
       if (filters.name && !wood.common_name?.toLowerCase().includes(filters.name.toLowerCase())) return false;
@@ -481,7 +532,6 @@ const Treesearch: React.FC = () => {
       if (filters.scent && wood.wood_odor !== filters.scent) return false;
       if (filters.certifiedStatus && wood.growth_rings !== filters.certifiedStatus) return false;
       
-      // --- เพิ่ม Logic การกรองใหม่ ---
       if (filters.texture && wood.wood_Texture !== filters.texture) return false;
       if (filters.grain && wood.wood_grain !== filters.grain) return false;
       if (filters.luster && wood.wood_luster !== filters.luster) return false;
@@ -493,7 +543,7 @@ const Treesearch: React.FC = () => {
   }, [filters, woods]);
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-transparent min-h-screen">
       <Navbar
         items={[
           { key: "overview", label: "ภาพรวม", href: "/login" },
@@ -519,7 +569,12 @@ const Treesearch: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredWoods.map(wood => (
-                <WoodCard key={wood.wood_id} wood={wood} onDelete={(w) => setDeleteTarget(w)} />
+                <WoodCard 
+                  key={wood.wood_id} 
+                  wood={wood} 
+                  onDelete={(w) => setDeleteTarget(w)} 
+                  onToggleStatus={handleToggleStatus} // ส่งฟังก์ชันเข้าไปใน Card
+                />
               ))}
             </div>
             {!loading && filteredWoods.length === 0 && (
