@@ -35,7 +35,7 @@ const LoginForm = () => {
       const res = await signIn("credentials", {
         email: trimmedEmail,
         password,
-        redirect: false, // เราคุมการ redirect เอง
+        redirect: false,
       });
 
       if (!res?.ok) {

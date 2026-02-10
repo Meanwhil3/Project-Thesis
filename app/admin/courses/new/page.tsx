@@ -1,10 +1,19 @@
+// app/admin/courses/new/page.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  type ElementType,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   Image as ImageIcon,
@@ -12,6 +21,7 @@ import {
   Plus,
   Save,
   TextCursorInput,
+  UploadCloud,
 } from "lucide-react";
 
 type CourseStatus = "open" | "closed";
@@ -19,9 +29,9 @@ type CourseStatus = "open" | "closed";
 type CourseFormState = {
   title: string;
   subtitle: string;
-  imageUrl: string;
+  enrollCode: string;
+  imageFile: File | null;
   location: string;
-  locationPlaceId: string;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   status: CourseStatus;
@@ -30,9 +40,9 @@ type CourseFormState = {
 const initialState: CourseFormState = {
   title: "",
   subtitle: "",
-  imageUrl: "https://placehold.co/760x380",
+  enrollCode: "",
+  imageFile: null,
   location: "",
-  locationPlaceId: "",
   startDate: "",
   endDate: "",
   status: "open",
@@ -45,22 +55,44 @@ function toThaiDateRange(start: string, end: string) {
   return `${start} - ${end}`;
 }
 
+function buildGoogleMapsSearchUrl(query: string) {
+  const q = query.trim();
+  if (!q) return "https://www.google.com/maps";
+  const params = new URLSearchParams({ api: "1", query: q });
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
+
 export default function NewCoursePage() {
   const router = useRouter();
   const [form, setForm] = useState<CourseFormState>(initialState);
-  const [submitting, setSubmitting] = useState(false);
-  const [touched, setTouched] = useState<Record<keyof CourseFormState, boolean>>(
-    {
-      title: false,
-      subtitle: false,
-      imageUrl: false,
-      location: false,
-      locationPlaceId: false,
-      startDate: false,
-      endDate: false,
-      status: false,
-    }
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>(
+    "https://placehold.co/760x380",
   );
+  const [submitting, setSubmitting] = useState(false);
+
+  const [touched, setTouched] = useState<
+    Record<keyof CourseFormState, boolean>
+  >({
+    title: false,
+    subtitle: false,
+    enrollCode: false,
+    imageFile: false,
+    location: false,
+    startDate: false,
+    endDate: false,
+    status: false,
+  });
+
+  // Create/revoke object URL for preview
+  useEffect(() => {
+    if (!form.imageFile) {
+      setImagePreviewUrl("https://placehold.co/760x380");
+      return;
+    }
+    const url = URL.createObjectURL(form.imageFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.imageFile]);
 
   const errors = useMemo(() => {
     const e: Partial<Record<keyof CourseFormState, string>> = {};
@@ -73,26 +105,29 @@ export default function NewCoursePage() {
     if (form.startDate && form.endDate && form.endDate < form.startDate) {
       e.endDate = "วันที่สิ้นสุดต้องไม่น้อยกว่าวันที่เริ่ม";
     }
-    if (!form.imageUrl.trim()) e.imageUrl = "กรุณากรอกลิงก์รูปภาพ";
+    if (!form.imageFile) e.imageFile = "กรุณาอัปโหลดรูปภาพ";
 
     return e;
   }, [form]);
 
   const isValid = Object.keys(errors).length === 0;
 
-  function setField<K extends keyof CourseFormState>(key: K, value: CourseFormState[K]) {
+  function setField<K extends keyof CourseFormState>(
+    key: K,
+    value: CourseFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
 
-    // mark touched
     setTouched((prev) => ({
       ...prev,
       title: true,
       subtitle: true,
-      imageUrl: true,
+      enrollCode: true,
+      imageFile: true,
       location: true,
       startDate: true,
       endDate: true,
@@ -104,15 +139,30 @@ export default function NewCoursePage() {
     try {
       setSubmitting(true);
 
-      // TODO: ถ้ามี API แล้วให้เปิดใช้ fetch ส่วนนี้
+      const fd = new FormData();
+      fd.append("title", form.title.trim());
+      fd.append("subtitle", form.subtitle.trim());
+      const code = form.enrollCode.trim();
+      if (code) fd.append("enrollCode", code);
+      fd.append("location", form.location.trim());
+      fd.append("startDate", form.startDate);
+      fd.append("endDate", form.endDate);
+      fd.append("status", form.status === "open" ? "SHOW" : "HIDE");
+
+      if (form.imageFile) {
+        fd.append("image", form.imageFile);
+      }
+
+
       const res = await fetch("/api/admin/courses", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: fd,
       });
-      if (!res.ok) throw new Error("Create course failed");
 
-      console.log("CREATE COURSE:", form);
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(msg || "Create course failed");
+      }
 
       router.push("/admin/courses");
       router.refresh();
@@ -155,6 +205,7 @@ export default function NewCoursePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          {/* Form */}
           <form
             onSubmit={onSubmit}
             className="rounded-2xl border border-[#CDE3BD] bg-white p-6 shadow-[0_0_4px_0_#CAE0BC]/50"
@@ -170,32 +221,48 @@ export default function NewCoursePage() {
               />
 
               <Field
+                label="รหัสเข้าคอร์ส (Enroll Code)"
+                icon={TextCursorInput}
+                value={form.enrollCode}
+                placeholder="เช่น WOOD-2026-A"
+                error={touched.enrollCode ? errors.enrollCode : undefined}
+                onChange={(v) => setField("enrollCode", v)}
+              />
+
+              <TextAreaField
                 label="คำอธิบาย / หัวข้ออบรม"
                 icon={CheckCircle2}
                 value={form.subtitle}
                 placeholder="เช่น อบรมพื้นฐานการพิสูจน์ไม้ (ภาคทฤษฎี)"
+                rows={2}
+                maxLength={180}
+                onChange={(v) => setField("subtitle", v.slice(0, 180))}
                 error={touched.subtitle ? errors.subtitle : undefined}
-                onChange={(v) => setField("subtitle", v)}
+                onBlur={() => setTouched((p) => ({ ...p, subtitle: true }))}
               />
 
-              <Field
-                label="ลิงก์รูปภาพ"
-                icon={ImageIcon}
-                value={form.imageUrl}
-                placeholder="https://..."
-                error={touched.imageUrl ? errors.imageUrl : undefined}
-                onChange={(v) => setField("imageUrl", v)}
-              />
+              {/* ✅ Drag & Drop Upload */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#14532D]">
+                  รูปภาพอบรม
+                </label>
+                <ImageDropzone
+                  file={form.imageFile}
+                  onFileChange={(f) => setField("imageFile", f)}
+                  error={touched.imageFile ? errors.imageFile : undefined}
+                  onBlur={() => setTouched((p) => ({ ...p, imageFile: true }))}
+                />
+              </div>
 
+              {/* สถานที่ */}
               <Field
                 label="สถานที่"
                 icon={MapPin}
                 value={form.location}
-                placeholder="เช่น ห้องประชุม A / M 02"
+                placeholder="เช่น อาคาร A ชั้น 2 ห้องประชุม 201 (กรม/หน่วยงาน...)"
                 error={touched.location ? errors.location : undefined}
                 onChange={(v) => setField("location", v)}
               />
-              
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <DateField
@@ -266,7 +333,7 @@ export default function NewCoursePage() {
             <div className="mt-5 overflow-hidden rounded-[24px] border border-[#E6F1DF] bg-white">
               <div className="relative">
                 <img
-                  src={form.imageUrl || "https://placehold.co/760x380"}
+                  src={imagePreviewUrl}
                   alt={form.title || "course preview"}
                   className="h-[180px] w-full object-cover"
                 />
@@ -282,7 +349,9 @@ export default function NewCoursePage() {
                     <span
                       className={[
                         "h-2 w-2 rounded-full",
-                        form.status === "open" ? "bg-[#16A34A]" : "bg-[#9CA3AF]",
+                        form.status === "open"
+                          ? "bg-[#16A34A]"
+                          : "bg-[#9CA3AF]",
                       ].join(" ")}
                     />
                     {form.status === "open" ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
@@ -301,22 +370,159 @@ export default function NewCoursePage() {
                 <div className="mt-4 space-y-2 text-[13px] font-medium leading-[20px] text-[#111827]">
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-[#16A34A]" />
-                    <span>{toThaiDateRange(form.startDate, form.endDate) || "ช่วงวันที่อบรม"}</span>
+                    <span>
+                      {toThaiDateRange(form.startDate, form.endDate) ||
+                        "ช่วงวันที่อบรม"}
+                    </span>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-[#16A34A]" />
-                    <span>{form.location.trim() || "สถานที่อบรม"}</span>
+                    <MapPin className="h-4 w-4 shrink-0 text-[#16A34A]" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {form.location.trim() || "สถานที่อบรม"}
+                    </span>
+
+                    {form.location.trim() && (
+                      <a
+                        href={buildGoogleMapsSearchUrl(form.location)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#CDE3BD] bg-white px-3 py-1 text-xs font-semibold text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/40 transition hover:bg-[#F6FBF6]"
+                      >
+                        เปิดในแผนที่
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
-            <p className="mt-4 text-xs text-[#6E8E59]">
-              * หลังคุณผูก API/DB แล้ว ค่อยให้พรีวิวแสดงข้อมูลจริง + อัปโหลดรูปได้
-            </p>
+            <div className="mt-4 text-xs text-[#6E8E59]">
+              รองรับไฟล์: JPG/PNG/WEBP • แนะนำไม่เกิน 5MB
+            </div>
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function ImageDropzone({
+  file,
+  onFileChange,
+  error,
+  onBlur,
+}: {
+  file: File | null;
+  onFileChange: (f: File | null) => void;
+  error?: string;
+  onBlur?: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  function pickFile() {
+    inputRef.current?.click();
+  }
+
+  function validateAndSet(f: File | null) {
+    if (!f) return onFileChange(null);
+
+    const isImage = f.type.startsWith("image/");
+    const maxBytes = 5 * 1024 * 1024;
+    if (!isImage) {
+      alert("ไฟล์ต้องเป็นรูปภาพเท่านั้น (JPG/PNG/WEBP)");
+      return;
+    }
+    if (f.size > maxBytes) {
+      alert("ไฟล์ใหญ่เกินไป (สูงสุด 5MB)");
+      return;
+    }
+    onFileChange(f);
+  }
+
+  return (
+    <div>
+      <div
+        role="button"
+        tabIndex={0}
+        onBlur={onBlur}
+        onClick={pickFile}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") pickFile();
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0] ?? null;
+          validateAndSet(f);
+        }}
+        className={[
+          "group relative flex min-h-[120px] w-full flex-col items-center justify-center gap-2 rounded-2xl border bg-white px-4 py-6 text-center shadow-[0_0_4px_0_#CAE0BC]/50 outline-none transition",
+          error
+            ? "border-red-300"
+            : dragOver
+              ? "border-[#4CA771] ring-2 ring-[#4CA771]/25"
+              : "border-[#CDE3BD] hover:bg-[#F6FBF6]",
+        ].join(" ")}
+      >
+        <div className="flex items-center gap-2 text-[#14532D]">
+          <UploadCloud className="h-5 w-5 text-[#16A34A]" />
+          <span className="text-sm font-semibold">
+            ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์
+          </span>
+        </div>
+
+        <div className="text-xs text-[#6E8E59]">
+          {file ? (
+            <span className="inline-flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              <span className="font-medium">{file.name}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFileChange(null);
+                }}
+                className="rounded-lg border border-[#CDE3BD] bg-white px-2 py-1 text-[11px] font-semibold text-[#14532D] hover:bg-[#F6FBF6]"
+              >
+                เอาออก
+              </button>
+            </span>
+          ) : (
+            "รองรับ JPG/PNG/WEBP (ไม่เกิน 5MB)"
+          )}
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => validateAndSet(e.target.files?.[0] ?? null)}
+        />
+      </div>
+
+      {error && (
+        <p className="mt-2 text-xs font-medium text-red-600">{error}</p>
+      )}
     </div>
   );
 }
@@ -330,7 +536,7 @@ function Field({
   onChange,
 }: {
   label: string;
-  icon: React.ElementType;
+  icon: ElementType;
   value: string;
   placeholder?: string;
   error?: string;
@@ -355,7 +561,9 @@ function Field({
           ].join(" ")}
         />
       </div>
-      {error && <p className="mt-2 text-xs font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-2 text-xs font-medium text-red-600">{error}</p>
+      )}
     </div>
   );
 }
@@ -369,7 +577,7 @@ function DateField({
   onBlur,
 }: {
   label: string;
-  icon: React.ElementType;
+  icon: ElementType;
   value: string;
   error?: string;
   onChange: (v: string) => void;
@@ -395,7 +603,64 @@ function DateField({
           ].join(" ")}
         />
       </div>
-      {error && <p className="mt-2 text-xs font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-2 text-xs font-medium text-red-600">{error}</p>
+      )}
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  icon: Icon,
+  value,
+  placeholder,
+  rows = 3,
+  maxLength,
+  error,
+  onChange,
+  onBlur,
+}: {
+  label: string;
+  icon: ElementType;
+  value: string;
+  placeholder?: string;
+  rows?: number;
+  maxLength?: number;
+  error?: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-[#14532D]">
+        {label}
+      </label>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#86A97A]" />
+        <textarea
+          value={value}
+          placeholder={placeholder}
+          rows={rows}
+          maxLength={maxLength}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          className={[
+            "w-full rounded-xl border bg-white pl-9 pr-4 py-2 text-sm text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 resize-none",
+            error
+              ? "border-red-300 focus:border-red-400 focus:ring-red-200"
+              : "border-[#CDE3BD] focus:border-[#4CA771] focus:ring-[#4CA771]/25",
+          ].join(" ")}
+        />
+      </div>
+      {maxLength && (
+        <p className="mt-1 text-xs text-[#6E8E59]">
+          {value.length}/{maxLength}
+        </p>
+      )}
+      {error && (
+        <p className="mt-2 text-xs font-medium text-red-600">{error}</p>
+      )}
     </div>
   );
 }
@@ -422,14 +687,7 @@ function StatusChip({
           : "border-[#CDE3BD] bg-white hover:bg-[#F6FBF6]",
       ].join(" ")}
     >
-      <p
-        className={[
-          "text-sm font-semibold",
-          active ? "text-[#14532D]" : "text-[#14532D]",
-        ].join(" ")}
-      >
-        {title}
-      </p>
+      <p className="text-sm font-semibold text-[#14532D]">{title}</p>
       <p className="mt-1 text-xs text-[#6E8E59]">{desc}</p>
     </button>
   );

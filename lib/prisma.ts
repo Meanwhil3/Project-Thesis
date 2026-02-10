@@ -1,5 +1,4 @@
-// lib/prisma.ts
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client";
 
 if (!(BigInt.prototype as any).toJSON) {
   (BigInt.prototype as any).toJSON = function () {
@@ -7,15 +6,10 @@ if (!(BigInt.prototype as any).toJSON) {
   };
 }
 
-const prismaClientSingleton = () => {
-  return new PrismaClient()
-}
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>
-}
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
-// 2. สร้าง instance แบบ Singleton เพื่อป้องกัน Connection เต็มใน Dev mode
-export const prisma = globalThis.prisma ?? prismaClientSingleton()
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-if (process.env.NODE_ENV !== 'production') globalThis.prisma = prisma
+export default prisma;
