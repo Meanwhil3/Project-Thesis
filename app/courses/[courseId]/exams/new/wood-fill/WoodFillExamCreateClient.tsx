@@ -38,7 +38,7 @@ export default function WoodFillExamCreateClient({
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
   const [examDate, setExamDate] = useState<string>(""); // ยังไม่ลง DB ตอนนี้
-  const [status, setStatus] = useState<ExamStatus>("draft");
+  const [status, setStatus] = useState<ExamStatus>("HIDE");
 
   const [questions, setQuestions] = useState<WoodFillQuestionDraft[]>(() => [
     makeDefaultQuestion(),

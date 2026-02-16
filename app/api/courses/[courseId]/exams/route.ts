@@ -1,44 +1,58 @@
-// app/api/courses/[courseId]/exams/route.ts
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
+import { ExamStatus, ExamType } from "@prisma/client";
 
-export const runtime = "nodejs";
+const ChoiceSchema = z.object({
+  choice_detail: z.string().min(1, "กรุณากรอกตัวเลือก"),
+  is_correct: z.boolean(),
+});
 
-function toBigIntOrNull(v: string): bigint | null {
+const QuestionSchema = z.object({
+  score: z.number().int().positive("คะแนนต้องมากกว่า 0"),
+  question_detail: z.string().min(1, "กรุณากรอกคำถาม"),
+  choices: z.array(ChoiceSchema).min(2, "ต้องมีตัวเลือกอย่างน้อย 2 ข้อ"),
+});
+
+const CreateExamSchema = z.object({
+  exam_title: z.string().min(1, "กรุณากรอกชื่อข้อสอบ"),
+  exam_description: z.string().nullable().optional(),
+  exam_type: z.nativeEnum(ExamType).optional(), // MULTIPLE_CHOICE | FILL_IN_THE_BLANK
+  duration_minute: z.number().int().positive("เวลาสอบต้องมากกว่า 0"),
+  exam_status: z.nativeEnum(ExamStatus).optional(), // HIDE | SHOW
+  questions: z.array(QuestionSchema).min(1, "ต้องมีอย่างน้อย 1 คำถาม"),
+});
+
+function toBigIntOrThrow(v: string, label: string) {
   try {
+    if (!/^\d+$/.test(v)) throw new Error("invalid");
     return BigInt(v);
   } catch {
-    return null;
+    throw new Error(`${label} ไม่ถูกต้อง`);
   }
 }
 
-type Incoming =
-  | {
-      type: "wood_fill";
-      title: string;
-      description?: string | null;
-      durationMinutes: number;
-      status: any; // ExamStatus enum ใน schema คุณ
-      questions: Array<{
-        order: number;
-        score: number;
-        woodName: string;
-        answerCodes: string[];
-      }>;
-    }
-  | {
-      type: "mcq";
-      title: string;
-      description?: string | null;
-      durationMinutes: number;
-      status: any; // ExamStatus enum ใน schema คุณ
-      questions: Array<{
-        order: number;
-        score: number;
-        prompt: string;
-        options: Array<{ order: number; text: string; isCorrect: boolean }>;
-      }>;
-    };
+async function getCreatedByUserId(): Promise<bigint | null> {
+  const session = await getServerSession(authOptions);
+  const u = session?.user as any;
+
+  if (!u) return null;
+
+  if (u.user_id != null && /^\d+$/.test(String(u.user_id))) return BigInt(u.user_id);
+  if (u.id != null && /^\d+$/.test(String(u.id))) return BigInt(u.id);
+
+  if (u.email) {
+    const found = await prisma.user.findUnique({
+      where: { email: String(u.email).toLowerCase() },
+      select: { user_id: true },
+    });
+    return found?.user_id ?? null;
+  }
+
+  return null;
+}
 
 export async function POST(
   req: Request,
@@ -46,115 +60,74 @@ export async function POST(
 ) {
   try {
     const { courseId } = await ctx.params;
-    const course_id = toBigIntOrNull(courseId);
-    if (!course_id) {
-      return NextResponse.json({ message: "courseId ไม่ถูกต้อง" }, { status: 400 });
+    const courseIdBigInt = toBigIntOrThrow(courseId, "courseId");
+
+    const json = await req.json();
+    const parsed = CreateExamSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: "ข้อมูลไม่ถูกต้อง", issues: parsed.error.flatten() },
+        { status: 400 }
+      );
     }
 
-    const body = (await req.json()) as Incoming;
+    const data = parsed.data;
 
-    const exam_title = String((body as any)?.title ?? "").trim();
-    if (!exam_title) {
-      return NextResponse.json({ message: "กรุณากรอกชื่อการสอบ" }, { status: 400 });
+    // บังคับว่าทุกคำถามต้องมีอย่างน้อย 1 correct
+    for (const [i, q] of data.questions.entries()) {
+      const correctCount = q.choices.filter((c) => c.is_correct).length;
+      if (correctCount < 1) {
+        return NextResponse.json(
+          { message: `คำถามข้อที่ ${i + 1} ต้องมีคำตอบที่ถูกอย่างน้อย 1 ข้อ` },
+          { status: 400 }
+        );
+      }
     }
 
-    const duration_minute = Number((body as any)?.durationMinutes ?? 0);
-    if (!Number.isFinite(duration_minute) || duration_minute <= 0) {
-      return NextResponse.json({ message: "เวลาในการสอบไม่ถูกต้อง" }, { status: 400 });
-    }
-
-    const exam_type = (body as any)?.type; // ต้องตรงกับ enum ExamType ใน schema
-    const exam_status = (body as any)?.status; // ต้องตรงกับ enum ExamStatus ใน schema
-
-    const questions = Array.isArray((body as any)?.questions) ? (body as any).questions : [];
-    if (questions.length === 0) {
-      return NextResponse.json({ message: "ต้องมีอย่างน้อย 1 ข้อ" }, { status: 400 });
-    }
-
+    const createdBy = await getCreatedByUserId();
     const now = new Date();
 
-    const created = await prisma.$transaction(async (tx) => {
-      const exam = await tx.exams.create({
-        data: {
-          course_id,
-          exam_title,
-          exam_description: (body as any)?.description ?? null,
-          exam_type,      // ✅ enum ExamType?
-          duration_minute,
-          exam_status,    // ✅ enum ExamStatus?
-          created_at: now,
-          created_by: null, // TODO: ผูก session ทีหลัง
-          deleted_at: null,
-          questions: {
-            create:
-              exam_type === "wood_fill"
-                ? questions.map((q: any) => {
-                    const woodName = String(q?.woodName ?? "").trim();
-                    const score = Number(q?.score ?? 0);
-                    const codes = Array.isArray(q?.answerCodes) ? q.answerCodes : [];
-                    const answerCodes = codes.map((x: any) => String(x).trim()).filter(Boolean);
+    const created = await prisma.exams.create({
+      data: {
+        course: { connect: { course_id: courseIdBigInt } },
+        exam_title: data.exam_title,
+        exam_description: data.exam_description ?? null,
 
-                    if (!woodName) throw new Error("มีข้อสอบที่ยังไม่กรอกชื่อพันธุ์ไม้");
-                    if (!Number.isFinite(score) || score <= 0) throw new Error("คะแนนไม่ถูกต้อง");
-                    if (answerCodes.length === 0) throw new Error("รหัสคำตอบต้องมีอย่างน้อย 1 ค่า");
+        // ✅ ส่งค่า enum ที่ถูกต้องเสมอ (ไม่ส่ง null)
+        exam_type: data.exam_type ?? ExamType.MULTIPLE_CHOICE,
+        duration_minute: data.duration_minute,
+        exam_status: data.exam_status ?? ExamStatus.HIDE,
 
-                    return {
-                      score,
-                      question_detail: woodName, // ✅ เก็บชื่อพันธุ์ไม้ลง question_detail
-                      created_at: now,
-                      deleted_at: null,
-                      choices: {
-                        // ✅ ใช้ Choices เป็น “คำตอบที่ยอมรับได้”
-                        create: answerCodes.map((code: string) => ({
-                          choice_detail: code,
-                          is_correct: true,
-                          created_at: now,
-                          deleted_at: null,
-                        })),
-                      },
-                    };
-                  })
-                : questions.map((q: any) => {
-                    const prompt = String(q?.prompt ?? "").trim();
-                    const score = Number(q?.score ?? 0);
-                    const opts = Array.isArray(q?.options) ? q.options : [];
+        created_at: now,
 
-                    if (!prompt) throw new Error("มีข้อสอบที่ยังไม่กรอกคำถาม");
-                    if (!Number.isFinite(score) || score <= 0) throw new Error("คะแนนไม่ถูกต้อง");
-                    if (opts.length < 2) throw new Error("MCQ ต้องมีตัวเลือกอย่างน้อย 2 ตัว");
-                    if (!opts.some((o: any) => Boolean(o?.isCorrect)))
-                      throw new Error("MCQ ต้องมีคำตอบที่ถูกต้องอย่างน้อย 1 ตัวเลือก");
+        // ✅ แก้ตรงนี้: Prisma ของคุณใช้ relation "author" ไม่ใช่ scalar "created_by"
+        ...(createdBy ? { author: { connect: { user_id: createdBy } } } : {}),
 
-                    return {
-                      score,
-                      question_detail: prompt, // ✅ เก็บคำถามลง question_detail
-                      created_at: now,
-                      deleted_at: null,
-                      choices: {
-                        create: opts.map((o: any) => ({
-                          choice_detail: String(o?.text ?? "").trim(),
-                          is_correct: Boolean(o?.isCorrect),
-                          created_at: now,
-                          deleted_at: null,
-                        })),
-                      },
-                    };
-                  }),
-          },
+        questions: {
+          create: data.questions.map((q) => ({
+            score: q.score,
+            question_detail: q.question_detail,
+            created_at: now,
+            choices: {
+              create: q.choices.map((c) => ({
+                choice_detail: c.choice_detail,
+                is_correct: c.is_correct,
+                created_at: now,
+              })),
+            },
+          })),
         },
-        select: { exam_id: true },
-      });
-
-      return exam;
+      },
+      select: { exam_id: true },
     });
 
     return NextResponse.json(
-      { ok: true, examId: created.exam_id.toString() },
+      { exam_id: created.exam_id.toString() },
       { status: 201 }
     );
-  } catch (e: any) {
+  } catch (err: any) {
     return NextResponse.json(
-      { message: e?.message ?? "Server error" },
+      { message: err?.message ?? "Server error" },
       { status: 500 }
     );
   }

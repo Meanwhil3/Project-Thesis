@@ -108,10 +108,6 @@ export default function WoodFillQuestionItem(props: {
           </div>
         ))}
       </div>
-
-      <div className="mt-3 font-kanit text-xs text-[#14532D]/45">
-        * ระบบจะบันทึกรหัสแต่ละตัวเป็น Choices โดยตั้ง is_correct = true
-      </div>
     </div>
   );
 }

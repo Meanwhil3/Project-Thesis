@@ -8,7 +8,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import ExamMetaForm from "@/components/Courses/Exams/forms/ExamMetaForm";
 import McqEditor from "@/components/Courses/Exams/forms/McqEditor";
 
-type ExamStatus = "draft" | "published" | "closed";
+type ExamStatus = "HIDE" | "SHOW";
 type StatusFilter = ExamStatus;
 
 type McqOptionDraft = { key: string; text: string };
@@ -45,7 +45,11 @@ function makeStableInitialQuestion(courseId: string): McqQuestionDraft {
   };
 }
 
-export default function McqExamCreateClient({ courseId }: { courseId: string }) {
+export default function McqExamCreateClient({
+  courseId,
+}: {
+  courseId: string;
+}) {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
@@ -53,7 +57,7 @@ export default function McqExamCreateClient({ courseId }: { courseId: string }) 
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number>(30);
   const [examDate, setExamDate] = useState<string>("");
-  const [status, setStatus] = useState<StatusFilter>("draft");
+  const [status, setStatus] = useState<StatusFilter>("HIDE");
 
   const [questions, setQuestions] = useState<McqQuestionDraft[]>(() => [
     makeStableInitialQuestion(courseId),
@@ -67,8 +71,12 @@ export default function McqExamCreateClient({ courseId }: { courseId: string }) 
   }, []);
 
   const totalScore = useMemo(
-    () => questions.reduce((sum, q) => sum + (Number.isFinite(q.score) ? q.score : 0), 0),
-    [questions]
+    () =>
+      questions.reduce(
+        (sum, q) => sum + (Number.isFinite(q.score) ? q.score : 0),
+        0,
+      ),
+    [questions],
   );
 
   async function onSave() {
@@ -89,9 +97,12 @@ export default function McqExamCreateClient({ courseId }: { courseId: string }) 
         return setError(`ข้อที่ ${i + 1}: คะแนนต้องมากกว่า 0`);
 
       const cleaned = q.options.map((o) => ({ ...o, text: o.text.trim() }));
-      if (cleaned.length < 2) return setError(`ข้อที่ ${i + 1}: ต้องมีตัวเลือกอย่างน้อย 2 ตัว`);
-      if (cleaned.some((o) => !o.text)) return setError(`ข้อที่ ${i + 1}: กรุณากรอกข้อความทุกตัวเลือก`);
-      if (!cleaned.some((o) => o.key === q.correctKey)) return setError(`ข้อที่ ${i + 1}: กรุณาเลือกคำตอบที่ถูกต้อง`);
+      if (cleaned.length < 2)
+        return setError(`ข้อที่ ${i + 1}: ต้องมีตัวเลือกอย่างน้อย 2 ตัว`);
+      if (cleaned.some((o) => !o.text))
+        return setError(`ข้อที่ ${i + 1}: กรุณากรอกข้อความทุกตัวเลือก`);
+      if (!cleaned.some((o) => o.key === q.correctKey))
+        return setError(`ข้อที่ ${i + 1}: กรุณาเลือกคำตอบที่ถูกต้อง`);
     }
 
     setSaving(true);
@@ -100,21 +111,19 @@ export default function McqExamCreateClient({ courseId }: { courseId: string }) 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "mcq",
-          title: t,
-          description: description.trim() || null,
-          accessCode: code,
-          durationMinutes,
-          examDate: examDate ? new Date(examDate).toISOString() : null,
-          status,
-          questions: questions.map((q, idx) => ({
-            order: idx + 1,
-            score: q.score,
-            prompt: q.prompt.trim(),
-            options: q.options.map((o, oidx) => ({
-              order: oidx + 1,
-              text: o.text.trim(),
-              isCorrect: o.key === q.correctKey,
+          exam_title: t,
+          exam_description: description.trim() || null,
+          exam_type: "MULTIPLE_CHOICE",
+          exam_status: status,
+
+          duration_minute: Number(durationMinutes),
+
+          questions: questions.map((q) => ({
+            score: Number(q.score),
+            question_detail: q.prompt.trim(),
+            choices: q.options.map((o) => ({
+              choice_detail: o.text.trim(),
+              is_correct: o.key === q.correctKey,
             })),
           })),
         }),
@@ -182,7 +191,8 @@ export default function McqExamCreateClient({ courseId }: { courseId: string }) 
           />
 
           <div className="mt-8 font-kanit text-sm text-[#14532D]/70">
-            ข้อสอบทั้งหมด: <b>{questions.length}</b> • คะแนนรวม: <b>{totalScore}</b>
+            ข้อสอบทั้งหมด: <b>{questions.length}</b> • คะแนนรวม:{" "}
+            <b>{totalScore}</b>
           </div>
 
           <McqEditor questions={questions} setQuestions={setQuestions} />

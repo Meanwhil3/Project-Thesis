@@ -1,15 +1,14 @@
 // components/Courses/Exams/forms/ExamMetaForm.tsx
 "use client";
 
-import FilterSelect, { type SelectOption } from "@/components/ui/FilterSelect";
+import FilterSelect from "@/components/ui/FilterSelect";
 import { RefreshCw } from "lucide-react";
 
-export type ExamStatus = "draft" | "published" | "closed";
+export type ExamStatus = "HIDE" | "SHOW";
 
-const statusOptions: ReadonlyArray<SelectOption<ExamStatus>> = [
-  { value: "draft", label: "ร่าง" },
-  { value: "published", label: "เผยแพร่" },
-  { value: "closed", label: "ปิด" },
+const statusOptions = [
+  { value: "HIDE", label: "ซ่อน (ร่าง)" },
+  { value: "SHOW", label: "แสดง (เผยแพร่)" },
 ] as const;
 
 export default function ExamMetaForm(props: {
