@@ -1,15 +1,20 @@
 import Link from "next/link";
 import ExamStatusBadge, { type ExamStatus } from "./ExamStatusBadge";
-import { FileText, ListChecks, XCircle } from "lucide-react";
+import { FileText, ListChecks, XCircle, User as UserIcon } from "lucide-react";
+import {
+  ExamStatus as PrismaExamStatus,
+  ExamType as PrismaExamType,
+} from "@prisma/client";
 
-export type ExamType = "wood_fill" | "mcq"; // mcq = Multiple Choice Questions (ปรนัย)
+export type ExamType = "wood_fill" | "mcq"; // UI type
 
 export type ExamListItemModel = {
   id: string;
   type: ExamType;
   title: string;
   createdAt: string; // ISO string
-  status: ExamStatus;
+  status: ExamStatus; // "HIDE" | "SHOW"
+  creatorFirstName: string | null; // ✅ เพิ่มผู้สร้าง (first_name)
 };
 
 function typeLabel(t: ExamType) {
@@ -18,6 +23,30 @@ function typeLabel(t: ExamType) {
 
 function typeIcon(t: ExamType) {
   return t === "wood_fill" ? FileText : ListChecks;
+}
+
+// ✅ helper: map จาก Prisma record -> model ที่ใช้กับ UI
+export function mapExamToListItem(exam: {
+  exam_id: bigint;
+  exam_title: string;
+  exam_type: PrismaExamType | null;
+  created_at: Date;
+  exam_status: PrismaExamStatus | null;
+  author?: { first_name: string | null } | null; // ✅ ใช้ relation author
+}): ExamListItemModel {
+  const type: ExamType =
+    exam.exam_type === PrismaExamType.FILL_IN_THE_BLANK ? "wood_fill" : "mcq";
+
+  const status = (exam.exam_status ?? "HIDE") as ExamStatus;
+
+  return {
+    id: exam.exam_id.toString(),
+    type,
+    title: exam.exam_title,
+    createdAt: exam.created_at.toISOString(),
+    status,
+    creatorFirstName: exam.author?.first_name ?? null,
+  };
 }
 
 export default function ExamListItem({
@@ -40,26 +69,38 @@ export default function ExamListItem({
             <Icon className="h-5 w-5 text-green-800" />
           </div>
 
-          <div className="font-kanit">
+          <div>
             <div className="text-sm text-green-900/70">{typeLabel(exam.type)}</div>
+
             <div className="mt-0.5 text-lg font-medium text-green-900">
               {exam.title}
             </div>
-            <div className="mt-1 text-xs text-green-900/60">
-              {new Date(exam.createdAt).toLocaleString("th-TH", {
-                year: "numeric",
-                month: "long",
-                day: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-green-900/60">
+              <span>
+                {new Date(exam.createdAt).toLocaleString("th-TH", {
+                  year: "numeric",
+                  month: "long",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+
+              <span className="inline-flex items-center gap-1">
+                <UserIcon className="h-3.5 w-3.5" />
+                ผู้สร้าง:{" "}
+                <b className="font-medium">
+                  {exam.creatorFirstName ?? "ไม่ระบุ"}
+                </b>
+              </span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <ExamStatusBadge status={exam.status} />
-          {exam.status === "closed" ? (
+          {exam.status === "HIDE" ? (
             <XCircle className="h-5 w-5 text-red-600" />
           ) : null}
         </div>

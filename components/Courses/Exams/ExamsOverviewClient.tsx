@@ -4,40 +4,13 @@ import { useMemo, useState } from "react";
 import { FileText, ListChecks } from "lucide-react";
 
 import ExamTypeCard from "./ExamTypeCard";
-import ExamListItem, {
-  type ExamListItemModel,
-  type ExamType,
-} from "./ExamListItem";
+import ExamListItem, { type ExamListItemModel, type ExamType } from "./ExamListItem";
 import type { ExamStatus } from "./ExamStatusBadge";
 
 import FilterSelect, { type SelectOption } from "@/components/ui/FilterSelect";
 
 type TypeFilter = "all" | ExamType;
 type StatusFilter = "all" | ExamStatus;
-
-const mockExams: ExamListItemModel[] = [
-  {
-    id: "ex_3",
-    type: "wood_fill",
-    title: "การสอบครั้งที่ 3 : พันธุ์ไม้ในชีวิตประจำวัน",
-    createdAt: new Date("2025-01-31T04:59:00.000Z").toISOString(),
-    status: "published",
-  },
-  {
-    id: "ex_2",
-    type: "mcq",
-    title: "การสอบครั้งที่ 2 : พันธุ์ไม้ในชีวิตประจำวัน",
-    createdAt: new Date("2025-01-20T04:59:00.000Z").toISOString(),
-    status: "published",
-  },
-  {
-    id: "ex_1",
-    type: "mcq",
-    title: "การสอบครั้งที่ 1 : พันธุ์ไม้สงวน",
-    createdAt: new Date("2025-01-15T04:59:00.000Z").toISOString(),
-    status: "closed",
-  },
-];
 
 const typeOptions: ReadonlyArray<SelectOption<TypeFilter>> = [
   { value: "all", label: "ประเภท: ทั้งหมด" },
@@ -47,27 +20,33 @@ const typeOptions: ReadonlyArray<SelectOption<TypeFilter>> = [
 
 const statusOptions: ReadonlyArray<SelectOption<StatusFilter>> = [
   { value: "all", label: "สถานะ: ทั้งหมด" },
-  { value: "draft", label: "ร่าง" },
-  { value: "published", label: "เผยแพร่" },
-  { value: "closed", label: "ปิด" },
+  { value: "HIDE", label: "ซ่อน (ร่าง)" },
+  { value: "SHOW", label: "แสดง (เผยแพร่)" },
 ] as const;
 
-export default function ExamsOverviewClient({ courseId }: { courseId: string }) {
+export default function ExamsOverviewClient({
+  courseId,
+  initialExams,
+}: {
+  courseId: string;
+  initialExams: ExamListItemModel[]; // ✅ รับจาก DB (server) แล้วมา filter ต่อที่ client
+}) {
   const [q, setQ] = useState("");
   const [type, setType] = useState<TypeFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
 
   const exams = useMemo(() => {
+    const list = Array.isArray(initialExams) ? initialExams : [];
     const keyword = q.trim().toLowerCase();
-    return mockExams
+    return initialExams
       .filter((e) => (type === "all" ? true : e.type === type))
       .filter((e) => (status === "all" ? true : e.status === status))
       .filter((e) => (keyword ? e.title.toLowerCase().includes(keyword) : true));
-  }, [q, type, status]);
+  }, [initialExams, q, type, status]);
 
   return (
     <section className="rounded-3xl bg-white/85 p-6 shadow-[0_0_6px_#CAE0BC] ring-1 ring-black/5 backdrop-blur">
-      <div className="font-kanit">
+      <div>
         <div className="text-2xl font-medium text-[#14532D]">การสอบ</div>
         <div className="mt-1 text-sm text-[#14532D]/70">
           เลือกประเภทเพื่อสร้างข้อสอบใหม่ และดูรายการข้อสอบทั้งหมด
@@ -117,18 +96,12 @@ export default function ExamsOverviewClient({ courseId }: { courseId: string }) 
       {/* List */}
       <div className="mt-6 space-y-4">
         {exams.length === 0 ? (
-          <div className="rounded-2xl border border-black/10 bg-white p-10 text-center font-kanit text-[#14532D]/70">
+          <div className="rounded-2xl border border-black/10 bg-white p-10 text-center text-[#14532D]/70">
             ไม่พบข้อสอบที่ตรงกับเงื่อนไข
           </div>
         ) : (
-          exams.map((exam) => (
-            <ExamListItem key={exam.id} courseId={courseId} exam={exam} />
-          ))
+          exams.map((exam) => <ExamListItem key={exam.id} courseId={courseId} exam={exam} />)
         )}
-      </div>
-
-      <div className="mt-6 font-kanit text-xs text-[#14532D]/45">
-        * ตอนนี้ใช้ mock data เพื่อให้ UI ครบก่อน จากนั้นค่อยต่อ Prisma/API
       </div>
     </section>
   );

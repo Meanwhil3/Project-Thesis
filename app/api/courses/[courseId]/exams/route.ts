@@ -40,7 +40,8 @@ async function getCreatedByUserId(): Promise<bigint | null> {
 
   if (!u) return null;
 
-  if (u.user_id != null && /^\d+$/.test(String(u.user_id))) return BigInt(u.user_id);
+  if (u.user_id != null && /^\d+$/.test(String(u.user_id)))
+    return BigInt(u.user_id);
   if (u.id != null && /^\d+$/.test(String(u.id))) return BigInt(u.id);
 
   if (u.email) {
@@ -56,7 +57,7 @@ async function getCreatedByUserId(): Promise<bigint | null> {
 
 export async function POST(
   req: Request,
-  ctx: { params: Promise<{ courseId: string }> }
+  ctx: { params: Promise<{ courseId: string }> },
 ) {
   try {
     const { courseId } = await ctx.params;
@@ -67,7 +68,7 @@ export async function POST(
     if (!parsed.success) {
       return NextResponse.json(
         { message: "ข้อมูลไม่ถูกต้อง", issues: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -79,12 +80,56 @@ export async function POST(
       if (correctCount < 1) {
         return NextResponse.json(
           { message: `คำถามข้อที่ ${i + 1} ต้องมีคำตอบที่ถูกอย่างน้อย 1 ข้อ` },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
+    const examType = data.exam_type ?? ExamType.MULTIPLE_CHOICE;
+
+    for (const [i, q] of data.questions.entries()) {
+      const correctCount = q.choices.filter((c) => c.is_correct).length;
+
+      if (examType === ExamType.MULTIPLE_CHOICE) {
+        if (q.choices.length < 2) {
+          return NextResponse.json(
+            { message: `คำถามข้อที่ ${i + 1} ต้องมีตัวเลือกอย่างน้อย 2 ข้อ` },
+            { status: 400 },
+          );
+        }
+        if (correctCount < 1) {
+          return NextResponse.json(
+            { message: `คำถามข้อที่ ${i + 1} ต้องมีคำตอบถูกอย่างน้อย 1 ข้อ` },
+            { status: 400 },
+          );
+        }
+      } else {
+        // FILL_IN_THE_BLANK
+        if (q.choices.length < 1) {
+          return NextResponse.json(
+            { message: `คำถามข้อที่ ${i + 1} ต้องมีรหัสคำตอบอย่างน้อย 1 ค่า` },
+            { status: 400 },
+          );
+        }
+        if (correctCount < 1) {
+          return NextResponse.json(
+            {
+              message: `คำถามข้อที่ ${i + 1} ต้องมีรหัสคำตอบที่ถูกอย่างน้อย 1 ค่า`,
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const createdBy = await getCreatedByUserId();
+    if (!createdBy) {
+      return NextResponse.json(
+        { message: "ไม่พบผู้ใช้ใน session (กรุณาเข้าสู่ระบบใหม่)" },
+        { status: 401 },
+      );
+    }
+
     const now = new Date();
 
     const created = await prisma.exams.create({
@@ -100,8 +145,7 @@ export async function POST(
 
         created_at: now,
 
-        // ✅ แก้ตรงนี้: Prisma ของคุณใช้ relation "author" ไม่ใช่ scalar "created_by"
-        ...(createdBy ? { author: { connect: { user_id: createdBy } } } : {}),
+        author: { connect: { user_id: createdBy } },
 
         questions: {
           create: data.questions.map((q) => ({
@@ -123,12 +167,12 @@ export async function POST(
 
     return NextResponse.json(
       { exam_id: created.exam_id.toString() },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (err: any) {
     return NextResponse.json(
       { message: err?.message ?? "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

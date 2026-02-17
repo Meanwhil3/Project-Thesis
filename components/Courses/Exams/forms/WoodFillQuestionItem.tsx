@@ -7,9 +7,9 @@ export type WoodFillCodeDraft = { key: string; code: string };
 
 export type WoodFillQuestionDraft = {
   key: string;
-  woodName: string; // จะส่งไปเก็บใน question_detail
+  woodName: string; // -> question_detail
   score: number;
-  answerCodes: WoodFillCodeDraft[]; // จะส่งไปเก็บใน Choices (is_correct=true)
+  answerCodes: WoodFillCodeDraft[]; // -> Choices (is_correct=true)
 };
 
 export default function WoodFillQuestionItem(props: {
@@ -23,20 +23,17 @@ export default function WoodFillQuestionItem(props: {
   onUpdateCode: (codeKey: string, value: string) => void;
   onRemoveCode: (codeKey: string) => void;
 }) {
-  const { index, q, onRemove, onPatch, onAddCode, onUpdateCode, onRemoveCode } =
-    props;
+  const { index, q, onRemove, onPatch, onAddCode, onUpdateCode, onRemoveCode } = props;
 
   return (
     <div className="rounded-3xl border border-black/10 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="font-kanit text-lg font-medium text-[#14532D]">
-          ข้อที่ {index}
-        </div>
+        <div className="text-lg font-medium text-[#14532D]">ข้อที่ {index}</div>
 
         <button
           type="button"
           onClick={onRemove}
-          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1.5 font-kanit text-xs text-[#14532D] hover:bg-red-50"
+          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs text-[#14532D] hover:bg-red-50"
         >
           <Trash2 className="h-4 w-4 text-red-600" />
           ลบข้อ
@@ -45,9 +42,7 @@ export default function WoodFillQuestionItem(props: {
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
-          <div className="font-kanit text-sm text-[#14532D]">
-            ชื่อพันธุ์ไม้ / คำถาม *
-          </div>
+          <div className="text-sm text-[#14532D]">ชื่อพันธุ์ไม้ / คำถาม *</div>
           <input
             value={q.woodName}
             onChange={(e) => onPatch({ woodName: e.target.value })}
@@ -57,7 +52,7 @@ export default function WoodFillQuestionItem(props: {
         </div>
 
         <div>
-          <div className="font-kanit text-sm text-[#166534]">คะแนน *</div>
+          <div className="text-sm text-[#166534]">คะแนน *</div>
           <input
             type="number"
             min={1}
@@ -69,13 +64,11 @@ export default function WoodFillQuestionItem(props: {
       </div>
 
       <div className="mt-5 flex items-center justify-between">
-        <div className="font-kanit text-sm text-[#166534]">
-          รหัสคำตอบที่ยอมรับได้ (อย่างน้อย 1 ค่า) *
-        </div>
+        <div className="text-sm text-[#166534]">รหัสคำตอบที่ยอมรับได้ (อย่างน้อย 1 ค่า) *</div>
         <button
           type="button"
           onClick={onAddCode}
-          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1.5 font-kanit text-xs text-[#14532D]"
+          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs text-[#14532D]"
         >
           <Plus className="h-4 w-4" />
           เพิ่มรหัส
@@ -85,9 +78,7 @@ export default function WoodFillQuestionItem(props: {
       <div className="mt-3 space-y-3">
         {q.answerCodes.map((c, i) => (
           <div key={c.key} className="flex items-start gap-3">
-            <div className="mt-3 w-20 shrink-0 font-kanit text-xs text-[#14532D]/70">
-              รหัส {i + 1}
-            </div>
+            <div className="mt-3 w-20 shrink-0 text-xs text-[#14532D]/70">รหัส {i + 1}</div>
 
             <input
               value={c.code}

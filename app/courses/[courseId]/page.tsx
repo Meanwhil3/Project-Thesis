@@ -223,7 +223,7 @@ export default async function CourseOverviewPage({
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Course detail */}
         <SectionShell title="รายละเอียดอบรม" icon={Info}>
-          <div className="font-kanit text-[15px] leading-7 text-[#14532D]">
+          <div className="text-[15px] leading-7 text-[#14532D]">
             <p className="rounded-2xl bg-[#F8FFF9] p-5 ring-1 ring-[#BBF7D0]/70">
               {courseDescription}
             </p>

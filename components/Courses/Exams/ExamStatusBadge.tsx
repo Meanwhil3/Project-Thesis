@@ -1,17 +1,15 @@
 import * as React from "react";
 
-export type ExamStatus = "draft" | "published" | "closed";
+export type ExamStatus = "HIDE" | "SHOW";
 
 const styles: Record<ExamStatus, string> = {
-  draft: "bg-slate-100 text-slate-700 border-slate-200",
-  published: "bg-green-50 text-green-700 border-green-200",
-  closed: "bg-red-50 text-red-700 border-red-200",
+  HIDE: "bg-slate-100 text-slate-700 border-slate-200",
+  SHOW: "bg-green-50 text-green-700 border-green-200"
 };
 
 const labels: Record<ExamStatus, string> = {
-  draft: "ร่าง",
-  published: "เผยแพร่",
-  closed: "ปิด",
+  HIDE: "ร่าง",
+  SHOW: "เผยแพร่"
 };
 
 export default function ExamStatusBadge({ status }: { status: ExamStatus }) {
