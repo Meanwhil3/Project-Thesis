@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-ห
+
 
 enum LessonStatus {
   OPEN
