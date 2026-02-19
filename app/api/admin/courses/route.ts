@@ -1,13 +1,17 @@
 // app/api/admin/courses/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { prisma } from "@/lib/prisma";
+import { CourseStatus } from "@prisma/client";
 
 export const runtime = "nodejs"; // ต้องใช้ fs
+export const dynamic = "force-dynamic"; // กัน cache ใน dev/route
 
-const prisma = new PrismaClient();
+type DbCourseStatus = (typeof CourseStatus)[keyof typeof CourseStatus];
+
+const COURSE_STATUS_VALUES = new Set<string>(Object.values(CourseStatus));
 
 function extFromMime(mime: string) {
   if (mime === "image/png") return "png";
@@ -18,12 +22,62 @@ function extFromMime(mime: string) {
 
 function formatThaiDate(d: Date | null) {
   if (!d) return "";
-  return new Intl.DateTimeFormat("th-TH", {
-    timeZone: "Asia/Bangkok",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
+  try {
+    return new Intl.DateTimeFormat("th-TH", {
+      timeZone: "Asia/Bangkok",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    // fallback: YYYY-MM-DD
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * รองรับ input:
+ * - "SHOW" / "HIDE"
+ * - "OPEN" / "CLOSED"
+ * - "open" / "closed"
+ * แล้ว map ให้ตรงกับ enum CourseStatus จริงใน Prisma
+ */
+function normalizeCourseStatus(input: string): DbCourseStatus {
+  const raw = (input ?? "").trim().toUpperCase();
+
+  // ถ้าตรงกับค่าจริงของ enum เลย -> ใช้ได้ทันที
+  if (COURSE_STATUS_VALUES.has(raw)) return raw as DbCourseStatus;
+
+  const hasSHOW = COURSE_STATUS_VALUES.has("SHOW");
+  const hasHIDE = COURSE_STATUS_VALUES.has("HIDE");
+  const hasOPEN = COURSE_STATUS_VALUES.has("OPEN");
+  const hasCLOSED = COURSE_STATUS_VALUES.has("CLOSED");
+
+  // map synonyms
+  if (raw === "OPEN" || raw === "SHOW") {
+    if (hasOPEN) return "OPEN" as DbCourseStatus;
+    if (hasSHOW) return "SHOW" as DbCourseStatus;
+  }
+  if (raw === "CLOSED" || raw === "HIDE" || raw === "CLOSE") {
+    if (hasCLOSED) return "CLOSED" as DbCourseStatus;
+    if (hasHIDE) return "HIDE" as DbCourseStatus;
+  }
+  if (raw === "OPEN" || raw === "OPENED") {
+    if (hasOPEN) return "OPEN" as DbCourseStatus;
+    if (hasSHOW) return "SHOW" as DbCourseStatus;
+  }
+  if (raw === "CLOSED" || raw === "CLOSE" || raw === "CLOSING") {
+    if (hasCLOSED) return "CLOSED" as DbCourseStatus;
+    if (hasHIDE) return "HIDE" as DbCourseStatus;
+  }
+
+  throw new Error("สถานะคอร์สไม่ถูกต้อง");
+}
+
+function isOpenStatus(status: DbCourseStatus | null | undefined) {
+  if (!status) return false;
+  const s = String(status).toUpperCase();
+  return s === "OPEN" || s === "SHOW";
 }
 
 export async function GET() {
@@ -39,28 +93,33 @@ export async function GET() {
         location: true,
         start_date: true,
         end_date: true,
-        course_status: true, // SHOW | HIDE
+        course_status: true,
       },
     });
 
     const courseIds = courses.map((c) => c.course_id);
 
-    // นับผู้ลงทะเบียนแบบไม่ต้องดึง enrollments ทั้งก้อน (เร็วและ payload น้อย)
-    const grouped = courseIds.length
-      ? await prisma.courseEnrollments.groupBy({
+    // ✅ groupBy ถ้าพัง ไม่ให้ล้มทั้งหน้า (enrolledCount = 0 ไปก่อน)
+    let grouped: Array<{ course_id: bigint | null; _count: { _all: number } }> = [];
+    if (courseIds.length) {
+      try {
+        grouped = (await prisma.courseEnrollments.groupBy({
           by: ["course_id"],
           where: {
             deleted_at: null,
             course_id: { in: courseIds },
           },
           _count: { _all: true },
-        })
-      : [];
+        })) as any;
+      } catch (e) {
+        console.error("GET /api/admin/courses groupBy failed:", e);
+        grouped = [];
+      }
+    }
 
     const countMap = new Map<string, number>();
-
     for (const row of grouped) {
-      if (row.course_id == null) continue; // กัน type ที่ยังมองว่า nullable
+      if (row.course_id == null) continue;
       countMap.set(String(row.course_id), row._count._all);
     }
 
@@ -75,17 +134,14 @@ export async function GET() {
         startDate: formatThaiDate(c.start_date),
         endDate: formatThaiDate(c.end_date),
         enrolledCount: countMap.get(id) ?? 0,
-        status: c.course_status === "SHOW" ? "open" : "closed",
+        status: isOpenStatus(c.course_status as any) ? "open" : "closed",
       };
     });
 
     return NextResponse.json(items, { status: 200 });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
-    );
+    console.error("GET /api/admin/courses failed:", err);
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -95,24 +151,18 @@ export async function POST(req: Request) {
 
     const title = String(form.get("title") ?? "").trim();
     const subtitle = String(form.get("subtitle") ?? "").trim();
-    const enrollCodeRaw = String(form.get("enrollCode") ?? "").trim(); // ✅ NEW
+    const enrollCodeRaw = String(form.get("enrollCode") ?? "").trim();
     const location = String(form.get("location") ?? "").trim();
     const startDate = String(form.get("startDate") ?? "").trim(); // YYYY-MM-DD
     const endDate = String(form.get("endDate") ?? "").trim();
-    const statusRaw = String(form.get("status") ?? "").trim(); // should be SHOW/HIDE
+    const statusRaw = String(form.get("status") ?? "").trim();
     const image = form.get("image");
 
     // --- basic validation ---
     if (!title || !subtitle || !location || !startDate || !endDate) {
-      return NextResponse.json(
-        { message: "กรอกข้อมูลไม่ครบ" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "กรอกข้อมูลไม่ครบ" }, { status: 400 });
     }
 
-    // if (!enrollCodeRaw) {
-    //   return NextResponse.json({ message: "กรุณากรอกรหัสเข้าคอร์ส" }, { status: 400 });
-    // }
     if (enrollCodeRaw.length > 255) {
       return NextResponse.json(
         { message: "รหัสเข้าคอร์สยาวเกินไป (สูงสุด 255 ตัวอักษร)" },
@@ -127,34 +177,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // validate status to enum SHOW/HIDE
-    if (statusRaw !== "SHOW" && statusRaw !== "HIDE") {
-      return NextResponse.json(
-        { message: "สถานะคอร์สไม่ถูกต้อง" },
-        { status: 400 },
-      );
+    let normalizedStatus: DbCourseStatus;
+    try {
+      normalizedStatus = normalizeCourseStatus(statusRaw);
+    } catch {
+      return NextResponse.json({ message: "สถานะคอร์สไม่ถูกต้อง" }, { status: 400 });
     }
 
     if (!(image instanceof File)) {
-      return NextResponse.json(
-        { message: "กรุณาอัปโหลดรูปภาพ" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "กรุณาอัปโหลดรูปภาพ" }, { status: 400 });
     }
 
     const ext = extFromMime(image.type);
     if (!ext) {
-      return NextResponse.json(
-        { message: "รองรับเฉพาะ JPG/PNG/WEBP" },
-        { status: 415 },
-      );
+      return NextResponse.json({ message: "รองรับเฉพาะ JPG/PNG/WEBP" }, { status: 415 });
     }
+
     const maxBytes = 5 * 1024 * 1024;
     if (image.size > maxBytes) {
-      return NextResponse.json(
-        { message: "ไฟล์ใหญ่เกินไป (สูงสุด 5MB)" },
-        { status: 413 },
-      );
+      return NextResponse.json({ message: "ไฟล์ใหญ่เกินไป (สูงสุด 5MB)" }, { status: 413 });
     }
 
     // Save file to /public/uploads/courses
@@ -173,15 +214,14 @@ export async function POST(req: Request) {
     const start = new Date(`${startDate}T00:00:00+07:00`);
     const end = new Date(`${endDate}T00:00:00+07:00`);
 
-    // Create course
     const course = await prisma.course.create({
       data: {
         course_name: title,
-        enroll_code: enrollCodeRaw || null, // ✅ NEW (schema: enroll_code)
+        enroll_code: enrollCodeRaw || null,
         course_description: subtitle,
         image_url: imageUrl,
         location,
-        course_status: statusRaw as any, // ✅ NOW strictly SHOW/HIDE
+        course_status: normalizedStatus as any,
         start_date: start,
         end_date: end,
       },
@@ -203,10 +243,7 @@ export async function POST(req: Request) {
       { status: 201 },
     );
   } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
-    );
+    console.error("POST /api/admin/courses failed:", err);
+    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }

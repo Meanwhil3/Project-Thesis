@@ -1,3 +1,4 @@
+// app/api/courses/[courseId]/exams/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,7 @@ const ChoiceSchema = z.object({
 const QuestionSchema = z.object({
   score: z.number().int().positive("คะแนนต้องมากกว่า 0"),
   question_detail: z.string().min(1, "กรุณากรอกคำถาม"),
-  choices: z.array(ChoiceSchema).min(2, "ต้องมีตัวเลือกอย่างน้อย 2 ข้อ"),
+  choices: z.array(ChoiceSchema).min(1, "ต้องมีตัวเลือกอย่างน้อย 1 ข้อ"),
 });
 
 const CreateExamSchema = z.object({
@@ -34,16 +35,21 @@ function toBigIntOrThrow(v: string, label: string) {
   }
 }
 
-async function getCreatedByUserId(): Promise<bigint | null> {
-  const session = await getServerSession(authOptions);
-  const u = session?.user as any;
+function getRoleFromSessionUser(u: any): string | null {
+  // รองรับหลายชื่อ field เผื่อคุณเก็บไม่เหมือนกัน
+  const role = u?.role ?? u?.user_role ?? u?.userRole ?? u?.userRoleName;
+  if (!role) return null;
+  return String(role).toUpperCase();
+}
 
+async function resolveUserIdFromSessionUser(u: any): Promise<bigint | null> {
   if (!u) return null;
 
-  if (u.user_id != null && /^\d+$/.test(String(u.user_id)))
-    return BigInt(u.user_id);
+  // 1) มี id ตรง ๆ ใน session
+  if (u.user_id != null && /^\d+$/.test(String(u.user_id))) return BigInt(u.user_id);
   if (u.id != null && /^\d+$/.test(String(u.id))) return BigInt(u.id);
 
+  // 2) หาใน DB จาก email
   if (u.email) {
     const found = await prisma.user.findUnique({
       where: { email: String(u.email).toLowerCase() },
@@ -55,11 +61,25 @@ async function getCreatedByUserId(): Promise<bigint | null> {
   return null;
 }
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ courseId: string }> },
-) {
+export async function POST(req: Request, ctx: { params: Promise<{ courseId: string }> }) {
   try {
+    // ✅ RBAC กันตั้งแต่ต้นทาง
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const u = session.user as any;
+    const role = getRoleFromSessionUser(u);
+
+    // ✅ อนุญาตเฉพาะ ADMIN/EXAMINER เท่านั้น (role หายก็ถือว่าไม่อนุญาต)
+    if (role !== "ADMIN" && role !== "EXAMINER") {
+      return NextResponse.json(
+        { message: "Forbidden: คุณไม่มีสิทธิ์สร้างข้อสอบ" },
+        { status: 403 },
+      );
+    }
+
     const { courseId } = await ctx.params;
     const courseIdBigInt = toBigIntOrThrow(courseId, "courseId");
 
@@ -74,19 +94,9 @@ export async function POST(
 
     const data = parsed.data;
 
-    // บังคับว่าทุกคำถามต้องมีอย่างน้อย 1 correct
-    for (const [i, q] of data.questions.entries()) {
-      const correctCount = q.choices.filter((c) => c.is_correct).length;
-      if (correctCount < 1) {
-        return NextResponse.json(
-          { message: `คำถามข้อที่ ${i + 1} ต้องมีคำตอบที่ถูกอย่างน้อย 1 ข้อ` },
-          { status: 400 },
-        );
-      }
-    }
-
     const examType = data.exam_type ?? ExamType.MULTIPLE_CHOICE;
 
+    // ✅ validate ตามประเภทข้อสอบ
     for (const [i, q] of data.questions.entries()) {
       const correctCount = q.choices.filter((c) => c.is_correct).length;
 
@@ -99,7 +109,7 @@ export async function POST(
         }
         if (correctCount < 1) {
           return NextResponse.json(
-            { message: `คำถามข้อที่ ${i + 1} ต้องมีคำตอบถูกอย่างน้อย 1 ข้อ` },
+            { message: `คำถามข้อที่ ${i + 1} ต้องมีคำตอบที่ถูกอย่างน้อย 1 ข้อ` },
             { status: 400 },
           );
         }
@@ -113,16 +123,14 @@ export async function POST(
         }
         if (correctCount < 1) {
           return NextResponse.json(
-            {
-              message: `คำถามข้อที่ ${i + 1} ต้องมีรหัสคำตอบที่ถูกอย่างน้อย 1 ค่า`,
-            },
+            { message: `คำถามข้อที่ ${i + 1} ต้องมีรหัสคำตอบที่ถูกอย่างน้อย 1 ค่า` },
             { status: 400 },
           );
         }
       }
     }
 
-    const createdBy = await getCreatedByUserId();
+    const createdBy = await resolveUserIdFromSessionUser(u);
     if (!createdBy) {
       return NextResponse.json(
         { message: "ไม่พบผู้ใช้ใน session (กรุณาเข้าสู่ระบบใหม่)" },
@@ -138,13 +146,11 @@ export async function POST(
         exam_title: data.exam_title,
         exam_description: data.exam_description ?? null,
 
-        // ✅ ส่งค่า enum ที่ถูกต้องเสมอ (ไม่ส่ง null)
-        exam_type: data.exam_type ?? ExamType.MULTIPLE_CHOICE,
+        exam_type: examType,
         duration_minute: data.duration_minute,
         exam_status: data.exam_status ?? ExamStatus.HIDE,
 
         created_at: now,
-
         author: { connect: { user_id: createdBy } },
 
         questions: {
@@ -165,14 +171,9 @@ export async function POST(
       select: { exam_id: true },
     });
 
-    return NextResponse.json(
-      { exam_id: created.exam_id.toString() },
-      { status: 201 },
-    );
+    return NextResponse.json({ exam_id: created.exam_id.toString() }, { status: 201 });
   } catch (err: any) {
-    return NextResponse.json(
-      { message: err?.message ?? "Server error" },
-      { status: 500 },
-    );
+    console.error("POST /api/courses/[courseId]/exams failed:", err);
+    return NextResponse.json({ message: err?.message ?? "Server error" }, { status: 500 });
   }
 }

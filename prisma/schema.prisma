@@ -7,11 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-ห
-
 enum LessonStatus {
   OPEN
   CLOSE
+}
+
+enum CourseStatus {
+  OPEN   @map("SHOW")
+  CLOSED @map("HIDE")
 }
 
 enum ExamType {
@@ -57,42 +60,42 @@ model Role {
 }
 
 model User {
-  user_id      BigInt    @id @default(autoincrement())
-  role_id      BigInt?
-  first_name   String    @db.VarChar(120)
-  last_name    String    @db.VarChar(120)
-  email        String    @unique @db.VarChar(255)
-  password     String    @db.Text
-  is_active    Boolean?  @default(false)
-  created_at   DateTime @db.Timestamptz @default(now())
-  deleted_at   DateTime? @db.Timestamptz
+  user_id    BigInt    @id @default(autoincrement())
+  role_id    BigInt?
+  first_name String    @db.VarChar(120)
+  last_name  String    @db.VarChar(120)
+  email      String    @unique @db.VarChar(255)
+  password   String    @db.Text
+  is_active  Boolean?  @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
 
-  role         Role?     @relation(fields: [role_id], references: [role_id])
-  
+  role Role? @relation(fields: [role_id], references: [role_id])
+
   // Relations
-  enrollments    CourseEnrollments[]
-  instructing    Instructor[]
-  announcements  Announcements[]
-  lessons        Lessons[]
-  exams          Exams[]
-  exam_attempts  Exam_Attempts[]
-  woods_created  Wood[]
+  enrollments   CourseEnrollments[]
+  instructing   Instructor[]
+  announcements Announcements[]
+  lessons       Lessons[]
+  exams         Exams[]
+  exam_attempts Exam_Attempts[]
+  woods_created Wood[]
 
   @@map("User")
 }
 
 model Course {
-  course_id          BigInt         @id @default(autoincrement())
-  course_name        String         @db.VarChar(255)
-  enroll_code        String?        @db.VarChar(255)
-  course_description String?        @db.Text
-  image_url          String?        @db.Text
-  location           String?        @db.Text
+  course_id          BigInt        @id @default(autoincrement())
+  course_name        String        @db.VarChar(255)
+  enroll_code        String?       @db.VarChar(255)
+  course_description String?       @db.Text
+  image_url          String?       @db.Text
+  location           String?       @db.Text
   course_status      CourseStatus?
-  start_date         DateTime?      @db.Timestamptz
-  end_date           DateTime?      @db.Timestamptz
-  created_at         DateTime?      @db.Timestamptz
-  deleted_at         DateTime?      @db.Timestamptz
+  start_date         DateTime?     @db.Timestamptz
+  end_date           DateTime?     @db.Timestamptz
+  created_at         DateTime?     @db.Timestamptz
+  deleted_at         DateTime?     @db.Timestamptz
 
   enrollments   CourseEnrollments[]
   instructors   Instructor[]
@@ -110,8 +113,8 @@ model CourseEnrollments {
   enrollment_date DateTime  @db.Timestamptz
   deleted_at      DateTime? @db.Timestamptz
 
-  user            User?     @relation(fields: [user_id], references: [user_id])
-  course          Course?   @relation(fields: [course_id], references: [course_id])
+  user   User?   @relation(fields: [user_id], references: [user_id])
+  course Course? @relation(fields: [course_id], references: [course_id])
 
   @@map("Course_Enrollments")
 }
@@ -120,8 +123,8 @@ model Instructor {
   user_id   BigInt
   course_id BigInt
 
-  user      User   @relation(fields: [user_id], references: [user_id])
-  course    Course @relation(fields: [course_id], references: [course_id])
+  user   User   @relation(fields: [user_id], references: [user_id])
+  course Course @relation(fields: [course_id], references: [course_id])
 
   @@id([user_id, course_id])
   @@map("Instructor")
@@ -136,25 +139,25 @@ model Announcements {
   created_by      BigInt?
   deleted_at      DateTime? @db.Timestamptz
 
-  course          Course?   @relation(fields: [course_id], references: [course_id])
-  author          User?     @relation(fields: [created_by], references: [user_id])
+  course Course? @relation(fields: [course_id], references: [course_id])
+  author User?   @relation(fields: [created_by], references: [user_id])
 
   @@map("Announcements")
 }
 
 model Lessons {
-  lesson_id      BigInt          @id @default(autoincrement())
+  lesson_id      BigInt        @id @default(autoincrement())
   course_id      BigInt?
-  lesson_title   String          @db.Text
-  lesson_content String          @db.Text
+  lesson_title   String        @db.Text
+  lesson_content String        @db.Text
   lesson_status  LessonStatus?
-  created_at     DateTime        @db.Timestamptz
+  created_at     DateTime      @db.Timestamptz
   created_by     BigInt?
-  deleted_at     DateTime?       @db.Timestamptz
+  deleted_at     DateTime?     @db.Timestamptz
 
-  course         Course?         @relation(fields: [course_id], references: [course_id])
-  author         User?           @relation(fields: [created_by], references: [user_id])
-  attachments    Lesson_Attachments[]
+  course      Course?              @relation(fields: [course_id], references: [course_id])
+  author      User?                @relation(fields: [created_by], references: [user_id])
+  attachments Lesson_Attachments[]
 
   @@map("Lessons")
 }
@@ -167,28 +170,30 @@ model Lesson_Attachments {
   file_type     String    @db.Text
   created_at    DateTime? @db.Timestamptz
 
-  lesson        Lessons?  @relation(fields: [lesson_id], references: [lesson_id])
+  lesson Lessons? @relation(fields: [lesson_id], references: [lesson_id])
 
   @@map("Lesson_Attachments")
 }
 
 model Exams {
-  exam_id          BigInt           @id @default(autoincrement())
+  exam_id          BigInt      @id @default(autoincrement())
   course_id        BigInt?
-  exam_title       String           @db.Text
-  exam_description String?          @db.Text
+  exam_title       String      @db.Text
+  exam_description String?     @db.Text
   exam_type        ExamType?
   duration_minute  Int
   exam_status      ExamStatus?
-  created_at       DateTime         @db.Timestamptz
+  examAccessCode   String?     @map("exam_access_code") @db.VarChar(6)
+  created_at       DateTime    @db.Timestamptz
   created_by       BigInt?
-  deleted_at       DateTime?        @db.Timestamptz
+  deleted_at       DateTime?   @db.Timestamptz
 
-  course           Course?          @relation(fields: [course_id], references: [course_id])
-  author           User?            @relation(fields: [created_by], references: [user_id])
-  questions        Questions[]
-  attempts         Exam_Attempts[]
+  course    Course?         @relation(fields: [course_id], references: [course_id])
+  author    User?           @relation(fields: [created_by], references: [user_id])
+  questions Questions[]
+  attempts  Exam_Attempts[]
 
+  @@unique([course_id, examAccessCode], map: "Exams_course_id_exam_access_code_key")
   @@map("Exams")
 }
 
@@ -200,8 +205,8 @@ model Questions {
   created_at      DateTime? @default(now())
   deleted_at      DateTime? @db.Timestamptz
 
-  exam            Exams?    @relation(fields: [exam_id], references: [exam_id])
-  choices         Choices[]
+  exam    Exams?    @relation(fields: [exam_id], references: [exam_id])
+  choices Choices[]
 
   @@map("Questions")
 }
@@ -214,7 +219,7 @@ model Choices {
   created_at    DateTime? @default(now())
   deleted_at    DateTime? @db.Timestamptz
 
-  question      Questions? @relation(fields: [question_id], references: [question_id])
+  question Questions? @relation(fields: [question_id], references: [question_id])
 
   @@map("Choices")
 }
@@ -225,12 +230,12 @@ model Exam_Attempts {
   exam_id         BigInt?
   attempt_status  AttemptStatus?
   total_score     Int
-  submit_datetime DateTime       @db.Timestamptz
+  submit_datetime DateTime?      @db.Timestamptz
   created_at      DateTime       @db.Timestamptz
   deleted_at      DateTime?      @db.Timestamptz
 
-  user            User?          @relation(fields: [user_id], references: [user_id])
-  exam            Exams?         @relation(fields: [exam_id], references: [exam_id])
+  user User?  @relation(fields: [user_id], references: [user_id])
+  exam Exams? @relation(fields: [exam_id], references: [exam_id])
 
   @@map("Exam_Attempts")
 }
@@ -275,8 +280,8 @@ model Wood {
   created_at                   DateTime?   @db.Timestamptz
   updated_at                   DateTime?   @db.Timestamptz
 
-  author                       User?       @relation(fields: [created_by], references: [user_id])
-  images                       Wood_Images[]
+  author User?         @relation(fields: [created_by], references: [user_id])
+  images Wood_Images[]
 
   @@map("Wood")
 }
@@ -288,7 +293,7 @@ model Wood_Images {
   image_description String?  @db.Text
   date_added        DateTime @db.Timestamptz
 
-  wood              Wood?    @relation(fields: [wood_id], references: [wood_id])
+  wood Wood? @relation(fields: [wood_id], references: [wood_id])
 
   @@map("Wood_Images")
 }
