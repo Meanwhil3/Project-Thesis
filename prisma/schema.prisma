@@ -184,9 +184,11 @@ model Exams {
   duration_minute  Int
   exam_status      ExamStatus?
   examAccessCode   String?     @map("exam_access_code") @db.VarChar(6)
-  created_at       DateTime    @db.Timestamptz
+  created_at       DateTime    @default(now()) @db.Timestamptz
   created_by       BigInt?
   deleted_at       DateTime?   @db.Timestamptz
+  open_at          DateTime?   @db.Timestamptz
+  close_at         DateTime?   @db.Timestamptz
 
   course    Course?         @relation(fields: [course_id], references: [course_id])
   author    User?           @relation(fields: [created_by], references: [user_id])
@@ -194,6 +196,8 @@ model Exams {
   attempts  Exam_Attempts[]
 
   @@unique([course_id, examAccessCode], map: "Exams_course_id_exam_access_code_key")
+  @@index([open_at])
+  @@index([close_at])
   @@map("Exams")
 }
 
@@ -225,18 +229,21 @@ model Choices {
 }
 
 model Exam_Attempts {
-  attempt_id      BigInt         @id @default(autoincrement())
-  user_id         BigInt?
-  exam_id         BigInt?
-  attempt_status  AttemptStatus?
-  total_score     Int
-  submit_datetime DateTime?      @db.Timestamptz
-  created_at      DateTime       @db.Timestamptz
-  deleted_at      DateTime?      @db.Timestamptz
+  attempt_id      BigInt        @id @default(autoincrement())
+  user_id         BigInt
+  exam_id         BigInt
+  attempt_status  AttemptStatus @default(IN_PROGRESS)
+  total_score     Int           @default(0)
+  started_at      DateTime      @default(now()) @db.Timestamptz
+  submit_datetime DateTime?     @db.Timestamptz
+  created_at      DateTime      @default(now()) @db.Timestamptz
+  deleted_at      DateTime?     @db.Timestamptz
 
-  user User?  @relation(fields: [user_id], references: [user_id])
-  exam Exams? @relation(fields: [exam_id], references: [exam_id])
+  user User  @relation(fields: [user_id], references: [user_id])
+  exam Exams @relation(fields: [exam_id], references: [exam_id])
 
+  @@index([exam_id, user_id])
+  @@index([submit_datetime])
   @@map("Exam_Attempts")
 }
 

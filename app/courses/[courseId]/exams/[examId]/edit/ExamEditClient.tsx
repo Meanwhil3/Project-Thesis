@@ -172,7 +172,7 @@ export default function ExamEditClient({ initial }: { initial: ExamEditInitial }
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,#F0FCF3_0%,#FEFBEB_100%)]">
+    <div className="min-h-screen">
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         <div className="flex items-center justify-between gap-4">
           <button

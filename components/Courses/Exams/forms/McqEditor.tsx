@@ -79,7 +79,7 @@ export default function McqEditor(props: {
   return (
     <>
       <div className="mt-8 flex items-center justify-between gap-3">
-        <div className="font-kanit text-base text-[#14532D]">
+        <div className="text-base text-[#14532D]">
           ข้อสอบทั้งหมด: <span className="font-medium">{questions.length}</span> • คะแนนรวม:{" "}
           <span className="font-medium">{totalScore}</span>
         </div>
@@ -87,7 +87,7 @@ export default function McqEditor(props: {
         <button
           type="button"
           onClick={addQuestion}
-          className="inline-flex items-center gap-2 rounded-full bg-[#16A34A] px-4 py-2 font-kanit text-sm text-white shadow"
+          className="inline-flex items-center gap-2 rounded-full bg-[#16A34A] px-4 py-2text-sm text-white shadow"
         >
           <Plus className="h-4 w-4" />
           เพิ่มข้อ
