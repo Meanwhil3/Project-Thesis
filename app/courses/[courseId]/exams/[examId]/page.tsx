@@ -55,10 +55,10 @@ export default async function ExamDetailPage({
 
   const isFill = exam.exam_type === ExamType.FILL_IN_THE_BLANK;
   const icon = isFill ? <FileText className="h-5 w-5 text-green-800" /> : <ListChecks className="h-5 w-5 text-green-800" />;
-  const typeLabel = isFill ? "เติมคำตอบ (Fill in the blank)" : "ปรนัย (MCQ)";
+  const typeLabel = isFill ? "เติมคำตอบ" : "ปรนัย";
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,#F0FCF3_0%,#FEFBEB_100%)]">
+    <div className="min-h-screen">
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         <div className="flex items-center justify-between gap-3">
           <Link

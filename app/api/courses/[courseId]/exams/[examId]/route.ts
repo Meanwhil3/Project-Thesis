@@ -49,6 +49,36 @@ const UpdateExamSchema = z.object({
   questions: z.array(QuestionSchema).min(1, "ต้องมีอย่างน้อย 1 คำถาม"),
 });
 
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { courseId: string; examId: string } }
+) {
+  try {
+    const courseId = BigInt(params.courseId);
+    const examId = BigInt(params.examId);
+
+    const now = new Date();
+
+    // Soft delete: set deleted_at
+    const updated = await prisma.exams.updateMany({
+      where: {
+        exam_id: examId,
+        course_id: courseId,
+        deleted_at: null,
+      },
+      data: { deleted_at: now },
+    });
+
+    if (updated.count === 0) {
+      return NextResponse.json({ message: "ไม่พบข้อสอบหรือถูกลบไปแล้ว" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ message: "ลบไม่สำเร็จ" }, { status: 500 });
+  }
+}
+
 export async function GET(
   _req: Request,
   ctx: { params: { courseId: string; examId: string } }
