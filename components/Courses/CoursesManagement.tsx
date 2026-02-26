@@ -12,6 +12,14 @@ import { GraduationCap, Search, Users, FolderOpen, Plus } from "lucide-react";
 
 export type CourseManagementMode = "admin" | "instructor" | "trainee";
 
+// trainee → ดูคอร์สทั้งหมด (OPEN) พร้อม enrolled flag
+// admin / instructor → endpoint ของตัวเอง
+const API_ENDPOINT: Record<CourseManagementMode, string> = {
+  admin: "/api/admin/courses",
+  instructor: "/api/instructor/courses",
+  trainee: "/api/courses",
+};
+
 export default function CourseManagement({
   title = "อบรมทั้งหมด",
   mode,
@@ -21,7 +29,6 @@ export default function CourseManagement({
 }) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-
   const [courseList, setCourseList] = useState<CourseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,16 +49,16 @@ export default function CourseManagement({
         ? "/instructor/courses/new"
         : "#";
 
-  // ✅ Fetch from DB (API)
   useEffect(() => {
     const controller = new AbortController();
+    const endpoint = API_ENDPOINT[resolvedMode];
 
     (async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/admin/courses", {
+        const res = await fetch(endpoint, {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
@@ -73,13 +80,12 @@ export default function CourseManagement({
     })();
 
     return () => controller.abort();
-  }, []);
+  }, [resolvedMode]);
 
   const totalCourses = courseList.length;
   const openCount = courseList.filter((c) => c.status === "open").length;
-
-  // NOTE: ยังเป็น mock เหมือนเดิม ถ้าจะให้จริงค่อยทำ endpoint นับ user
-  const totalUsers = 127;
+  const enrolledCount = courseList.filter((c) => c.enrolled).length;
+  const totalUsers = 127; // mock
 
   const filteredCourses = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -99,7 +105,9 @@ export default function CourseManagement({
               {title}
             </h1>
             <p className="text-sm text-[#6E8E59]">
-              จัดการและค้นหาอบรมในระบบได้จากหน้านี้
+              {resolvedMode === "trainee"
+                ? "ลงทะเบียนคอร์สที่สนใจเพื่อเข้าถึงบทเรียนและข้อสอบ"
+                : "จัดการและค้นหาอบรมในระบบได้จากหน้านี้"}
             </p>
           </div>
 
@@ -113,7 +121,6 @@ export default function CourseManagement({
                 เพิ่มคอร์ส
               </Link>
             )}
-
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CDE3BD] bg-white px-3 py-1 text-xs text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/60">
               <FolderOpen className="h-4 w-4 text-[#16A34A]" />
               <span>ทั้งหมด {totalCourses} รายการ</span>
@@ -123,32 +130,24 @@ export default function CourseManagement({
 
         {/* Summary cards */}
         <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <SummaryCard
-            label="อบรมทั้งหมด"
-            value={totalCourses}
-            icon={GraduationCap}
-            iconBg="bg-[#E8F7ED]"
-            iconColor="text-[#16A34A]"
-          />
-          <SummaryCard
-            label="ผู้ใช้งานทั้งหมด"
-            value={totalUsers}
-            icon={Users}
-            iconBg="bg-[#EAF2FF]"
-            iconColor="text-[#2563EB]"
-          />
-          <SummaryCard
-            label="เปิดรับสมัคร"
-            value={openCount}
-            icon={FolderOpen}
-            iconBg="bg-[#FFF7ED]"
-            iconColor="text-[#EA580C]"
-          />
+          {resolvedMode === "trainee" ? (
+            <>
+              <SummaryCard label="คอร์สทั้งหมด" value={totalCourses} icon={GraduationCap} iconBg="bg-[#E8F7ED]" iconColor="text-[#16A34A]" />
+              <SummaryCard label="ลงทะเบียนแล้ว" value={enrolledCount} icon={Users} iconBg="bg-[#EAF2FF]" iconColor="text-[#2563EB]" />
+              <SummaryCard label="เปิดรับสมัคร" value={openCount} icon={FolderOpen} iconBg="bg-[#FFF7ED]" iconColor="text-[#EA580C]" />
+            </>
+          ) : (
+            <>
+              <SummaryCard label="อบรมทั้งหมด" value={totalCourses} icon={GraduationCap} iconBg="bg-[#E8F7ED]" iconColor="text-[#16A34A]" />
+              <SummaryCard label="ผู้ใช้งานทั้งหมด" value={totalUsers} icon={Users} iconBg="bg-[#EAF2FF]" iconColor="text-[#2563EB]" />
+              <SummaryCard label="เปิดรับสมัคร" value={openCount} icon={FolderOpen} iconBg="bg-[#FFF7ED]" iconColor="text-[#EA580C]" />
+            </>
+          )}
         </div>
 
         {/* Search */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="relative w-full md:flex-1">
+        <div className="mb-6">
+          <div className="relative w-full">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86A97A]" />
             <input
               type="text"
@@ -172,10 +171,7 @@ export default function CourseManagement({
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {loading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[360px] w-full max-w-[380px] justify-self-center overflow-hidden rounded-[20px] border border-[#E6F1DF] bg-white shadow-[0_0_4px_0_#CAE0BC]/50"
-                >
+                <div key={i} className="h-[360px] w-full max-w-[380px] justify-self-center overflow-hidden rounded-[20px] border border-[#E6F1DF] bg-white shadow-[0_0_4px_0_#CAE0BC]/50">
                   <div className="h-[190px] w-full animate-pulse bg-[#F6FBF6]" />
                   <div className="p-5">
                     <div className="h-4 w-2/3 animate-pulse rounded bg-[#F6FBF6]" />
@@ -194,12 +190,8 @@ export default function CourseManagement({
 
         {!loading && !error && filteredCourses.length === 0 && (
           <div className="mt-10 rounded-2xl border border-[#CDE3BD] bg-white p-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50">
-            <p className="text-sm font-medium text-[#14532D]">
-              ไม่พบอบรมตามเงื่อนไขที่ค้นหา
-            </p>
-            <p className="mt-1 text-xs text-[#6E8E59]">
-              ลองปรับคำค้นหาให้สั้นลง หรือค้นด้วยชื่อสถานที่
-            </p>
+            <p className="text-sm font-medium text-[#14532D]">ไม่พบอบรมตามเงื่อนไขที่ค้นหา</p>
+            <p className="mt-1 text-xs text-[#6E8E59]">ลองปรับคำค้นหาให้สั้นลง หรือค้นด้วยชื่อสถานที่</p>
           </div>
         )}
       </main>

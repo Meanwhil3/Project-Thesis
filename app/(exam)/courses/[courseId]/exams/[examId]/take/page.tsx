@@ -25,12 +25,6 @@ function fmtThai(d: Date) {
   });
 }
 
-function pickAttemptStatus(keys: string[]) {
-  const en = AttemptStatus as any;
-  for (const k of keys) if (en?.[k]) return en[k] as AttemptStatus;
-  return undefined;
-}
-
 export default async function TakePage({
   params,
 }: {
@@ -38,33 +32,65 @@ export default async function TakePage({
 }) {
   const { courseId, examId } = await params;
 
+  // ─── Auth ────────────────────────────────────────────────────────────────────
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
   const u = session.user as any;
   const role = String(u?.role ?? "").toUpperCase();
-  if (role !== "TRAINEE") redirect("/forbidden");
+
+  // DEBUG: ลบออกหลัง fix แล้ว
+  console.log("[TakePage] session.user =", JSON.stringify(u));
+  console.log("[TakePage] role =", role);
+
+  // เฉพาะ TRAINEE เท่านั้นที่ทำข้อสอบได้
+  if (role !== "TRAINEE") {
+    console.log("[TakePage] ❌ role check failed, role =", role);
+    redirect("/forbidden");
+  }
 
   const courseIdBig = toBigIntOrRedirect(courseId);
   const examIdBig = toBigIntOrRedirect(examId);
 
-  // หา user_id จาก session
+  // ─── Resolve userId ──────────────────────────────────────────────────────────
   let userId: bigint | null = null;
-  if (u.user_id && /^\d+$/.test(String(u.user_id))) userId = BigInt(u.user_id);
-  else if (u.id && /^\d+$/.test(String(u.id))) userId = BigInt(u.id);
-  else if (u.email) {
+  if (u.user_id && /^\d+$/.test(String(u.user_id))) {
+    userId = BigInt(u.user_id);
+  } else if (u.id && /^\d+$/.test(String(u.id))) {
+    userId = BigInt(u.id);
+  } else if (u.email) {
     const found = await prisma.user.findUnique({
       where: { email: String(u.email).toLowerCase() },
-      select: { user_id: true },
+      select: { user_id: true, is_active: true },
     });
+    console.log("[TakePage] user lookup by email =", found);
+    // ตรวจ is_active ด้วย
+    if (!found?.is_active) redirect("/login");
     userId = found?.user_id ?? null;
   }
+
+  console.log("[TakePage] resolved userId =", userId?.toString());
   if (!userId) redirect("/login");
+
+  // ─── ตรวจ enrollment – TRAINEE ต้องลงทะเบียนในคอร์สก่อน ──────────────────
+  const enrollment = await prisma.courseEnrollments.findFirst({
+    where: {
+      user_id: userId,
+      course_id: courseIdBig,
+      deleted_at: null,
+    },
+    select: { enrollment_id: true },
+  });
+
+  console.log("[TakePage] enrollment =", enrollment, "| courseId =", courseId, "| userId =", userId?.toString());
+  if (!enrollment) {
+    console.log("[TakePage] ❌ enrollment check failed");
+    redirect("/forbidden");
+  }
 
   const now = new Date();
 
-  // ✅ ดึงข้อสอบ (TRAINEE เห็นเฉพาะ SHOW) + schedule open/close
-  // ✅ ไม่ส่งเฉลย (ไม่ select is_correct)
+  // ─── ดึงข้อสอบ (ไม่ส่ง is_correct) ─────────────────────────────────────────
   const exam = await prisma.exams.findFirst({
     where: {
       course_id: courseIdBig,
@@ -90,6 +116,7 @@ export default async function TakePage({
           choices: {
             where: { deleted_at: null },
             orderBy: { choice_id: "asc" },
+            // ❌ ไม่ select is_correct เด็ดขาด
             select: { choice_id: true, choice_detail: true },
           },
         },
@@ -107,7 +134,7 @@ export default async function TakePage({
     );
   }
 
-  // ✅ เช็คช่วงเวลาเปิด–ปิดข้อสอบ (ระดับข้อสอบ)
+  // ─── เช็คช่วงเวลาเปิด–ปิด ───────────────────────────────────────────────────
   if (exam.open_at && now < exam.open_at) {
     return (
       <div className="mx-auto max-w-2xl p-6">
@@ -134,34 +161,87 @@ export default async function TakePage({
     );
   }
 
-  // ✅ ดึง attempt ที่กำลังทำอยู่ (ยังไม่ submit)
-  const existing = await prisma.exam_Attempts.findFirst({
+  // ─── ดึง attempt ที่กำลังทำอยู่ หรือที่ submit แล้ว ─────────────────────────
+  // ตรวจว่า submit แล้วหรือยัง (ห้ามทำซ้ำ)
+  const completedAttempt = await prisma.exam_Attempts.findFirst({
+    where: {
+      exam_id: examIdBig,
+      user_id: userId,
+      deleted_at: null,
+      submit_datetime: { not: null },
+    },
+    select: { attempt_id: true, total_score: true, submit_datetime: true },
+  });
+
+  if (completedAttempt) {
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <div className="rounded-3xl border border-black/10 bg-white p-8 text-center">
+          <div className="text-lg font-medium text-[#14532D]">คุณส่งข้อสอบนี้ไปแล้ว</div>
+          <div className="mt-2 text-sm text-[#14532D]/70">
+            ส่งเมื่อ:{" "}
+            <b>
+              {completedAttempt.submit_datetime
+                ? fmtThai(completedAttempt.submit_datetime)
+                : "-"}
+            </b>
+          </div>
+          <div className="mt-1 text-sm text-[#14532D]/70">
+            คะแนนที่ได้: <b>{completedAttempt.total_score}</b>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── หา in-progress attempt หรือสร้างใหม่ (race-safe) ──────────────────────
+  // ใช้ upsert-style: findFirst ก่อน แล้วค่อย create ถ้าไม่มี
+  // ป้องกัน race condition ด้วย unique constraint (exam_id + user_id + submit_datetime IS NULL)
+  // หรือจัดการด้วย try/catch บน unique violation
+
+  let attempt = await prisma.exam_Attempts.findFirst({
     where: {
       exam_id: examIdBig,
       user_id: userId,
       submit_datetime: null,
       deleted_at: null,
+      attempt_status: AttemptStatus.IN_PROGRESS,
     },
     orderBy: { started_at: "desc" },
     select: { attempt_id: true, started_at: true },
   });
 
-  const inProgress = pickAttemptStatus(["IN_PROGRESS", "DOING", "STARTED"]);
+  if (!attempt) {
+    try {
+      attempt = await prisma.exam_Attempts.create({
+        data: {
+          exam_id: examIdBig,
+          user_id: userId,
+          total_score: 0,
+          started_at: now,
+          attempt_status: AttemptStatus.IN_PROGRESS,
+        },
+        select: { attempt_id: true, started_at: true },
+      });
+    } catch {
+      // กรณี race condition: มีคนอื่น (หรือ tab อื่น) สร้างไปก่อนแล้ว
+      attempt = await prisma.exam_Attempts.findFirst({
+        where: {
+          exam_id: examIdBig,
+          user_id: userId,
+          submit_datetime: null,
+          deleted_at: null,
+          attempt_status: AttemptStatus.IN_PROGRESS,
+        },
+        orderBy: { started_at: "desc" },
+        select: { attempt_id: true, started_at: true },
+      });
+    }
+  }
 
-  const attempt =
-    existing ??
-    (await prisma.exam_Attempts.create({
-      data: {
-        exam: { connect: { exam_id: examIdBig } },
-        user: { connect: { user_id: userId } },
-        total_score: 0,
-        started_at: now,
-        ...(inProgress ? { attempt_status: inProgress } : {}),
-      },
-      select: { attempt_id: true, started_at: true },
-    }));
+  if (!attempt) redirect("/error");
 
-  // ✅ คำนวณ deadline (หมดเวลาจริง) = min(started_at+duration, close_at ถ้ามี)
+  // ─── คำนวณ deadline ──────────────────────────────────────────────────────────
   const perAttemptDeadline = new Date(
     attempt.started_at.getTime() + exam.duration_minute * 60_000,
   );
@@ -169,20 +249,19 @@ export default async function TakePage({
     ? new Date(Math.min(perAttemptDeadline.getTime(), exam.close_at.getTime()))
     : perAttemptDeadline;
 
-  // ✅ ถ้าหมดเวลาแล้ว ให้ “เข้าไม่ได้/ทำต่อไม่ได้”
+  // ─── หมดเวลา → auto-complete attempt ────────────────────────────────────────
   if (now > deadline) {
-    const expired = pickAttemptStatus(["EXPIRED", "TIME_EXPIRED", "TIMEOUT"]);
-    if (expired) {
-      // best-effort mark expired (ไม่ทำให้หน้า crash)
-      await prisma.exam_Attempts.updateMany({
-        where: {
-          attempt_id: attempt.attempt_id,
-          submit_datetime: null,
-          deleted_at: null,
-        },
-        data: { attempt_status: expired },
-      });
-    }
+    await prisma.exam_Attempts.updateMany({
+      where: {
+        attempt_id: attempt.attempt_id,
+        submit_datetime: null,
+        deleted_at: null,
+      },
+      data: {
+        attempt_status: AttemptStatus.COMPLETED,
+        submit_datetime: deadline,
+      },
+    });
 
     return (
       <div className="mx-auto max-w-2xl p-6">

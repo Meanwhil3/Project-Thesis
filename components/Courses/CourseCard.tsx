@@ -16,6 +16,7 @@ export interface CourseItem {
   endDate: string;
   enrolledCount: number;
   status: CourseStatus;
+  enrolled?: boolean; // true = TRAINEE ลงทะเบียนแล้ว
 }
 
 function buildGoogleMapsSearchUrl(query: string) {
@@ -59,6 +60,27 @@ export default function CourseCard({ course }: { course: CourseItem }) {
             {isOpen ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
           </span>
         </div>
+
+        {/* Enrolled badge */}
+        {course.enrolled !== undefined && (
+          <div className="absolute right-4 top-4">
+            {course.enrolled ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#86EFAC] bg-[#DCFCE7]/90 px-2.5 py-1 text-xs font-medium text-[#14532D] shadow-sm backdrop-blur">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                </svg>
+                ลงทะเบียนแล้ว
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-2.5 py-1 text-xs font-medium text-[#6B7280] shadow-sm backdrop-blur">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                </svg>
+                ยังไม่ได้ลงทะเบียน
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Body */}
