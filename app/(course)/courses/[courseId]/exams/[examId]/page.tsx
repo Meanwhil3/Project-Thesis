@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import ExamStatusBadge from "@/components/Courses/Exams/ExamStatusBadge";
 import { FileText, ListChecks, Pencil } from "lucide-react";
@@ -14,6 +17,12 @@ export default async function ExamDetailPage({
 }: {
   params: { courseId: string; examId: string };
 }) {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/login");
+
+  const role = String((session.user as any)?.role ?? "").toUpperCase();
+  if (role === "TRAINEE") redirect(`/courses/${params.courseId}/exams`);
+
   const courseIdBigInt = toBigInt(params.courseId);
   const examIdBigInt = toBigInt(params.examId);
 

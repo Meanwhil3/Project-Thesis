@@ -3,7 +3,13 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="relative mt-12 border-t border-emerald-100 bg-white">
+    <footer
+      className="
+        relative mt-12
+        w-screen left-1/2 -translate-x-1/2
+        border-t border-emerald-100 bg-white
+      "
+    >
       {/* Tree shadow (responsive) */}
       <div className="pointer-events-none absolute bottom-0 right-0">
         <Image
@@ -26,7 +32,8 @@ export default function Footer() {
         />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:py-10">
+      {/* ✅ Inner content container */}
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
           <div>
             <h3 className="text-base font-semibold tracking-tight text-[#14532D]">

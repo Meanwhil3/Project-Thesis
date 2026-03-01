@@ -116,6 +116,7 @@ model CourseEnrollments {
   user   User?   @relation(fields: [user_id], references: [user_id])
   course Course? @relation(fields: [course_id], references: [course_id])
 
+  @@index([user_id, course_id])
   @@map("Course_Enrollments")
 }
 
