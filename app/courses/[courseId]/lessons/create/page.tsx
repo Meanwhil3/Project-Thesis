@@ -1,16 +1,24 @@
 "use client";
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { 
-  ChevronLeft, 
-  FileText, 
-  Trash2, 
-  Plus, 
-  Youtube,  
-  FileIcon,
-  Save,
-  Loader2
+  ChevronLeft, FileText, Trash2, Plus, Youtube, 
+  FileIcon, Save, Loader2 
 } from 'lucide-react';
+
+// 1. ใช้ react-quill-new แทน เพื่อรองรับ React 19
+const ReactQuill = dynamic(() => import('react-quill-new'), { 
+  ssr: false,
+  loading: () => <div className="h-64 bg-gray-50 animate-pulse rounded-xl border border-gray-200" />
+});
+import 'react-quill-new/dist/quill.snow.css';
+
+// 2. ใช้ ReactPlayer แบบ Dynamic และไม่ระบุ /youtube ต่อท้าย
+const ReactPlayer = dynamic(() => import('react-player'), { 
+  ssr: false,
+  loading: () => <div className="aspect-video bg-gray-100 animate-pulse rounded-2xl" />
+});
 
 export default function CreateLessonPage() {
   const router = useRouter();
@@ -20,178 +28,241 @@ export default function CreateLessonPage() {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    status: 'HIDE' // ซ่อน หรือ แสดง
+    status: 'HIDE',
+    videoUrl: ''
   });
 
-  // Mock data สำหรับส่วนเอกสารประกอบ
-  const [attachments, setAttachments] = useState([
-    { id: 1, name: 'พันธุ์ไม้', type: 'PDF' },
-    { id: 2, name: 'จำแนกพันธุ์ไม้', type: 'PDF' },
-  ]);
+  // State สำหรับเก็บไฟล์ที่อัปโหลด
+  const [attachments, setAttachments] = useState<{ id: string, name: string, type: string, file?: File }[]>([]);
 
+  // --- Functions จัดการไฟล์ ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newFiles = Array.from(files).map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        type: file.name.split('.').pop()?.toUpperCase() || 'FILE',
+        file: file
+      }));
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+    // ล้างค่าเพื่อให้เลือกไฟล์เดิมซ้ำได้ถ้าจำเป็น
+    e.target.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  // --- Function บันทึกข้อมูล ---
   const handleSave = async () => {
     if (!formData.title) return alert('กรุณาระบุชื่อบทเรียน');
     
     setIsSubmitting(true);
     try {
+      // หมายเหตุ: ในการใช้งานจริงที่มีการอัปโหลดไฟล์ ต้องใช้ FormData
       const response = await fetch(`/api/courses/${courseId}/lessons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ 
+          ...formData, 
+          // ส่งแค่ชื่อไฟล์จำลองไปก่อนสำหรับการทดสอบ UI
+          attachments: attachments.map(a => ({ name: a.name, type: a.type })) 
+        }),
       });
 
       if (response.ok) {
         router.push(`/admin/courses/${courseId}/lessons`);
         router.refresh();
+      } else {
+        alert('ไม่สามารถบันทึกข้อมูลได้');
       }
     } catch (error) {
       console.error(error);
-      alert('เกิดข้อผิดพลาด');
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const modules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['link', 'clean'],
+    ],
+  };
+
   return (
-    <div className="min-h-screen bg-[#F0F7F4] p-4 md:p-8 font-kanit">
-      {/* Header / Back Button */}
+    <div className="min-h-screen bg-[#F0F7F4] p-4 md:p-8 font-kanit text-slate-800">
+      {/* ย้อนกลับ */}
       <button 
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-gray-600 hover:text-green-700 transition-colors mb-6"
+        onClick={() => router.back()} 
+        className="flex items-center gap-2 text-gray-500 hover:text-green-700 transition-colors mb-6 group"
       >
-        <ChevronLeft size={20} />
-        <span className="font-medium">บทเรียนทั้งหมด</span>
+        <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+        <span className="font-medium">ย้อนกลับ</span>
       </button>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* --- ฝั่งซ้าย: ข้อมูลหลัก (Main Content) --- */}
+        {/* ฝั่งซ้าย: ข้อมูลหลัก */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* ส่วนข้อมูลพื้นฐาน */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border-2 border-blue-400/20">
-            <h2 className="text-xl font-semibold text-[#14532D] mb-6">ข้อมูลพื้นฐาน</h2>
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-green-100">
+            <h2 className="text-xl font-semibold text-green-900 mb-6">ข้อมูลบทเรียน</h2>
             
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อบทเรียน</label>
+                <label className="block text-sm font-medium text-gray-600 mb-2">ชื่อบทเรียน</label>
                 <input 
                   type="text"
-                  placeholder="เช่น บทที่ 1 - อบรมการจำแนกไม้เบื้องต้น"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all"
+                  placeholder="ใส่หัวข้อบทเรียน..."
+                  className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all"
                   value={formData.title}
                   onChange={(e) => setFormData({...formData, title: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">เนื้อหาบทเรียน</label>
-                {/* ในอนาคตสามารถนำ Rich Text Editor มาลงตรงนี้ได้ */}
-                <div className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="bg-gray-50 border-b p-2 flex gap-2">
-                    <button className="p-1 hover:bg-white rounded">B</button>
-                    <button className="p-1 hover:bg-white rounded font-italic italic">I</button>
-                    <button className="p-1 hover:bg-white rounded underline">U</button>
-                  </div>
-                  <textarea 
-                    rows={10}
-                    placeholder="กรอกเนื้อหาบทเรียน"
-                    className="w-full px-4 py-3 outline-none resize-none"
+                <label className="block text-sm font-medium text-gray-600 mb-2">เนื้อหาบทเรียน</label>
+                <div className="bg-white rounded-xl overflow-hidden border border-gray-200 editor-container">
+                  <ReactQuill 
+                    theme="snow"
                     value={formData.content}
-                    onChange={(e) => setFormData({...formData, content: e.target.value})}
+                    onChange={(val) => setFormData({...formData, content: val})}
+                    modules={modules}
+                    placeholder="พิมพ์เนื้อหาการสอนที่นี่..."
+                    className="min-h-[300px]"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ส่วนสื่อการเรียน */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm">
-            <h2 className="text-xl font-semibold text-[#14532D] mb-6">สื่อการเรียน</h2>
-            <div className="flex flex-wrap gap-4">
-              <button className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-all">
-                <FileIcon size={24} />
-              </button>
-              <button className="w-12 h-12 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-all">
-                <Youtube size={24} />
-              </button>
-              <button className="w-12 h-12 flex items-center justify-center bg-gray-100 text-gray-400 rounded-full border-2 border-dashed border-gray-300 hover:bg-gray-200 transition-all">
-                <Plus size={24} />
-              </button>
+          {/* สื่อการเรียน (วิดีโอ) */}
+          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-green-100">
+            <h2 className="text-xl font-semibold text-green-900 mb-6 flex items-center gap-2">
+              <Youtube className="text-red-500" /> วิดีโอสอน (YouTube)
+            </h2>
+            <div className="space-y-4">
+              <input 
+                type="text"
+                placeholder="วาง Link YouTube เช่น https://www.youtube.com/watch?v=..."
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-400 outline-none"
+                value={formData.videoUrl}
+                onChange={(e) => setFormData({...formData, videoUrl: e.target.value})}
+              />
+
+              {formData.videoUrl && (
+                <div className="rounded-2xl overflow-hidden aspect-video bg-black shadow-lg border-2 border-white">
+                  <ReactPlayer 
+                    url={formData.videoUrl}
+                    width="100%"
+                    height="100%"
+                    controls
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* --- ฝั่งขวา: Sidebar --- */}
+        {/* ฝั่งขวา: Sidebar */}
         <div className="space-y-6">
-          
           {/* เอกสารประกอบ */}
-          <div className="bg-white rounded-3xl p-6 shadow-sm border-l-4 border-green-700">
-            <h2 className="text-lg font-semibold text-black mb-4 flex items-center gap-2">
-              เอกสารประกอบ
-            </h2>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border-t-4 border-green-600">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-semibold text-lg">เอกสารประกอบ</h2>
+              <label className="cursor-pointer p-2 bg-green-50 text-green-600 rounded-full hover:bg-green-100 transition-all">
+                <Plus size={20} />
+                <input type="file" multiple className="hidden" onChange={handleFileUpload} />
+              </label>
+            </div>
+            
             <div className="space-y-3">
-              {attachments.map((file) => (
-                <div key={file.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-green-100 p-2 rounded-xl text-green-700">
-                      <FileText size={20} />
+              {attachments.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-6 border-2 border-dashed border-gray-50 rounded-2xl italic">
+                  ยังไม่มีไฟล์เอกสาร
+                </p>
+              ) : (
+                attachments.map((file) => (
+                  <div key={file.id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl">
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="bg-green-600 p-2 rounded-lg text-white shrink-0">
+                        <FileText size={18} />
+                      </div>
+                      <div className="truncate">
+                        <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
+                        <p className="text-[10px] text-green-600 font-bold uppercase">{file.type}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{file.name}</p>
-                      <p className="text-[10px] text-gray-400">{file.type}</p>
-                    </div>
+                    <button 
+                      onClick={() => removeAttachment(file.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                  <button className="text-red-400 hover:text-red-600 p-1">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
           {/* การเผยแพร่ */}
-          <div className="bg-white rounded-3xl p-6 shadow-sm border-l-4 border-green-700">
-            <h2 className="text-lg font-semibold text-black mb-4">การเผยแพร่</h2>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border-t-4 border-green-600">
+            <h2 className="font-semibold text-lg mb-4 text-slate-800">การเผยแพร่</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1 font-medium">สถานะ:</label>
-                <select 
-                  className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm"
-                  value={formData.status}
-                  onChange={(e) => setFormData({...formData, status: e.target.value})}
-                >
-                  <option value="HIDE">ซ่อน</option>
-                  <option value="SHOW">แสดง</option>
-                </select>
-              </div>
+              <select 
+                className="w-full p-3 bg-slate-50 border border-gray-200 rounded-xl outline-none text-sm font-medium cursor-pointer"
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value})}
+              >
+                <option value="HIDE">ซ่อนบทเรียน (ร่าง)</option>
+                <option value="SHOW">แสดงต่อผู้เรียน</option>
+              </select>
               
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="flex flex-col gap-3 pt-2">
                 <button 
                   onClick={handleSave}
                   disabled={isSubmitting}
-                  className="flex items-center justify-center gap-2 bg-[#D1FAE5] text-[#065F46] py-2.5 rounded-xl text-sm font-medium hover:bg-green-200 transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-green-700 text-white py-3.5 rounded-xl text-sm font-semibold hover:bg-green-800 shadow-lg shadow-green-100 transition-all disabled:opacity-50"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} className="hidden" />}
-                  บันทึก
+                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                  บันทึกบทเรียน
                 </button>
                 <button 
                   onClick={() => router.back()}
-                  className="bg-red-50 text-red-500 py-2.5 rounded-xl text-sm font-medium hover:bg-red-100 transition-all"
+                  className="w-full bg-gray-100 text-gray-500 py-3.5 rounded-xl text-sm font-medium hover:bg-gray-200 transition-all"
                 >
                   ยกเลิก
                 </button>
               </div>
             </div>
           </div>
-
         </div>
+
       </div>
+      
+      {/* เพิ่ม CSS ปรับแต่ง Quill เล็กน้อย */}
+      <style jsx global>{`
+        .editor-container .ql-editor {
+          min-height: 250px;
+          font-family: inherit;
+          font-size: 1rem;
+        }
+        .editor-container .ql-toolbar.ql-snow {
+          border-top: none;
+          border-left: none;
+          border-right: none;
+          border-bottom: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+        .editor-container .ql-container.ql-snow {
+          border: none;
+        }
+      `}</style>
     </div>
   );
-}
-
-// สร้างฟังก์ชัน Check เพื่อใช้ในปุ่มบันทึก
-function Check({ size, className }: { size: number, className: string }) {
-  return <Save size={size} className={className} />
 }
