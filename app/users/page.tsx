@@ -18,7 +18,7 @@ export default function Page() {
         topOffsetClassName="top-16"
       />
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1">
         <UserManagement />
       </main>
       <Footer />

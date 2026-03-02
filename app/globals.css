@@ -3,12 +3,12 @@
 
 @layer base {
   html {
-    @apply h-full min-h-screen overflow-x-hidden overflow-y-scroll;
+    @apply h-full min-h-screen overflow-x-hidden;
     scrollbar-gutter: stable;
   }
 
   body {
-    @apply h-full min-h-screen overflow-x-hidden
+    @apply min-h-screen overflow-x-hidden
       bg-[linear-gradient(117deg,_#E9FFEE_0%,_#FFFBE3_100%)]
       font-[var(--font-kanit)];
   }

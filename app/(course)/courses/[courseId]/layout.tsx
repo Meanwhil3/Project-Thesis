@@ -104,7 +104,7 @@ export default async function CourseLayout({
   const canEditCourse = true;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(1200px_400px_at_20%_0%,rgba(187,247,208,0.35),transparent_55%),linear-gradient(135deg,#F0FCF3_0%,#FEFBEB_100%)]">
+    <div >
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Back */}
         <div className="mb-6">

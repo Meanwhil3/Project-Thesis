@@ -11,6 +11,10 @@ import {
 import type { ElementType, ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
+import { getEnrollmentStatus } from "@/lib/getEnrollmentStatus";
+import EnrollButton from "@/components/Courses/EnrollButton";
 
 type Announcement = {
   id: string;
@@ -87,18 +91,26 @@ export default async function CourseOverviewPage({
     notFound();
   }
 
-  // --- fetch course ---
-  const course = await prisma.course.findUnique({
-    where: { course_id: courseId },
-    select: {
-      course_id: true,
-      course_description: true,
-      location: true,
-      deleted_at: true,
-    },
-  });
+  // --- fetch course + enrollment status in parallel ---
+  const [course, { status: enrollStatus }] = await Promise.all([
+    prisma.course.findUnique({
+      where: { course_id: courseId },
+      select: {
+        course_id: true,
+        course_name: true,
+        course_description: true,
+        location: true,
+        deleted_at: true,
+      },
+    }),
+    getEnrollmentStatus(courseId),
+  ]);
 
   if (!course || course.deleted_at) notFound();
+
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role ?? "").toUpperCase();
+  const isTrainee = role === "TRAINEE";
 
   const courseDescription =
     course.course_description ?? "ยังไม่มีคำอธิบายคอร์ส";
@@ -163,6 +175,17 @@ export default async function CourseOverviewPage({
 
   return (
     <div className="grid gap-6">
+      {/* Enroll button — แสดงเฉพาะ TRAINEE */}
+      {isTrainee && (
+        <div className="flex justify-end">
+          <EnrollButton
+            courseId={courseIdStr}
+            courseName={course.course_name}
+            enrolled={enrollStatus === "enrolled"}
+          />
+        </div>
+      )}
+
       {/* Announcements */}
       <SectionShell
         title="ประกาศ"
@@ -223,7 +246,7 @@ export default async function CourseOverviewPage({
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Course detail */}
         <SectionShell title="รายละเอียดอบรม" icon={Info}>
-          <div className="font-kanit text-[15px] leading-7 text-[#14532D]">
+          <div className="text-[15px] leading-7 text-[#14532D]">
             <p className="rounded-2xl bg-[#F8FFF9] p-5 ring-1 ring-[#BBF7D0]/70">
               {courseDescription}
             </p>

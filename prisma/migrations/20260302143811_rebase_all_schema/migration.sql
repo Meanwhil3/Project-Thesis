@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "CourseStatus" AS ENUM ('HIDE', 'SHOW');
+CREATE TYPE "LessonStatus" AS ENUM ('OPEN', 'CLOSE');
 
 -- CreateEnum
-CREATE TYPE "LessonStatus" AS ENUM ('OPEN', 'CLOSE');
+CREATE TYPE "CourseStatus" AS ENUM ('SHOW', 'HIDE');
 
 -- CreateEnum
 CREATE TYPE "ExamType" AS ENUM ('FILL IN THE BLANK', 'MULTIPLE CHOICE');
@@ -39,7 +39,7 @@ CREATE TABLE "User" (
     "email" VARCHAR(255) NOT NULL,
     "password" TEXT NOT NULL,
     "is_active" BOOLEAN DEFAULT false,
-    "created_at" TIMESTAMPTZ,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("user_id")
@@ -65,9 +65,9 @@ CREATE TABLE "Course" (
 -- CreateTable
 CREATE TABLE "Course_Enrollments" (
     "enrollment_id" BIGSERIAL NOT NULL,
-    "user_id" BIGINT,
-    "course_id" BIGINT,
-    "enrollment_date" TIMESTAMPTZ NOT NULL,
+    "user_id" BIGINT NOT NULL,
+    "course_id" BIGINT NOT NULL,
+    "enrollment_date" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "Course_Enrollments_pkey" PRIMARY KEY ("enrollment_id")
@@ -77,6 +77,8 @@ CREATE TABLE "Course_Enrollments" (
 CREATE TABLE "Instructor" (
     "user_id" BIGINT NOT NULL,
     "course_id" BIGINT NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "Instructor_pkey" PRIMARY KEY ("user_id","course_id")
 );
@@ -84,10 +86,10 @@ CREATE TABLE "Instructor" (
 -- CreateTable
 CREATE TABLE "Announcements" (
     "announcement_id" BIGSERIAL NOT NULL,
-    "course_id" BIGINT,
+    "course_id" BIGINT NOT NULL,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
-    "created_at" TIMESTAMPTZ NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_by" BIGINT,
     "deleted_at" TIMESTAMPTZ,
 
@@ -101,7 +103,8 @@ CREATE TABLE "Lessons" (
     "lesson_title" TEXT NOT NULL,
     "lesson_content" TEXT NOT NULL,
     "lesson_status" "LessonStatus",
-    "created_at" TIMESTAMPTZ NOT NULL,
+    "order_index" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_by" BIGINT,
     "deleted_at" TIMESTAMPTZ,
 
@@ -111,11 +114,11 @@ CREATE TABLE "Lessons" (
 -- CreateTable
 CREATE TABLE "Lesson_Attachments" (
     "attachment_id" BIGSERIAL NOT NULL,
-    "lesson_id" BIGINT,
+    "lesson_id" BIGINT NOT NULL,
     "display_name" VARCHAR(255) NOT NULL,
     "file_path" TEXT NOT NULL,
     "file_type" TEXT NOT NULL,
-    "created_at" TIMESTAMPTZ,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Lesson_Attachments_pkey" PRIMARY KEY ("attachment_id")
 );
@@ -129,9 +132,12 @@ CREATE TABLE "Exams" (
     "exam_type" "ExamType",
     "duration_minute" INTEGER NOT NULL,
     "exam_status" "ExamStatus",
-    "created_at" TIMESTAMPTZ NOT NULL,
+    "exam_access_code" VARCHAR(6),
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_by" BIGINT,
     "deleted_at" TIMESTAMPTZ,
+    "open_at" TIMESTAMPTZ,
+    "close_at" TIMESTAMPTZ,
 
     CONSTRAINT "Exams_pkey" PRIMARY KEY ("exam_id")
 );
@@ -139,10 +145,10 @@ CREATE TABLE "Exams" (
 -- CreateTable
 CREATE TABLE "Questions" (
     "question_id" BIGSERIAL NOT NULL,
-    "exam_id" BIGINT,
+    "exam_id" BIGINT NOT NULL,
     "score" INTEGER NOT NULL,
     "question_detail" TEXT NOT NULL,
-    "created_at" TIMESTAMPTZ,
+    "created_at" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "Questions_pkey" PRIMARY KEY ("question_id")
@@ -151,10 +157,10 @@ CREATE TABLE "Questions" (
 -- CreateTable
 CREATE TABLE "Choices" (
     "choice_id" BIGSERIAL NOT NULL,
-    "question_id" BIGINT,
+    "question_id" BIGINT NOT NULL,
     "choice_detail" TEXT NOT NULL,
-    "is_correct" BOOLEAN,
-    "created_at" TIMESTAMPTZ,
+    "is_correct" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "Choices_pkey" PRIMARY KEY ("choice_id")
@@ -163,12 +169,13 @@ CREATE TABLE "Choices" (
 -- CreateTable
 CREATE TABLE "Exam_Attempts" (
     "attempt_id" BIGSERIAL NOT NULL,
-    "user_id" BIGINT,
-    "exam_id" BIGINT,
-    "attempt_status" "AttemptStatus",
-    "total_score" INTEGER NOT NULL,
-    "submit_datetime" TIMESTAMPTZ NOT NULL,
-    "created_at" TIMESTAMPTZ NOT NULL,
+    "user_id" BIGINT NOT NULL,
+    "exam_id" BIGINT NOT NULL,
+    "attempt_status" "AttemptStatus" NOT NULL DEFAULT 'IN PROGRESS',
+    "total_score" INTEGER NOT NULL DEFAULT 0,
+    "started_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "submit_datetime" TIMESTAMPTZ,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMPTZ,
 
     CONSTRAINT "Exam_Attempts_pkey" PRIMARY KEY ("attempt_id")
@@ -184,7 +191,7 @@ CREATE TABLE "Wood" (
     "wood_status" "WoodStatus",
     "wood_taste" VARCHAR(255),
     "wood_odor" VARCHAR(255),
-    "wood_Texture" VARCHAR(255),
+    "wood_texture" VARCHAR(255),
     "wood_luster" VARCHAR(255),
     "wood_grain" VARCHAR(255),
     "wood_weight" "WoodWeight",
@@ -212,7 +219,7 @@ CREATE TABLE "Wood" (
     "ap_banded" VARCHAR(255),
     "created_by" BIGINT,
     "deleted_at" TIMESTAMPTZ,
-    "created_at" TIMESTAMPTZ,
+    "created_at" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ,
 
     CONSTRAINT "Wood_pkey" PRIMARY KEY ("wood_id")
@@ -224,7 +231,7 @@ CREATE TABLE "Wood_Images" (
     "wood_id" BIGINT,
     "image_url" TEXT NOT NULL,
     "image_description" TEXT,
-    "date_added" TIMESTAMPTZ NOT NULL,
+    "date_added" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Wood_Images_pkey" PRIMARY KEY ("image_id")
 );
@@ -236,7 +243,49 @@ CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "Course_Enrollments_course_id_idx" ON "Course_Enrollments"("course_id");
+
+-- CreateIndex
+CREATE INDEX "Course_Enrollments_user_id_idx" ON "Course_Enrollments"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Course_Enrollments_user_id_course_id_key" ON "Course_Enrollments"("user_id", "course_id");
+
+-- CreateIndex
+CREATE INDEX "Instructor_course_id_idx" ON "Instructor"("course_id");
+
+-- CreateIndex
+CREATE INDEX "Announcements_course_id_idx" ON "Announcements"("course_id");
+
+-- CreateIndex
+CREATE INDEX "Lessons_course_id_order_index_idx" ON "Lessons"("course_id", "order_index");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Lesson_Attachments_file_path_key" ON "Lesson_Attachments"("file_path");
+
+-- CreateIndex
+CREATE INDEX "Lesson_Attachments_lesson_id_idx" ON "Lesson_Attachments"("lesson_id");
+
+-- CreateIndex
+CREATE INDEX "Exams_open_at_idx" ON "Exams"("open_at");
+
+-- CreateIndex
+CREATE INDEX "Exams_close_at_idx" ON "Exams"("close_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Exams_course_id_exam_access_code_key" ON "Exams"("course_id", "exam_access_code");
+
+-- CreateIndex
+CREATE INDEX "Questions_exam_id_idx" ON "Questions"("exam_id");
+
+-- CreateIndex
+CREATE INDEX "Choices_question_id_idx" ON "Choices"("question_id");
+
+-- CreateIndex
+CREATE INDEX "Exam_Attempts_exam_id_user_id_idx" ON "Exam_Attempts"("exam_id", "user_id");
+
+-- CreateIndex
+CREATE INDEX "Exam_Attempts_submit_datetime_idx" ON "Exam_Attempts"("submit_datetime");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Wood_Images_image_url_key" ON "Wood_Images"("image_url");
@@ -245,10 +294,10 @@ CREATE UNIQUE INDEX "Wood_Images_image_url_key" ON "Wood_Images"("image_url");
 ALTER TABLE "User" ADD CONSTRAINT "User_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "Role"("role_id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Course_Enrollments" ADD CONSTRAINT "Course_Enrollments_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Course_Enrollments" ADD CONSTRAINT "Course_Enrollments_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Course_Enrollments" ADD CONSTRAINT "Course_Enrollments_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Course_Enrollments" ADD CONSTRAINT "Course_Enrollments_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Instructor" ADD CONSTRAINT "Instructor_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -257,19 +306,19 @@ ALTER TABLE "Instructor" ADD CONSTRAINT "Instructor_user_id_fkey" FOREIGN KEY ("
 ALTER TABLE "Instructor" ADD CONSTRAINT "Instructor_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Announcements" ADD CONSTRAINT "Announcements_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Announcements" ADD CONSTRAINT "Announcements_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Announcements" ADD CONSTRAINT "Announcements_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "User"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lessons" ADD CONSTRAINT "Lessons_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Lessons" ADD CONSTRAINT "Lessons_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Lessons" ADD CONSTRAINT "Lessons_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "User"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lesson_Attachments" ADD CONSTRAINT "Lesson_Attachments_lesson_id_fkey" FOREIGN KEY ("lesson_id") REFERENCES "Lessons"("lesson_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Lesson_Attachments" ADD CONSTRAINT "Lesson_Attachments_lesson_id_fkey" FOREIGN KEY ("lesson_id") REFERENCES "Lessons"("lesson_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Exams" ADD CONSTRAINT "Exams_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "Course"("course_id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -278,19 +327,19 @@ ALTER TABLE "Exams" ADD CONSTRAINT "Exams_course_id_fkey" FOREIGN KEY ("course_i
 ALTER TABLE "Exams" ADD CONSTRAINT "Exams_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "User"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Questions" ADD CONSTRAINT "Questions_exam_id_fkey" FOREIGN KEY ("exam_id") REFERENCES "Exams"("exam_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Questions" ADD CONSTRAINT "Questions_exam_id_fkey" FOREIGN KEY ("exam_id") REFERENCES "Exams"("exam_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Choices" ADD CONSTRAINT "Choices_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Questions"("question_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Choices" ADD CONSTRAINT "Choices_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "Questions"("question_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Exam_Attempts" ADD CONSTRAINT "Exam_Attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Exam_Attempts" ADD CONSTRAINT "Exam_Attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Exam_Attempts" ADD CONSTRAINT "Exam_Attempts_exam_id_fkey" FOREIGN KEY ("exam_id") REFERENCES "Exams"("exam_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Exam_Attempts" ADD CONSTRAINT "Exam_Attempts_exam_id_fkey" FOREIGN KEY ("exam_id") REFERENCES "Exams"("exam_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Wood" ADD CONSTRAINT "Wood_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "User"("user_id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Wood_Images" ADD CONSTRAINT "Wood_Images_wood_id_fkey" FOREIGN KEY ("wood_id") REFERENCES "Wood"("wood_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Wood_Images" ADD CONSTRAINT "Wood_Images_wood_id_fkey" FOREIGN KEY ("wood_id") REFERENCES "Wood"("wood_id") ON DELETE CASCADE ON UPDATE CASCADE;

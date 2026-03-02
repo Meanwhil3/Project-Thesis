@@ -7,8 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- Enums: รวมศูนย์และใช้ @map เพื่อความเป็นมืออาชีพ ---
-
 enum LessonStatus {
   OPEN
   CLOSE
@@ -96,7 +94,7 @@ model Course {
   course_status      CourseStatus?
   start_date         DateTime?     @db.Timestamptz
   end_date           DateTime?     @db.Timestamptz
-  created_at         DateTime      @default(now()) @db.Timestamptz
+  created_at         DateTime?     @db.Timestamptz
   deleted_at         DateTime?     @db.Timestamptz
 
   enrollments   CourseEnrollments[]
@@ -115,8 +113,8 @@ model CourseEnrollments {
   enrollment_date DateTime  @default(now()) @db.Timestamptz
   deleted_at      DateTime? @db.Timestamptz
 
-  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
-  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  user   User?   @relation(fields: [user_id], references: [user_id])
+  course Course? @relation(fields: [course_id], references: [course_id])
 
   @@unique([user_id, course_id]) // จุดเด่นของมีน: ป้องกัน User ลงทะเบียนซ้ำในคอร์สเดิม
   @@index([course_id])
@@ -130,8 +128,8 @@ model Instructor {
   created_at DateTime  @default(now()) @db.Timestamptz
   deleted_at DateTime? @db.Timestamptz
 
-  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
-  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  user   User   @relation(fields: [user_id], references: [user_id])
+  course Course @relation(fields: [course_id], references: [course_id])
 
   @@id([user_id, course_id])
   @@index([course_id])
@@ -189,24 +187,27 @@ model Lesson_Attachments {
 
 model Exams {
   exam_id          BigInt      @id @default(autoincrement())
-  course_id        BigInt?     // ปรับเป็น ? ตามแบบอาย เพื่อความยืดหยุ่นในการจัดทำข้อสอบ
+  course_id        BigInt?
   exam_title       String      @db.Text
   exam_description String?     @db.Text
   exam_type        ExamType?
   duration_minute  Int
   exam_status      ExamStatus?
-  examAccessCode   String?     @map("exam_access_code") @db.VarChar(6) // จุดเด่นของอาย: รหัสเข้าสอบ
+  examAccessCode   String?     @map("exam_access_code") @db.VarChar(6)
   created_at       DateTime    @default(now()) @db.Timestamptz
   created_by       BigInt?
   deleted_at       DateTime?   @db.Timestamptz
+  open_at          DateTime?   @db.Timestamptz
+  close_at         DateTime?   @db.Timestamptz
 
-  course    Course?         @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
-  author    User?           @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
+  course    Course?         @relation(fields: [course_id], references: [course_id])
+  author    User?           @relation(fields: [created_by], references: [user_id])
   questions Questions[]
   attempts  Exam_Attempts[]
 
   @@unique([course_id, examAccessCode], map: "Exams_course_id_exam_access_code_key")
-  @@index([course_id])
+  @@index([open_at])
+  @@index([close_at])
   @@map("Exams")
 }
 
@@ -215,10 +216,10 @@ model Questions {
   exam_id         BigInt
   score           Int
   question_detail String    @db.Text
-  created_at      DateTime  @default(now()) @db.Timestamptz
+  created_at      DateTime? @default(now())
   deleted_at      DateTime? @db.Timestamptz
 
-  exam    Exams     @relation(fields: [exam_id], references: [exam_id], onDelete: Restrict)
+  exam    Exams?    @relation(fields: [exam_id], references: [exam_id])
   choices Choices[]
 
   @@index([exam_id])
@@ -230,30 +231,31 @@ model Choices {
   question_id   BigInt
   choice_detail String    @db.Text
   is_correct    Boolean   @default(false)
-  created_at    DateTime  @default(now()) @db.Timestamptz
+  created_at    DateTime? @default(now())
   deleted_at    DateTime? @db.Timestamptz
 
-  question Questions @relation(fields: [question_id], references: [question_id], onDelete: Restrict)
+  question Questions? @relation(fields: [question_id], references: [question_id])
 
   @@index([question_id])
   @@map("Choices")
 }
 
 model Exam_Attempts {
-  attempt_id      BigInt         @id @default(autoincrement())
+  attempt_id      BigInt        @id @default(autoincrement())
   user_id         BigInt
   exam_id         BigInt
-  attempt_status  AttemptStatus?
-  total_score     Int            @default(0)
-  submit_datetime DateTime?      @db.Timestamptz
-  created_at      DateTime       @default(now()) @db.Timestamptz
-  deleted_at      DateTime?      @db.Timestamptz
+  attempt_status  AttemptStatus @default(IN_PROGRESS)
+  total_score     Int           @default(0)
+  started_at      DateTime      @default(now()) @db.Timestamptz
+  submit_datetime DateTime?     @db.Timestamptz
+  created_at      DateTime      @default(now()) @db.Timestamptz
+  deleted_at      DateTime?     @db.Timestamptz
 
-  user User  @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
-  exam Exams @relation(fields: [exam_id], references: [exam_id], onDelete: Restrict)
+  user User  @relation(fields: [user_id], references: [user_id])
+  exam Exams @relation(fields: [exam_id], references: [exam_id])
 
-  @@index([user_id])
-  @@index([exam_id])
+  @@index([exam_id, user_id])
+  @@index([submit_datetime])
   @@map("Exam_Attempts")
 }
 
