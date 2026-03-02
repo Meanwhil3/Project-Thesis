@@ -11,15 +11,12 @@ export default function TakeLayout({
   const { courseId } = params;
 
   return (
-    <div className="relative min-h-screen bg-[#F4FCEB] text-[#14532D]">
+    <div className="relative min-h-screen  text-[#14532D]">
       {/* soft background accents */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden"
       >
-        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-[#14532D]/10 blur-3xl" />
-        <div className="absolute -right-28 top-24 h-[520px] w-[520px] rounded-full bg-[#4CA771]/10 blur-3xl" />
-        <div className="absolute bottom-[-140px] left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/35 blur-3xl" />
       </div>
 
       {/* ✅ fixed top bar (responsive) */}
