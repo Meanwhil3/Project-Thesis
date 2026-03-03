@@ -11,7 +11,7 @@ function toBigInt(v: string | undefined): bigint | null {
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { courseId: string; enrollmentId: string } },
+  ctx: { params: Promise<{ courseId: string; enrollmentId: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -23,8 +23,9 @@ export async function DELETE(
     return NextResponse.json({ ok: false, message: "ไม่มีสิทธิ์ดำเนินการ" }, { status: 403 });
   }
 
-  const courseIdBig = toBigInt(params.courseId);
-  const enrollmentIdBig = toBigInt(params.enrollmentId);
+  const { courseId, enrollmentId } = await ctx.params;
+  const courseIdBig = toBigInt(courseId);
+  const enrollmentIdBig = toBigInt(enrollmentId);
   if (!courseIdBig || !enrollmentIdBig) {
     return NextResponse.json({ ok: false, message: "พารามิเตอร์ไม่ถูกต้อง" }, { status: 400 });
   }
