@@ -30,11 +30,12 @@ export default async function MembersPage({
 
   const courseIdBig = BigInt(courseId);
 
-  // ── 1. ดึง exams ทั้งหมดของคอร์สนี้ เพื่อคำนวณ maxScore ──────────────────────
+  // ── 1. ดึง exams ทั้งหมดของคอร์สนี้ พร้อม title และ maxScore ต่อข้อสอบ ─────
   const exams = await prisma.exams.findMany({
     where: { course_id: courseIdBig, deleted_at: null },
     select: {
       exam_id: true,
+      exam_title: true,
       questions: {
         where: { deleted_at: null },
         select: { score: true },
@@ -43,10 +44,15 @@ export default async function MembersPage({
   });
 
   const examIds = exams.map((e) => e.exam_id);
-  const maxScore = exams.reduce(
-    (sum, e) => sum + e.questions.reduce((s, q) => s + q.score, 0),
-    0,
-  );
+
+  // maxScore ต่อข้อสอบ
+  const examInfoList = exams.map((e) => ({
+    examId: e.exam_id.toString(),
+    examTitle: e.exam_title,
+    maxScore: e.questions.reduce((s, q) => s + q.score, 0),
+  }));
+
+  const totalMaxScore = examInfoList.reduce((sum, e) => sum + e.maxScore, 0);
 
   // ── 2. ดึง enrollments พร้อมข้อมูลผู้ใช้ ────────────────────────────────────
   const enrollments = await prisma.courseEnrollments.findMany({
@@ -100,14 +106,24 @@ export default async function MembersPage({
   // ── 5. สร้าง MemberModel list ───────────────────────────────────────────────
   const members: MemberModel[] = enrollments
     .filter((e) => e.user != null)
-    .map((e) => ({
-      id: e.user!.user_id.toString(),
-      enrollmentId: e.enrollment_id.toString(),
-      name: `${e.user!.first_name} ${e.user!.last_name}`,
-      email: e.user!.email,
-      score: totalScoreByUser.get(e.user!.user_id.toString()) ?? 0,
-      maxScore,
-    }));
+    .map((e) => {
+      const uid = e.user!.user_id.toString();
+      const examScores = examInfoList.map((ex) => ({
+        examId: ex.examId,
+        examTitle: ex.examTitle,
+        score: bestPerUserExam.get(`${uid}-${ex.examId}`) ?? 0,
+        maxScore: ex.maxScore,
+      }));
+      return {
+        id: uid,
+        enrollmentId: e.enrollment_id.toString(),
+        name: `${e.user!.first_name} ${e.user!.last_name}`,
+        email: e.user!.email,
+        score: totalScoreByUser.get(uid) ?? 0,
+        maxScore: totalMaxScore,
+        examScores,
+      };
+    });
 
   return <MembersClient courseId={courseId} initialMembers={members} />;
 }

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -13,6 +14,13 @@ import {
 
 import FilterSelect, { type SelectOption } from "@/components/ui/FilterSelect";
 
+export type ExamScore = {
+  examId: string;
+  examTitle: string;
+  score: number;
+  maxScore: number;
+};
+
 export type MemberModel = {
   id: string;           // user_id
   enrollmentId: string; // enrollment_id (ใช้สำหรับ delete)
@@ -20,6 +28,7 @@ export type MemberModel = {
   email: string;
   score: number;
   maxScore: number;
+  examScores: ExamScore[];
 };
 
 type SortKey = "score_desc" | "score_asc";
@@ -95,6 +104,7 @@ export default function MembersClient({
   const [sort, setSort] = useState<SortKey>("score_desc");
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const pageSize = 5;
 
   const filteredSorted = useMemo(() => {
@@ -130,14 +140,26 @@ export default function MembersClient({
   );
 
   const onExportCsv = () => {
-    const rows = filteredSorted.map((m) => ({
-      courseId,
-      memberId: m.id,
-      name: m.name,
-      email: m.email,
-      score: m.score,
-      maxScore: m.maxScore,
-    }));
+    // สร้าง header แบบ dynamic ตามจำนวนข้อสอบ
+    const examTitles = (filteredSorted[0]?.examScores ?? []).map((es) => es.examTitle);
+    const rows = filteredSorted.map((m) => {
+      const row: Record<string, string | number> = {
+        courseId,
+        memberId: m.id,
+        name: m.name,
+        email: m.email,
+      };
+      for (const es of m.examScores) {
+        row[es.examTitle] = `${es.score}/${es.maxScore}`;
+      }
+      return row;
+    });
+    // fallback กรณีไม่มีสมาชิก — ใส่ header ว่างๆ
+    if (rows.length === 0) {
+      const emptyRow: Record<string, string | number> = { courseId, memberId: "", name: "", email: "" };
+      for (const t of examTitles) emptyRow[t] = "";
+      rows.push(emptyRow);
+    }
     downloadTextFile(
       `course-${courseId}-members.csv`,
       toCsv(rows),
@@ -258,65 +280,108 @@ export default function MembersClient({
         ) : (
           pageItems.map((m) => {
             const isDeleting = deletingId === m.enrollmentId;
+            const isExpanded = expandedId === m.enrollmentId;
             return (
               <div
                 key={m.enrollmentId}
-                className={`grid grid-cols-12 items-center gap-3 rounded-2xl border border-black/10 bg-white px-5 py-3.5 shadow-[0_0_4px_0_#CAE0BC] transition hover:shadow-[0_4px_16px_rgba(20,83,45,0.1)] ${
+                className={`overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_0_4px_0_#CAE0BC] transition hover:shadow-[0_4px_16px_rgba(20,83,45,0.1)] ${
                   isDeleting ? "opacity-50" : ""
                 }`}
               >
-                {/* Name + avatar */}
-                <div className="col-span-12 flex items-center gap-3 sm:col-span-5">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#DCFCE7] font-kanit text-sm font-semibold text-[#14532D]">
-                    {getInitials(m.name)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate font-kanit text-sm font-medium text-[#14532D]">
-                      {m.name}
+                {/* ── Main row ── */}
+                <div
+                  className="grid cursor-pointer grid-cols-12 items-center gap-3 px-5 py-3.5"
+                  onClick={() => setExpandedId(isExpanded ? null : m.enrollmentId)}
+                >
+                  {/* Expand indicator + Name + avatar */}
+                  <div className="col-span-12 flex items-center gap-3 sm:col-span-5">
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-[#14532D]/40 transition-transform ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#DCFCE7] font-kanit text-sm font-semibold text-[#14532D]">
+                      {getInitials(m.name)}
                     </div>
-                    <div className="truncate font-kanit text-xs text-[#4CA771] sm:hidden">
-                      {m.email}
+                    <div className="min-w-0">
+                      <div className="truncate font-kanit text-sm font-medium text-[#14532D]">
+                        {m.name}
+                      </div>
+                      <div className="truncate font-kanit text-xs text-[#4CA771] sm:hidden">
+                        {m.email}
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Email (desktop) */}
+                  <div className="col-span-4 hidden truncate sm:block">
+                    <span className="font-kanit text-sm text-[#4CA771]">{m.email}</span>
+                  </div>
+
+                  {/* Score */}
+                  <div className="col-span-8 sm:col-span-2 sm:text-center">
+                    <span className="inline-flex items-baseline gap-1 font-kanit text-sm">
+                      <span className="font-semibold text-[#14532D]">{m.score}</span>
+                      <span className="text-[#14532D]/40">/</span>
+                      <span className="text-[#14532D]/60">{m.maxScore}</span>
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div
+                    className="col-span-4 flex justify-end gap-1 sm:col-span-1 sm:justify-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => alert(`edit member ${m.id}`)}
+                      disabled={isDeleting}
+                      className="rounded-xl p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+                      aria-label="แก้ไข"
+                      title="แก้ไข"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(m)}
+                      disabled={isDeleting}
+                      className="rounded-xl p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                      aria-label="ลบ"
+                      title="ลบสมาชิกออกจากคอร์ส"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
 
-                {/* Email (desktop) */}
-                <div className="col-span-4 hidden truncate sm:block">
-                  <span className="font-kanit text-sm text-[#4CA771]">{m.email}</span>
-                </div>
-
-                {/* Score */}
-                <div className="col-span-8 sm:col-span-2 sm:text-center">
-                  <span className="inline-flex items-baseline gap-1 font-kanit text-sm">
-                    <span className="font-semibold text-[#14532D]">{m.score}</span>
-                    <span className="text-[#14532D]/40">/</span>
-                    <span className="text-[#14532D]/60">{m.maxScore}</span>
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="col-span-4 flex justify-end gap-1 sm:col-span-1 sm:justify-center">
-                  <button
-                    type="button"
-                    onClick={() => alert(`edit member ${m.id}`)}
-                    disabled={isDeleting}
-                    className="rounded-xl p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-                    aria-label="แก้ไข"
-                    title="แก้ไข"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(m)}
-                    disabled={isDeleting}
-                    className="rounded-xl p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
-                    aria-label="ลบ"
-                    title="ลบสมาชิกออกจากคอร์ส"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                {/* ── Expanded exam scores ── */}
+                {isExpanded && m.examScores.length > 0 && (
+                  <div className="border-t border-black/5 bg-[#F0FDF4]/60 px-5 py-3">
+                    <div className="space-y-2">
+                      {m.examScores.map((es) => (
+                        <div
+                          key={es.examId}
+                          className="flex items-center justify-between rounded-xl bg-white/80 px-4 py-2.5"
+                        >
+                          <span className="font-kanit text-sm text-[#14532D]/80">
+                            {es.examTitle}
+                          </span>
+                          <span className="inline-flex items-baseline gap-1 font-kanit text-sm">
+                            <span className="font-semibold text-[#14532D]">{es.score}</span>
+                            <span className="text-[#14532D]/40">/</span>
+                            <span className="text-[#14532D]/60">{es.maxScore}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {isExpanded && m.examScores.length === 0 && (
+                  <div className="border-t border-black/5 bg-[#F0FDF4]/60 px-5 py-3">
+                    <p className="font-kanit text-sm text-[#14532D]/50">ไม่มีข้อสอบในคอร์สนี้</p>
+                  </div>
+                )}
               </div>
             );
           })
