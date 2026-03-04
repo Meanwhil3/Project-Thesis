@@ -53,6 +53,16 @@ export async function DELETE(
   _req: Request,
   { params }: { params: { courseId: string; examId: string } }
 ) {
+  const delSession = await getServerSession(authOptions);
+  if (!delSession) {
+    return NextResponse.json({ message: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  }
+  const delUser = delSession.user as any;
+  const delRole = String(delUser?.role ?? "").toUpperCase();
+  if (!["ADMIN", "EXAMINER"].includes(delRole)) {
+    return NextResponse.json({ message: "ไม่มีสิทธิ์ลบข้อสอบ" }, { status: 403 });
+  }
+
   try {
     const courseId = BigInt(params.courseId);
     const examId = BigInt(params.examId);
@@ -83,6 +93,16 @@ export async function GET(
   _req: Request,
   ctx: { params: { courseId: string; examId: string } }
 ) {
+  const getSession = await getServerSession(authOptions);
+  if (!getSession) {
+    return NextResponse.json({ message: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  }
+  const getUser = getSession.user as any;
+  const getRole = String(getUser?.role ?? "").toUpperCase();
+  if (!["ADMIN", "EXAMINER"].includes(getRole)) {
+    return NextResponse.json({ message: "ไม่มีสิทธิ์เข้าถึงข้อมูลนี้" }, { status: 403 });
+  }
+
   try {
     const { courseId, examId } = ctx.params;
     const courseIdBigInt = toBigIntOrThrow(courseId, "courseId");

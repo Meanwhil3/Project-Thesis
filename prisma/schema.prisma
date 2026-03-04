@@ -8,8 +8,8 @@ datasource db {
 }
 
 enum LessonStatus {
-  OPEN
-  CLOSE
+  OPEN   @map("SHOW")
+  CLOSED @map("HIDE")
 }
 
 enum CourseStatus {
@@ -116,9 +116,9 @@ model CourseEnrollments {
   user   User?   @relation(fields: [user_id], references: [user_id])
   course Course? @relation(fields: [course_id], references: [course_id])
 
-  @@unique([user_id, course_id]) // จุดเด่นของมีน: ป้องกัน User ลงทะเบียนซ้ำในคอร์สเดิม
   @@index([course_id])
   @@index([user_id])
+  @@index([user_id, course_id])
   @@map("Course_Enrollments")
 }
 
@@ -175,7 +175,7 @@ model Lesson_Attachments {
   attachment_id BigInt   @id @default(autoincrement())
   lesson_id     BigInt
   display_name  String   @db.VarChar(255)
-  file_path     String   @unique @db.Text
+  file_path     String   @db.Text
   file_type     String   @db.Text
   created_at    DateTime @default(now()) @db.Timestamptz
 

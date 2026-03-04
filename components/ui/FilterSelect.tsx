@@ -60,6 +60,7 @@ export default function FilterSelect<T extends string>({
         <SelectPrimitive.Portal>
           <SelectPrimitive.Content
             position="popper"
+            sideOffset={4}
             className={
               contentClassName ??
               `

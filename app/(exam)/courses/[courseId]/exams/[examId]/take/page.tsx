@@ -39,13 +39,8 @@ export default async function TakePage({
   const u = session.user as any;
   const role = String(u?.role ?? "").toUpperCase();
 
-  // DEBUG: ลบออกหลัง fix แล้ว
-  console.log("[TakePage] session.user =", JSON.stringify(u));
-  console.log("[TakePage] role =", role);
-
   // เฉพาะ TRAINEE เท่านั้นที่ทำข้อสอบได้
   if (role !== "TRAINEE") {
-    console.log("[TakePage] ❌ role check failed, role =", role);
     redirect("/forbidden");
   }
 
@@ -63,13 +58,10 @@ export default async function TakePage({
       where: { email: String(u.email).toLowerCase() },
       select: { user_id: true, is_active: true },
     });
-    console.log("[TakePage] user lookup by email =", found);
-    // ตรวจ is_active ด้วย
     if (!found?.is_active) redirect("/login");
     userId = found?.user_id ?? null;
   }
 
-  console.log("[TakePage] resolved userId =", userId?.toString());
   if (!userId) redirect("/login");
 
   // ─── ตรวจ enrollment – TRAINEE ต้องลงทะเบียนในคอร์สก่อน ──────────────────
@@ -82,9 +74,7 @@ export default async function TakePage({
     select: { enrollment_id: true },
   });
 
-  console.log("[TakePage] enrollment =", enrollment, "| courseId =", courseId, "| userId =", userId?.toString());
   if (!enrollment) {
-    console.log("[TakePage] ❌ enrollment check failed");
     redirect("/forbidden");
   }
 

@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 export type TakeExamQuestion = {
@@ -72,22 +73,25 @@ export default function TakeExamClient({
     [exam.deadlineISO],
   );
 
-  const [answers, setAnswers] = useState<Record<string, string>>(() => {
-    // โหลด draft จาก localStorage ตอน init (ก่อน hydration เสร็จ)
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
+  const [mounted, setMounted] = useState(false);
+  const autoSubmitOnceRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ─── โหลด draft จาก localStorage หลัง hydration เสร็จ ───────────────────────
+  useEffect(() => {
+    setMounted(true);
     try {
       const raw = safeLocalStorage()?.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") return parsed;
+        if (parsed && typeof parsed === "object") setAnswers(parsed);
       }
     } catch {}
-    return {};
-  });
-
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
-  const autoSubmitOnceRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const locked =
     submitState.status === "success" || submitState.status === "submitting";
@@ -178,62 +182,63 @@ export default function TakeExamClient({
   const totalQuestions = exam.questions.length;
   const isLowTime = leftMs > 0 && leftMs <= 5 * 60 * 1000; // น้อยกว่า 5 นาที
 
+  const timerNode = mounted ? document.getElementById("exam-timer-slot") : null;
+
+  const timerEl = (
+    <div
+      className={`rounded-xl border px-4 py-2 text-center shadow-sm backdrop-blur transition-colors ${
+        leftMs <= 0
+          ? "border-red-200 bg-red-50"
+          : isLowTime
+          ? "border-amber-200 bg-amber-50"
+          : "border-black/10 bg-white/80"
+      }`}
+    >
+      <div className="text-[10px] leading-none text-[#14532D]/50">เวลาเหลือ</div>
+      <div
+        className={`mt-1 text-2xl font-bold tabular-nums leading-none tracking-tight ${
+          leftMs <= 0
+            ? "text-red-600"
+            : isLowTime
+            ? "text-amber-600"
+            : "text-[#14532D]"
+        }`}
+      >
+        {leftMs <= 0 ? "หมดเวลา" : formatLeft(leftMs)}
+      </div>
+    </div>
+  );
+
   return (
     <div className="mx-auto w-full max-w-4xl p-4 sm:p-6">
-      {/* ─── Header card ─────────────────────────────────────────────────────── */}
-      <div className="mb-4 rounded-2xl border border-black/10 bg-white/90 p-5 shadow-sm backdrop-blur ring-1 ring-black/5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-          {/* Title / desc */}
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-[#14532D] sm:text-2xl">
-              {exam.title}
-            </h1>
-            {exam.description && (
-              <p className="mt-1.5 text-sm text-[#14532D]/70">{exam.description}</p>
-            )}
-            <div className="mt-2 text-xs text-[#14532D]/50">
-              ตอบแล้ว{" "}
-              <span className="font-medium text-[#14532D]/70">
-                {answeredCount}/{totalQuestions}
-              </span>{" "}
-              ข้อ
-            </div>
-          </div>
+      {timerNode && createPortal(timerEl, timerNode)}
 
-          {/* Timer */}
-          <div className="sticky top-20 z-20 self-start">
+      {/* ─── Header card ─────────────────────────────────────────────────────── */}
+      <div className="mb-4 rounded-2xl border border-black/10 bg-white/90 p-5 shadow-sm ring-1 ring-black/5">
+        <h1 className="text-xl font-semibold text-[#14532D] sm:text-2xl">
+          {exam.title}
+        </h1>
+        {exam.description && (
+          <p className="mt-1 text-sm text-[#14532D]/60">{exam.description}</p>
+        )}
+
+        {/* Progress */}
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-[#14532D]/60">
+            <span>ความคืบหน้า</span>
+            <span className="font-medium text-[#14532D]/80">
+              {answeredCount}/{totalQuestions} ข้อ
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-black/8">
             <div
-              className={`rounded-2xl border px-4 py-3 text-center shadow-sm backdrop-blur transition-colors ${
-                leftMs <= 0
-                  ? "border-red-200 bg-red-50"
-                  : isLowTime
-                  ? "border-amber-200 bg-amber-50"
-                  : "border-black/10 bg-white/95"
-              }`}
-            >
-              <div className="text-xs text-[#14532D]/60">เวลาเหลือ</div>
-              <div
-                className={`mt-1 text-2xl font-semibold tabular-nums ${
-                  leftMs <= 0
-                    ? "text-red-600"
-                    : isLowTime
-                    ? "text-amber-600"
-                    : "text-[#14532D]"
-                }`}
-              >
-                {leftMs <= 0 ? "หมดเวลา" : formatLeft(leftMs)}
-              </div>
-              <div className="mt-1 text-[11px] text-[#14532D]/50">
-                หมดเวลา:{" "}
-                {new Date(exam.deadlineISO).toLocaleString("th-TH", {
-                  timeZone: "Asia/Bangkok",
-                  month: "short",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-            </div>
+              className="h-full rounded-full bg-[#4CA771] transition-all duration-300"
+              style={{
+                width: totalQuestions > 0
+                  ? `${(answeredCount / totalQuestions) * 100}%`
+                  : "0%",
+              }}
+            />
           </div>
         </div>
       </div>
@@ -242,7 +247,7 @@ export default function TakeExamClient({
       {submitState.status === "success" && (
         <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
           <div className="text-sm font-medium text-emerald-800">
-            ✅ ส่งคำตอบสำเร็จ!
+            ส่งคำตอบสำเร็จ คุณสามารถดูคะแนนได้ด้านล่าง
           </div>
           <div className="mt-1 text-sm text-emerald-700">
             คะแนนที่ได้:{" "}
@@ -301,9 +306,10 @@ export default function TakeExamClient({
                 </div>
               </div>
 
-              <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#14532D]/90">
-                {q.detail}
-              </div>
+              <div
+                className="question-html mt-3 text-sm leading-relaxed text-[#14532D]/90"
+                dangerouslySetInnerHTML={{ __html: q.detail }}
+              />
 
               <div className="mt-4">
                 {isMcq ? (
@@ -389,6 +395,17 @@ export default function TakeExamClient({
           </div>
         </div>
       )}
+
+      {/* ─── Back to top ──────────────────────────────────────────────────────── */}
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="กลับขึ้นด้านบน"
+        className="fixed bottom-6 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-[#14532D] text-white shadow-lg transition hover:bg-[#166534] active:scale-95"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 15l-6-6-6 6" />
+        </svg>
+      </button>
     </div>
   );
 }

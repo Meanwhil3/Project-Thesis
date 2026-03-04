@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, PencilLine, Trash2, Plus, Loader2, GripVertical, ArrowUpDown, Check } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation'; // เพิ่ม useRouter
+import { useParams, useRouter } from 'next/navigation';
 
 // --- dnd-kit components ---
 import {
@@ -22,7 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // --- Sortable Item Component ---
-function SortableLessonItem({ lesson, index, isReordering, onEdit }) {
+function SortableLessonItem({ lesson, index, isReordering, onEdit, onView }) {
   const {
     attributes,
     listeners,
@@ -46,13 +46,15 @@ function SortableLessonItem({ lesson, index, isReordering, onEdit }) {
     <div 
       ref={setNodeRef} 
       style={style}
-      className={`flex items-center justify-between p-4 bg-white border rounded-xl mb-3 transition-all ${
+      // เพิ่ม onClick ให้กดเข้าไปดูเนื้อหาได้เมื่อไม่ได้ Reordering
+      onClick={() => !isReordering && onView(lesson.lesson_id)}
+      className={`flex items-center justify-between p-4 bg-white border rounded-xl mb-3 transition-all group ${
         isReordering 
-          ? "border-blue-200 shadow-md ring-1 ring-blue-100" 
-          : "border-gray-100 hover:border-green-200"
+          ? "border-blue-200 shadow-md ring-1 ring-blue-100 cursor-default" 
+          : "border-gray-100 hover:border-green-300 hover:shadow-sm cursor-pointer"
       }`}
     >
-      <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center gap-4 flex-1 overflow-hidden">
         {isReordering && (
           <div 
             {...attributes} 
@@ -62,29 +64,41 @@ function SortableLessonItem({ lesson, index, isReordering, onEdit }) {
             <GripVertical size={20} />
           </div>
         )}
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 overflow-hidden">
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-bold text-[#14532D] bg-green-50 px-2 py-0.5 rounded border border-green-100">
               บทที่ : {index + 1}
             </span>
-            <h3 className="text-[15px] font-medium text-[#14532D]">{lesson.lesson_title}</h3>
+            <h3 className="text-[15px] font-medium text-[#14532D] truncate group-hover:text-green-700">
+              {lesson.lesson_title}
+            </h3>
           </div>
           {!isReordering && (
-            <p className="text-[12px] text-gray-500 line-clamp-1 ml-1">{lesson.lesson_content}</p>
+            <p className="text-[12px] text-gray-400 line-clamp-1 ml-1 font-light">
+              กดเพื่อดูรายละเอียดเนื้อหา...
+            </p>
           )}
         </div>
       </div>
 
       {!isReordering && (
-        <div className="flex gap-1 ml-4">
-          <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition-colors"><Eye size={18} /></button>
+        <div className="flex gap-1 ml-4" onClick={(e) => e.stopPropagation()}> 
+          {/* stopPropagation ป้องกันไม่ให้กดปุ่มแล้วไปเด้งหน้า View */}
+          <button 
+            onClick={() => onView(lesson.lesson_id)}
+            className="p-2 text-gray-400 hover:bg-gray-50 hover:text-blue-500 rounded-full transition-colors"
+          >
+            <Eye size={18} />
+          </button>
           <button 
             onClick={() => onEdit(lesson.lesson_id)}
             className="p-2 text-[#22C55E] hover:bg-green-50 rounded-full transition-colors"
           >
             <PencilLine size={18} />
           </button>
-          <button className="p-2 text-[#EF4444] hover:bg-red-50 rounded-full transition-colors"><Trash2 size={18} /></button>
+          <button className="p-2 text-[#EF4444] hover:bg-red-50 rounded-full transition-colors">
+            <Trash2 size={18} />
+          </button>
         </div>
       )}
     </div>
@@ -94,7 +108,7 @@ function SortableLessonItem({ lesson, index, isReordering, onEdit }) {
 // --- Main Page Component ---
 export default function CourseLessonsPage() {
   const params = useParams();
-  const router = useRouter(); // ใช้งาน router
+  const router = useRouter();
   const courseId = params?.courseId;
   
   const [items, setItems] = useState([]);
@@ -111,7 +125,6 @@ export default function CourseLessonsPage() {
     if (!courseId) return;
     try {
       setIsLoading(true);
-      // ตรวจสอบ URL API ให้ตรงกับ Route ของคุณ
       const response = await fetch(`/api/courses/${courseId}/lessons`);
       if (response.ok) {
         const data = await response.json();
@@ -147,7 +160,7 @@ export default function CourseLessonsPage() {
         order_index: index + 1
       }));
 
-      const response = await fetch(`/api/courses/${courseId}/lessons`, {
+      const response = await fetch(`/api/admin/courses/${courseId}/lessons`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessons: reorderedList }),
@@ -156,25 +169,24 @@ export default function CourseLessonsPage() {
       if (response.ok) {
         setIsReordering(false);
         fetchLessons();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || "ไม่สามารถบันทึกลำดับได้");
       }
-    } catch (error) {
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // ฟังก์ชันสำหรับการนำทาง
+  const goToViewPage = (lessonId) => {
+    // นำทางไปหน้าแสดงผลบทเรียน (ฝั่งผู้เรียน)
+    router.push(`/courses/${courseId}/lessons/${lessonId}`);
+  };
+
   const goToCreatePage = () => {
-    // นำทางไปยังโฟลเดอร์ create ของบทเรียนในคอร์สนั้นๆ
-    router.push(`/courses/${courseId}/lessons/create`);
+    router.push(`/admin/courses/${courseId}/lessons/create`);
   };
 
   const goToEditPage = (lessonId) => {
-    router.push(`/courses/${courseId}/lessons/${lessonId}/edit`);
+    router.push(`/admin/courses/${courseId}/lessons/${lessonId}/edit`);
   };
 
   return (
@@ -200,7 +212,7 @@ export default function CourseLessonsPage() {
                   <span>แก้ไขลำดับ</span>
                 </button>
                 <button 
-                  onClick={goToCreatePage} // เปลี่ยนไปเรียกฟังก์ชันนำทาง
+                  onClick={goToCreatePage}
                   className="flex items-center gap-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-4 py-2 rounded-xl text-sm transition-all shadow-sm"
                 >
                   <Plus size={18} />
@@ -248,6 +260,7 @@ export default function CourseLessonsPage() {
                     index={index} 
                     isReordering={isReordering}
                     onEdit={goToEditPage}
+                    onView={goToViewPage} // ส่งฟังก์ชัน view เข้าไป
                   />
                 ))}
               </SortableContext>

@@ -90,6 +90,13 @@ function normalizeCode(v: string) {
   return v.trim().toUpperCase();
 }
 
+/** ตรวจว่า HTML มีเนื้อหา (ข้อความหรือรูปภาพ) */
+function hasContent(html: string): boolean {
+  const text = html.replace(/<[^>]*>/g, "").trim();
+  const hasImage = /<img[^>]+src/i.test(html);
+  return text.length > 0 || hasImage;
+}
+
 export default function ExamEditClient({
   initial,
 }: {
@@ -193,7 +200,7 @@ export default function ExamEditClient({
 
       for (let i = 0; i < mcqQuestions.length; i++) {
         const q = mcqQuestions[i];
-        if (!q.prompt.trim())
+        if (!hasContent(q.prompt))
           return setError(`ข้อที่ ${i + 1}: กรุณากรอกคำถาม`);
         if (!Number.isFinite(q.score) || q.score <= 0)
           return setError(`ข้อที่ ${i + 1}: คะแนนต้องมากกว่า 0`);
@@ -239,7 +246,7 @@ export default function ExamEditClient({
           exam_status: status,
           questions: mcqQuestions.map((q) => ({
             score: Number(q.score),
-            question_detail: q.prompt.trim(),
+            question_detail: q.prompt,
             choices: q.options.map((o) => ({
               choice_detail: o.text.trim(),
               is_correct: o.key === q.correctKey,

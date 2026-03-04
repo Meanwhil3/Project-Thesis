@@ -20,6 +20,13 @@ export type McqQuestionDraft = {
   correctKey: string;
 };
 
+/** ตรวจว่า HTML มีเนื้อหา (ข้อความหรือรูปภาพ) */
+function hasContent(html: string): boolean {
+  const text = html.replace(/<[^>]*>/g, "").trim();
+  const hasImage = /<img[^>]+src/i.test(html);
+  return text.length > 0 || hasImage;
+}
+
 function gen6Digits() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -92,7 +99,7 @@ export default function McqExamCreateClient({
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.prompt.trim()) return setError(`ข้อที่ ${i + 1}: กรุณากรอกคำถาม`);
+      if (!hasContent(q.prompt)) return setError(`ข้อที่ ${i + 1}: กรุณากรอกคำถาม`);
       if (!Number.isFinite(q.score) || q.score <= 0)
         return setError(`ข้อที่ ${i + 1}: คะแนนต้องมากกว่า 0`);
 
@@ -120,7 +127,7 @@ export default function McqExamCreateClient({
 
           questions: questions.map((q) => ({
             score: Number(q.score),
-            question_detail: q.prompt.trim(),
+            question_detail: q.prompt,
             choices: q.options.map((o) => ({
               choice_detail: o.text.trim(),
               is_correct: o.key === q.correctKey,

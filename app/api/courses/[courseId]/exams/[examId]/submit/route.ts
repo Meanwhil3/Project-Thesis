@@ -101,8 +101,8 @@ export async function POST(
           score: true,
           choices: {
             where: { deleted_at: null },
-            // ✅ is_correct อยู่ที่นี่เท่านั้น (server-side)
-            select: { choice_id: true, is_correct: true },
+            // ✅ is_correct + choice_detail อยู่ที่นี่เท่านั้น (server-side)
+            select: { choice_id: true, is_correct: true, choice_detail: true },
           },
         },
       },
@@ -184,21 +184,13 @@ export async function POST(
         }
       }
     } else {
-      // FILL_IN_THE_BLANK: ตรวจจาก choice ที่ is_correct = true
-      // (เก็บ correct answer ใน choice_detail ของ choice ที่ is_correct)
-      const correctChoice = question.choices.find((c) => c.is_correct);
-      // ตรวจ exact match (case-insensitive)
-      if (
-        correctChoice &&
-        userAnswer.toLowerCase() ===
-          // ดึง detail ต้องมี relation — ถ้าต้องการ exact text ให้ select choice_detail ด้วย
-          // ตอนนี้ใช้ is_correct เป็น flag ว่าถูก (ต้องปรับ data model)
-          // placeholder: ถ้าไม่มี choice สำหรับ FILL → skip
-          userAnswer.toLowerCase()
-      ) {
-        // NOTE: สำหรับ FILL_IN_THE_BLANK ควร store correct answer แยก หรือใช้ choice_detail
-        // ปัจจุบัน schema ไม่มี correct_answer field ใน Questions → ข้ามไปก่อน
-      }
+      // FILL_IN_THE_BLANK: เปรียบเทียบกับรหัสคำตอบที่ถูกต้องใน choice_detail (is_correct=true)
+      // normalize: trim + uppercase + ลบ whitespace ทั้งหมด
+      const norm = (s: string) => s.trim().toUpperCase().replace(/\s+/g, "");
+      const isCorrect = question.choices
+        .filter((c) => c.is_correct)
+        .some((c) => norm(userAnswer) === norm(c.choice_detail));
+      if (isCorrect) totalScore += Number(question.score ?? 0);
     }
   }
 

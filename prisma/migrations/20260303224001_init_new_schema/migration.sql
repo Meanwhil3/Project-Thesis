@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "LessonStatus" AS ENUM ('OPEN', 'CLOSE');
+CREATE TYPE "LessonStatus" AS ENUM ('SHOW', 'HIDE');
 
 -- CreateEnum
 CREATE TYPE "CourseStatus" AS ENUM ('SHOW', 'HIDE');
@@ -249,7 +249,7 @@ CREATE INDEX "Course_Enrollments_course_id_idx" ON "Course_Enrollments"("course_
 CREATE INDEX "Course_Enrollments_user_id_idx" ON "Course_Enrollments"("user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Course_Enrollments_user_id_course_id_key" ON "Course_Enrollments"("user_id", "course_id");
+CREATE INDEX "Course_Enrollments_user_id_course_id_idx" ON "Course_Enrollments"("user_id", "course_id");
 
 -- CreateIndex
 CREATE INDEX "Instructor_course_id_idx" ON "Instructor"("course_id");

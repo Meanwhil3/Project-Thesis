@@ -2,6 +2,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import RichTextEditor from "./RichTextEditor";
 
 export type McqOptionDraft = { key: string; text: string };
 export type McqQuestionDraft = {
@@ -43,12 +44,12 @@ export default function McqQuestionItem(props: {
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
           <div className="font-kanit text-sm text-[#14532D]">คำถาม</div>
-          <textarea
-            value={q.prompt}
-            onChange={(e) => onPatch({ prompt: e.target.value })}
-            className="mt-2 min-h-[90px] w-full rounded-2xl border border-black/10 p-4 text-sm outline-none focus:border-[#4CA771] focus:ring-2 focus:ring-[#4CA771]/25"
-            placeholder="พิมพ์คำถาม..."
-          />
+          <div className="mt-2">
+            <RichTextEditor
+              value={q.prompt}
+              onChange={(html) => onPatch({ prompt: html })}
+            />
+          </div>
         </div>
 
         <div>
