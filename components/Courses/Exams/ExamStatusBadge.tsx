@@ -8,8 +8,8 @@ const styles: Record<ExamStatus, string> = {
 };
 
 const labels: Record<ExamStatus, string> = {
-  HIDE: "ร่าง",
-  SHOW: "เผยแพร่"
+  HIDE: "ซ่อน",
+  SHOW: "แสดง"
 };
 
 export default function ExamStatusBadge({ status }: { status: ExamStatus }) {

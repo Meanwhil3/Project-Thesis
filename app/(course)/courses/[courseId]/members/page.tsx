@@ -1,93 +1,129 @@
-import { Search, Download, Ban, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+// app/(course)/courses/[courseId]/members/page.tsx
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { AttemptStatus } from "@prisma/client";
+import MembersClient, { type MemberModel } from "@/components/Courses/MembersClient";
 
-export default function CourseMembersPage() {
-  // ข้อมูลจำลอง (Mock Data)
-  const members = [
-    { name: "นายอังคาร ลานวัด", email: "tuesdaytemple@gmail.com", score: "80 / 80" },
-    { name: "นางสวัสดี วันจันทร์", email: "helloMonday@gmail.com", score: "80 / 80" },
-    { name: "นายคืนพุธ มุดผ้าห่ม", email: "wednesinblank@gmail.com", score: "80 / 80" },
-    { name: "นางพฤหัส สีส้ม", email: "thuorange@gmail.com", score: "80 / 80" },
-    { name: "นายศุกร์ มนุษย์ต่างดาว", email: "alienfriday@gmail.com", score: "80 / 80" },
-  ];
+export const dynamic = "force-dynamic";
 
-  return (
-    <div className="rounded-xl bg-white p-8 shadow-sm font-kanit border border-[#CAE0BC]/30">
-      
-      {/* Header Section */}
-      <div className="flex items-center gap-2 mb-6 text-[#14532D]">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <h1 className="text-xl font-semibold">จัดการสมาชิก</h1>
-      </div>
+export default async function MembersPage({
+  params,
+}: {
+  params: Promise<{ courseId: string }>;
+}) {
+  const { courseId } = await params;
 
-      {/* Filters & Actions */}
-      <div className="flex flex-wrap gap-4 mb-6 items-center justify-between">
-        <div className="relative flex-1 min-w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="ค้นหาด้วยชื่อ" 
-            className="w-full pl-10 pr-4 py-2 border border-[#CAE0BC] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#22C55E]"
-          />
-        </div>
-        
-        <div className="flex gap-3">
-          <select className="border border-[#CAE0BC] rounded-lg px-4 py-2 bg-white text-sm focus:outline-none">
-            <option>เรียงตามคะแนน</option>
-          </select>
-          <button className="flex items-center gap-2 bg-[#22C55E] text-white px-4 py-2 rounded-lg hover:bg-[#16a34a] transition-colors text-sm">
-            <Download className="w-4 h-4" />
-            บันทึกเป็น CSV
-          </button>
-        </div>
-      </div>
+  if (!/^\d+$/.test(courseId)) {
+    return <div className="p-6 font-kanit text-red-600">courseId ไม่ถูกต้อง</div>;
+  }
 
-      {/* Table Section */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-y-2">
-          <thead>
-            <tr className="bg-[#F3F4F6] text-left">
-              <th className="p-4 rounded-l-lg font-medium text-gray-700">ชื่อ</th>
-              <th className="p-4 font-medium text-gray-700">อีเมล</th>
-              <th className="p-4 font-medium text-gray-700 text-center">คะแนนรวม</th>
-              <th className="p-4 rounded-r-lg font-medium text-gray-700 text-center">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((member, index) => (
-              <tr key={index} className="border border-gray-100 hover:bg-gray-50 transition-colors">
-                <td className="p-4 flex items-center gap-3 border-y border-l rounded-l-lg border-gray-100">
-                  <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-                  <span className="text-gray-700">{member.name}</span>
-                </td>
-                <td className="p-4 border-y border-gray-100">
-                  <span className="text-[#22C55E] underline cursor-pointer">{member.email}</span>
-                </td>
-                <td className="p-4 border-y text-center text-gray-600 border-gray-100">
-                  {member.score}
-                </td>
-                <td className="p-4 border-y border-r rounded-r-lg border-gray-100 text-center">
-                  <div className="flex justify-center gap-3">
-                    <button className="text-orange-400 hover:text-orange-600"><Ban className="w-5 h-5" /></button>
-                    <button className="text-red-400 hover:text-red-600"><Trash2 className="w-5 h-5" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return <div className="p-6 font-kanit text-red-600">กรุณาเข้าสู่ระบบ</div>;
+  }
 
-      {/* Pagination */}
-      <div className="flex justify-center items-center gap-2 mt-8">
-        <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><ChevronLeft className="w-4 h-4 text-gray-400" /></button>
-        <button className="px-3 py-1 bg-[#E8F5E9] text-[#22C55E] rounded-md font-medium">1</button>
-        <button className="px-3 py-1 hover:bg-gray-100 rounded-md">2</button>
-        <span className="px-2">...</span>
-        <button className="px-3 py-1 hover:bg-gray-100 rounded-md">9</button>
-        <button className="px-3 py-1 hover:bg-gray-100 rounded-md">10</button>
-        <button className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><ChevronRight className="w-4 h-4 text-gray-400" /></button>
-      </div>
+  const role = String((session.user as any)?.role ?? "").toUpperCase();
+  if (role !== "ADMIN" && role !== "EXAMINER") {
+    return <div className="p-6 font-kanit text-red-600">ไม่มีสิทธิ์เข้าถึงหน้านี้</div>;
+  }
 
-    </div>
-  );
+  const courseIdBig = BigInt(courseId);
+
+  // ── 1. ดึง exams ทั้งหมดของคอร์สนี้ พร้อม title และ maxScore ต่อข้อสอบ ─────
+  const exams = await prisma.exams.findMany({
+    where: { course_id: courseIdBig, deleted_at: null },
+    select: {
+      exam_id: true,
+      exam_title: true,
+      questions: {
+        where: { deleted_at: null },
+        select: { score: true },
+      },
+    },
+  });
+
+  const examIds = exams.map((e) => e.exam_id);
+
+  // maxScore ต่อข้อสอบ
+  const examInfoList = exams.map((e) => ({
+    examId: e.exam_id.toString(),
+    examTitle: e.exam_title,
+    maxScore: e.questions.reduce((s, q) => s + q.score, 0),
+  }));
+
+  const totalMaxScore = examInfoList.reduce((sum, e) => sum + e.maxScore, 0);
+
+  // ── 2. ดึง enrollments พร้อมข้อมูลผู้ใช้ ────────────────────────────────────
+  const enrollments = await prisma.courseEnrollments.findMany({
+    where: { course_id: courseIdBig, deleted_at: null },
+    orderBy: { enrollment_date: "desc" },
+    select: {
+      enrollment_id: true,
+      enrollment_date: true,
+      user: {
+        select: {
+          user_id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  // ── 3. ดึง attempts ที่ COMPLETED ────────────────────────────────────────────
+  const userIds = enrollments
+    .map((e) => e.user?.user_id)
+    .filter((id): id is bigint => id != null);
+
+  const attempts =
+    examIds.length > 0 && userIds.length > 0
+      ? await prisma.exam_Attempts.findMany({
+          where: {
+            exam_id: { in: examIds },
+            user_id: { in: userIds },
+            attempt_status: AttemptStatus.COMPLETED,
+            deleted_at: null,
+          },
+          select: { user_id: true, exam_id: true, total_score: true },
+        })
+      : [];
+
+  // ── 4. คำนวณคะแนนรวมต่อคน (best attempt per exam, sum across exams) ─────────
+  const bestPerUserExam = new Map<string, number>();
+  for (const a of attempts) {
+    const key = `${a.user_id}-${a.exam_id}`;
+    bestPerUserExam.set(key, Math.max(bestPerUserExam.get(key) ?? 0, a.total_score));
+  }
+
+  const totalScoreByUser = new Map<string, number>();
+  for (const [key, score] of bestPerUserExam) {
+    const userId = key.split("-")[0];
+    totalScoreByUser.set(userId, (totalScoreByUser.get(userId) ?? 0) + score);
+  }
+
+  // ── 5. สร้าง MemberModel list ───────────────────────────────────────────────
+  const members: MemberModel[] = enrollments
+    .filter((e) => e.user != null)
+    .map((e) => {
+      const uid = e.user!.user_id.toString();
+      const examScores = examInfoList.map((ex) => ({
+        examId: ex.examId,
+        examTitle: ex.examTitle,
+        score: bestPerUserExam.get(`${uid}-${ex.examId}`) ?? 0,
+        maxScore: ex.maxScore,
+      }));
+      return {
+        id: uid,
+        enrollmentId: e.enrollment_id.toString(),
+        name: `${e.user!.first_name} ${e.user!.last_name}`,
+        email: e.user!.email,
+        score: totalScoreByUser.get(uid) ?? 0,
+        maxScore: totalMaxScore,
+        examScores,
+      };
+    });
+
+  return <MembersClient courseId={courseId} initialMembers={members} />;
 }
