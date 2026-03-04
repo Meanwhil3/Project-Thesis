@@ -133,7 +133,10 @@ export default async function ExamDetailPage({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="text-[#14532D]">
                     <div className="text-sm text-[#14532D]/70">ข้อที่ {idx + 1}</div>
-                    <div className="mt-0.5 text-base font-medium">{q.question_detail}</div>
+                    <div
+                      className="question-html mt-0.5 text-base font-medium"
+                      dangerouslySetInnerHTML={{ __html: q.question_detail ?? "" }}
+                    />
                   </div>
                   <div className="text-sm text-[#14532D]/70">
                     คะแนน: <b className="font-medium text-[#14532D]">{q.score}</b>
@@ -148,10 +151,9 @@ export default async function ExamDetailPage({
                         {q.choices.map((c) => (
                           <span
                             key={c.choice_id.toString()}
-                            className="rounded-full border border-black/10 bg-green-50 px-3 py-1 text-xs text-green-900"
-                          >
-                            {c.choice_detail}
-                          </span>
+                            className="question-html rounded-full border border-black/10 bg-green-50 px-3 py-1 text-xs text-green-900"
+                            dangerouslySetInnerHTML={{ __html: c.choice_detail ?? "" }}
+                          />
                         ))}
                       </div>
                     </div>
@@ -166,7 +168,10 @@ export default async function ExamDetailPage({
                               : "border-black/10 bg-white text-[#14532D]/85"
                           }`}
                         >
-                          {c.choice_detail}
+                          <span
+                            className="question-html"
+                            dangerouslySetInnerHTML={{ __html: c.choice_detail ?? "" }}
+                          />
                           {c.is_correct ? <span className="ml-2 text-xs">(ถูก)</span> : null}
                         </li>
                       ))}

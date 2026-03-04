@@ -139,12 +139,10 @@ export default async function CourseOverviewPage({
     meta: a.created_at ? formatThaiDate(a.created_at) : "",
   }));
 
-  // --- fetch instructors (join table Instructor -> User) ---
-  // ❗ สำคัญ: ไม่ใส่ deleted_at ที่นี่เพื่อเลี่ยง PrismaClientValidationError ที่คุณเจอ
   const insRows = await prisma.instructor.findMany({
     where: {
       course_id: courseId,
-      // ถ้าคุณ migrate + generate แล้ว และ Instructor มี deleted_at จริง ค่อยเปิดบรรทัดนี้กลับ:
+      // ถ้า migrate + generate แล้ว และ Instructor มี deleted_at จริง ค่อยเปิดบรรทัดนี้กลับ:
       // deleted_at: null,
     },
     include: {
@@ -157,8 +155,6 @@ export default async function CourseOverviewPage({
         },
       },
     },
-    // ถ้า Instructor ไม่มี created_at ใน DB/Prisma ตอนนี้ อย่า orderBy created_at
-    // orderBy: { created_at: "desc" },
   });
 
   const instructors: Instructor[] = insRows.map((r) => ({
@@ -168,10 +164,10 @@ export default async function CourseOverviewPage({
     avatarUrl: "https://placehold.co/60x60",
   }));
 
-  // TODO: ผูกสิทธิ์จริง
-  const canManageAnnouncements = true;
-  const canEditAnnouncements = true;
-  const canManageInstructors = true;
+  // ผูกสิทธิ์จริง
+  const canManageAnnouncements = !isTrainee;
+  const canEditAnnouncements = !isTrainee;
+  const canManageInstructors = !isTrainee;
 
   return (
     <div className="grid gap-6">

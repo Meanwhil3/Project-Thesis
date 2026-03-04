@@ -1,5 +1,7 @@
 // app/api/admin/courses/route.ts
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -82,6 +84,9 @@ function isOpenStatus(status: DbCourseStatus | null | undefined) {
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
     const courses = await prisma.course.findMany({
       where: { deleted_at: null },
       orderBy: { created_at: "desc" },
@@ -147,6 +152,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const role = String((session.user as any)?.role ?? "").toUpperCase();
+    if (role === "TRAINEE") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+
     const form = await req.formData();
 
     const title = String(form.get("title") ?? "").trim();

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { BookOpen, FileText, Users, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import CourseTabs from "@/components/Courses/CourseTabs";
 import BackButton from "@/components/Courses/BackButton";
 import { prisma } from "@/lib/prisma";
@@ -100,8 +102,9 @@ export default async function CourseLayout({
   const { courseId } = await params; // ✅ แก้ error "params should be awaited"
   const course = await getCourse(courseId);
 
-  // TODO: ผูกสิทธิ์จริงจาก session/role
-  const canEditCourse = true;
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role ?? "").toUpperCase();
+  const canEditCourse = role !== "TRAINEE";
 
   return (
     <div >

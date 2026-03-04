@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import ExamEditClient, { type ExamEditInitial } from "./ExamEditClient";
 import { ExamType, ExamStatus } from "@prisma/client";
@@ -12,6 +15,11 @@ export default async function ExamEditPage({
 }: {
   params: { courseId: string; examId: string };
 }) {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/login");
+  const role = String((session.user as any)?.role ?? "").toUpperCase();
+  if (role === "TRAINEE") redirect(`/courses/${params.courseId}/exams`);
+
   const courseIdBigInt = toBigInt(params.courseId);
   const examIdBigInt = toBigInt(params.examId);
 
