@@ -16,19 +16,23 @@ import { authOptions } from "@/auth";
 import { getEnrollmentStatus } from "@/lib/getEnrollmentStatus";
 import EnrollButton from "@/components/Courses/EnrollButton";
 import AddAnnouncementModal from "@/components/Courses/AddAnnouncementModal";
+import EditAnnouncementModal from "@/components/Courses/EditAnnouncementModal";
+import AnnouncementCard from "@/components/Courses/AnnouncementCard";
+import ManageInstructorsModal from "@/components/Courses/ManageInstructorsModal";
 
 type Announcement = {
   id: string;
   title: string;
+  content: string;
   message: string;
   meta: string;
 };
 
 type Instructor = {
   id: string;
+  userId: string;
   name: string;
   email: string;
-  avatarUrl?: string;
 };
 
 function buildGoogleMapsUrl(query: string) {
@@ -141,6 +145,7 @@ export default async function CourseOverviewPage({
   const announcements: Announcement[] = annRows.map((a) => ({
     id: a.announcement_id.toString(),
     title: a.title,
+    content: a.content,
     message: a.content,
     meta: `${formatThaiDate(a.created_at)}${a.author ? ` • โดย ${a.author.first_name}` : ""}`,
   }));
@@ -150,7 +155,9 @@ export default async function CourseOverviewPage({
     where: {
       course_id: courseId,
     },
-    include: {
+    select: {
+      user_id: true,
+      course_id: true,
       user: {
         select: {
           user_id: true,
@@ -164,9 +171,9 @@ export default async function CourseOverviewPage({
 
   const instructors: Instructor[] = insRows.map((r) => ({
     id: `${r.user_id.toString()}-${r.course_id.toString()}`,
+    userId: r.user_id.toString(),
     name: `${r.user.first_name} ${r.user.last_name}`.trim(),
     email: r.user.email,
-    avatarUrl: "https://placehold.co/60x60",
   }));
 
   // สิทธิ์การจัดการ
@@ -197,37 +204,24 @@ export default async function CourseOverviewPage({
           ) : null
         }
       >
-        <div className="space-y-4">
+        <div className="max-h-[420px] space-y-4 overflow-y-auto pr-1">
           {announcements.length ? (
             announcements.map((a) => (
-              <article
+              <AnnouncementCard
                 key={a.id}
-                className="group relative overflow-hidden rounded-2xl border border-black/10 bg-white p-5 shadow-[0_8px_24px_-18px_rgba(20,83,45,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-22px_rgba(20,83,45,0.45)]"
+                title={a.title}
+                message={a.message}
+                meta={a.meta}
               >
-                <div className="pointer-events-none absolute -right-16 -top-16 h-28 w-28 rounded-full bg-[#DCFCE7]/50 blur-2xl" />
-
                 {canEditAnnouncements && (
-                  <button
-                    type="button"
-                    className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl hover:bg-gray-100 active:scale-[0.98] z-20"
-                    aria-label="แก้ไขประกาศ"
-                  >
-                    <Pencil className="h-5 w-5 text-[#111827]" />
-                  </button>
+                  <EditAnnouncementModal
+                    courseId={courseIdStr}
+                    announcementId={a.id}
+                    initialTitle={a.title}
+                    initialContent={a.content}
+                  />
                 )}
-
-                <div className="font-kanit relative z-10">
-                  <div className="text-[14px] font-medium text-[#14532D]">
-                    {a.title}
-                  </div>
-                  <div className="mt-2 text-[12px] leading-5 text-[#2D5C3F] whitespace-pre-wrap">
-                    {a.message}
-                  </div>
-                  <div className="mt-3 text-[10px] text-[#6E8E59]">
-                    {a.meta}
-                  </div>
-                </div>
-              </article>
+              </AnnouncementCard>
             ))
           ) : (
             <div className="rounded-2xl border border-dashed border-[#CDE3BD] bg-white p-8 text-center text-sm text-[#6E8E59]">
@@ -285,13 +279,10 @@ export default async function CourseOverviewPage({
           icon={Users}
           right={
             canManageInstructors ? (
-              <button
-                type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-100 active:scale-[0.98]"
-                aria-label="จัดการผู้สอน"
-              >
-                <Pencil className="h-5 w-5 text-[#111827]" />
-              </button>
+              <ManageInstructorsModal
+                courseId={courseIdStr}
+                currentInstructors={instructors}
+              />
             ) : null
           }
         >
@@ -302,11 +293,9 @@ export default async function CourseOverviewPage({
                   key={ins.id}
                   className="group flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-22px_rgba(20,83,45,0.45)]"
                 >
-                  <img
-                    src={ins.avatarUrl || "https://placehold.co/60x60"}
-                    alt={ins.name}
-                    className="h-12 w-12 rounded-full object-cover ring-1 ring-black/10"
-                  />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#DCFCE7] text-[16px] font-semibold text-[#14532D] ring-1 ring-black/10">
+                    {ins.name.charAt(0)}
+                  </div>
 
                   <div className="min-w-0 font-kanit">
                     <div className="truncate text-[14px] font-medium text-[#3A532D]">

@@ -8,9 +8,12 @@ import { revalidatePath } from "next/cache";
 
 export async function createAnnouncement(courseIdStr: string, formData: FormData) {
   const session = await getServerSession(authOptions);
-  
+
   // ตรวจสอบความปลอดภัยและโครงสร้างข้อมูล
   if (!session?.user) throw new Error("Unauthorized");
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role === "TRAINEE") throw new Error("Forbidden: Trainee cannot manage announcements");
 
   const title = formData.get("title") as string;
   const content = formData.get("content") as string;
@@ -33,7 +36,130 @@ export async function createAnnouncement(courseIdStr: string, formData: FormData
       title: title,
       content: content,
       created_by: userId,
+      created_at: new Date(),
     },
+  });
+
+  revalidatePath(`/courses/${courseIdStr}`);
+}
+
+export async function updateAnnouncement(
+  courseIdStr: string,
+  announcementIdStr: string,
+  formData: FormData
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role === "TRAINEE") throw new Error("Forbidden: Trainee cannot manage announcements");
+
+  const title = formData.get("title") as string;
+  const content = formData.get("content") as string;
+  const announcementId = BigInt(announcementIdStr);
+
+  await prisma.announcements.update({
+    where: { announcement_id: announcementId },
+    data: { title, content },
+  });
+
+  revalidatePath(`/courses/${courseIdStr}`);
+}
+
+export async function deleteAnnouncement(
+  courseIdStr: string,
+  announcementIdStr: string
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role === "TRAINEE") throw new Error("Forbidden: Trainee cannot manage announcements");
+
+  const announcementId = BigInt(announcementIdStr);
+
+  await prisma.announcements.update({
+    where: { announcement_id: announcementId },
+    data: { deleted_at: new Date() },
+  });
+
+  revalidatePath(`/courses/${courseIdStr}`);
+}
+
+// ─── Instructor Management ───
+
+export async function getInstructorCandidates() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role !== "ADMIN") throw new Error("Forbidden");
+
+  const instructorRole = await prisma.role.findUnique({
+    where: { name: "INSTRUCTOR" },
+  });
+  if (!instructorRole) return [];
+
+  const users = await prisma.user.findMany({
+    where: {
+      role_id: instructorRole.role_id,
+      deleted_at: null,
+      is_active: true,
+    },
+    select: {
+      user_id: true,
+      first_name: true,
+      last_name: true,
+      email: true,
+    },
+    orderBy: { first_name: "asc" },
+  });
+
+  return users.map((u) => ({
+    userId: u.user_id.toString(),
+    name: `${u.first_name} ${u.last_name}`.trim(),
+    email: u.email,
+  }));
+}
+
+export async function addInstructor(courseIdStr: string, userIdStr: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role !== "ADMIN") throw new Error("Forbidden");
+
+  const courseId = BigInt(courseIdStr);
+  const userId = BigInt(userIdStr);
+
+  const existing = await prisma.instructor.findUnique({
+    where: { user_id_course_id: { user_id: userId, course_id: courseId } },
+  });
+
+  if (!existing) {
+    await prisma.instructor.create({
+      data: {
+        user_id: userId,
+        course_id: courseId,
+      },
+    });
+  }
+
+  revalidatePath(`/courses/${courseIdStr}`);
+}
+
+export async function removeInstructor(courseIdStr: string, userIdStr: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("Unauthorized");
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role !== "ADMIN") throw new Error("Forbidden");
+
+  const courseId = BigInt(courseIdStr);
+  const userId = BigInt(userIdStr);
+
+  await prisma.instructor.delete({
+    where: { user_id_course_id: { user_id: userId, course_id: courseId } },
   });
 
   revalidatePath(`/courses/${courseIdStr}`);

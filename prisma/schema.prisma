@@ -123,10 +123,8 @@ model CourseEnrollments {
 }
 
 model Instructor {
-  user_id    BigInt
-  course_id  BigInt
-  created_at DateTime  @default(now()) @db.Timestamptz
-  deleted_at DateTime? @db.Timestamptz
+  user_id   BigInt
+  course_id BigInt
 
   user   User   @relation(fields: [user_id], references: [user_id])
   course Course @relation(fields: [course_id], references: [course_id])
