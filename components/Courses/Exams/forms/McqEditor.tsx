@@ -87,7 +87,7 @@ export default function McqEditor(props: {
         <button
           type="button"
           onClick={addQuestion}
-          className="inline-flex items-center gap-2 rounded-full bg-[#16A34A] px-4 py-2text-sm text-white shadow"
+          className="inline-flex items-center gap-2 rounded-full bg-[#16A34A] px-4 py-2 font-kanit text-sm text-white shadow"
         >
           <Plus className="h-4 w-4" />
           เพิ่มข้อ

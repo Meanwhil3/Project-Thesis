@@ -18,8 +18,6 @@ export type TakeExamModel = {
   title: string;
   description: string | null;
   examType: string; // "MULTIPLE_CHOICE" | "FILL_IN_THE_BLANK"
-  durationMinute: number;
-  startedAtISO: string;
   deadlineISO: string;
   questions: TakeExamQuestion[];
 };

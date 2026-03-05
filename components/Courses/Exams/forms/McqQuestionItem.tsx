@@ -78,13 +78,13 @@ export default function McqQuestionItem(props: {
 
       <div className="mt-3 space-y-3">
         {q.options.map((opt, i) => (
-          <div key={opt.key} className="flex items-start gap-3">
+          <div key={opt.key} className="flex items-center gap-3">
             <input
               type="radio"
               name={`correct-${q.key}`}
               checked={q.correctKey === opt.key}
               onChange={() => onPatch({ correctKey: opt.key })}
-              className="mt-3 h-4 w-4"
+              className="h-4 w-4 shrink-0 accent-[#14532D]"
             />
             <div className="w-full">
               <div className="font-kanit text-xs text-[#14532D]/70">ตัวเลือก {i + 1}</div>
@@ -99,7 +99,7 @@ export default function McqQuestionItem(props: {
               type="button"
               onClick={() => onRemoveOption(opt.key)}
               disabled={q.options.length <= 2}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white hover:bg-red-50 disabled:opacity-40"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               title="ลบตัวเลือก"
             >
               <Trash2 className="h-4 w-4 text-red-600" />

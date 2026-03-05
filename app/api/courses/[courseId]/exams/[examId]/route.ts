@@ -44,7 +44,8 @@ const UpdateExamSchema = z.object({
   exam_title: z.string().min(1, "กรุณากรอกชื่อข้อสอบ"),
   exam_description: z.string().nullable().optional(),
   exam_type: z.nativeEnum(ExamType), // บังคับส่งมา (กันสลับชนิดมั่ว)
-  duration_minute: z.number().int().positive("เวลาสอบต้องมากกว่า 0"),
+  open_at: z.string().min(1, "กรุณากำหนดเวลาเริ่มสอบ"),
+  close_at: z.string().min(1, "กรุณากำหนดเวลาสิ้นสุดสอบ"),
   exam_status: z.nativeEnum(ExamStatus),
   questions: z.array(QuestionSchema).min(1, "ต้องมีอย่างน้อย 1 คำถาม"),
 });
@@ -121,6 +122,8 @@ export async function GET(
         exam_description: true,
         exam_type: true,
         duration_minute: true,
+        open_at: true,
+        close_at: true,
         exam_status: true,
         created_at: true,
         created_by: true,
@@ -259,6 +262,23 @@ export async function PATCH(
       }
     }
 
+    const openAt = new Date(data.open_at);
+    const closeAt = new Date(data.close_at);
+
+    if (isNaN(openAt.getTime()) || isNaN(closeAt.getTime())) {
+      return NextResponse.json(
+        { message: "รูปแบบวันเวลาไม่ถูกต้อง" },
+        { status: 400 },
+      );
+    }
+    if (closeAt <= openAt) {
+      return NextResponse.json(
+        { message: "เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม" },
+        { status: 400 },
+      );
+    }
+
+    const durationMinute = Math.round((closeAt.getTime() - openAt.getTime()) / 60_000);
     const now = new Date();
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -279,7 +299,9 @@ export async function PATCH(
           exam_title: data.exam_title,
           exam_description: data.exam_description ?? null,
           exam_type: data.exam_type,
-          duration_minute: data.duration_minute,
+          duration_minute: durationMinute,
+          open_at: openAt,
+          close_at: closeAt,
           exam_status: data.exam_status,
           // ไม่แตะ created_at / created_by
           questions: {

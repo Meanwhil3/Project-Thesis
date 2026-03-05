@@ -1,9 +1,9 @@
 // app/courses/[courseId]/exams/new/mcq/McqExamCreateClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2, Save } from "lucide-react";
 
 import ExamMetaForm from "@/components/Courses/Exams/forms/ExamMetaForm";
 import McqEditor from "@/components/Courses/Exams/forms/McqEditor";
@@ -62,8 +62,8 @@ export default function McqExamCreateClient({
   const [title, setTitle] = useState("");
   const [accessCode, setAccessCode] = useState(""); // สุ่มหลัง mount กัน hydration mismatch
   const [description, setDescription] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState<number>(30);
-  const [examDate, setExamDate] = useState<string>("");
+  const [startDateTime, setStartDateTime] = useState<string>("");
+  const [endDateTime, setEndDateTime] = useState<string>("");
   const [status, setStatus] = useState<StatusFilter>("HIDE");
 
   const [questions, setQuestions] = useState<McqQuestionDraft[]>(() => [
@@ -77,15 +77,6 @@ export default function McqExamCreateClient({
     setAccessCode(gen6Digits());
   }, []);
 
-  const totalScore = useMemo(
-    () =>
-      questions.reduce(
-        (sum, q) => sum + (Number.isFinite(q.score) ? q.score : 0),
-        0,
-      ),
-    [questions],
-  );
-
   async function onSave() {
     setError(null);
 
@@ -94,6 +85,11 @@ export default function McqExamCreateClient({
 
     const code = accessCode.trim();
     if (!code) return setError("กำลังสร้างรหัสเข้าสอบ ลองใหม่อีกครั้ง");
+
+    if (!startDateTime) return setError("กรุณากำหนดเวลาเริ่มสอบ");
+    if (!endDateTime) return setError("กรุณากำหนดเวลาสิ้นสุดสอบ");
+    if (new Date(endDateTime) <= new Date(startDateTime))
+      return setError("เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม");
 
     if (questions.length === 0) return setError("ต้องมีอย่างน้อย 1 ข้อ");
 
@@ -123,7 +119,8 @@ export default function McqExamCreateClient({
           exam_type: "MULTIPLE_CHOICE",
           exam_status: status,
 
-          duration_minute: Number(durationMinutes),
+          open_at: new Date(startDateTime).toISOString(),
+          close_at: new Date(endDateTime).toISOString(),
 
           questions: questions.map((q) => ({
             score: Number(q.score),
@@ -169,14 +166,15 @@ export default function McqExamCreateClient({
             disabled={saving}
             className="inline-flex items-center gap-2 rounded-full bg-[#14532D] px-5 py-2 font-kanit text-sm text-white shadow disabled:opacity-60"
           >
-            <Save className="h-4 w-4" />
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>
         </div>
 
         <section className="mt-6 rounded-3xl bg-white/85 p-6 shadow-[0_0_6px_#CAE0BC] ring-1 ring-black/5 backdrop-blur">
           {error ? (
-            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 font-kanit text-sm text-red-700">
+            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 font-kanit text-sm text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
             </div>
           ) : null}
@@ -189,18 +187,13 @@ export default function McqExamCreateClient({
             onRegenerateCode={() => setAccessCode(gen6Digits())}
             description={description}
             setDescription={setDescription}
-            examDate={examDate}
-            setExamDate={setExamDate}
-            durationMinutes={durationMinutes}
-            setDurationMinutes={setDurationMinutes}
+            startDateTime={startDateTime}
+            setStartDateTime={setStartDateTime}
+            endDateTime={endDateTime}
+            setEndDateTime={setEndDateTime}
             status={status}
             setStatus={setStatus}
           />
-
-          <div className="mt-8 font-kanit text-sm text-[#14532D]/70">
-            ข้อสอบทั้งหมด: <b>{questions.length}</b> • คะแนนรวม:{" "}
-            <b>{totalScore}</b>
-          </div>
 
           <McqEditor questions={questions} setQuestions={setQuestions} />
         </section>

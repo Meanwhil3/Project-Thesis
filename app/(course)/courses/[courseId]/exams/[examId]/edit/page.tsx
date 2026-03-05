@@ -35,6 +35,8 @@ export default async function ExamEditPage({
       exam_description: true,
       exam_type: true,      // ExamType | null
       duration_minute: true,
+      open_at: true,
+      close_at: true,
       exam_status: true,    // ExamStatus | null
       questions: {
         where: { deleted_at: null },
@@ -63,6 +65,8 @@ export default async function ExamEditPage({
     exam_description: exam.exam_description ?? "",
     exam_type: exam.exam_type ?? ExamType.MULTIPLE_CHOICE,
     duration_minute: exam.duration_minute,
+    open_at: exam.open_at?.toISOString() ?? null,
+    close_at: exam.close_at?.toISOString() ?? null,
     exam_status: exam.exam_status ?? ExamStatus.HIDE,
     questions: exam.questions.map((q) => ({
       question_id: q.question_id.toString(),
