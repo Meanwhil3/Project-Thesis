@@ -32,6 +32,8 @@ export default async function ExamsPage({
   const canManage = role === "ADMIN" || role === "EXAMINER";
   const isTrainee = role === "TRAINEE";
 
+  const userId = (session.user as any)?.id || (session.user as any)?.user_id || (session.user as any)?.sub;
+
   const exams = await prisma.exams.findMany({
     where: {
       course_id: BigInt(courseId),
@@ -45,7 +47,25 @@ export default async function ExamsPage({
       exam_type: true,
       created_at: true,
       exam_status: true,
+      open_at: true,
+      close_at: true,
       author: { select: { first_name: true } },
+      ...(userId
+        ? {
+            attempts: {
+              where: {
+                user_id: BigInt(userId),
+                deleted_at: null,
+              },
+              select: {
+                attempt_status: true,
+                total_score: true,
+              },
+              orderBy: { started_at: "desc" as const },
+              take: 1,
+            },
+          }
+        : {}),
     },
   });
 

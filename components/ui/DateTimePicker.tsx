@@ -3,7 +3,7 @@
 
 import { forwardRef } from "react";
 import DatePicker, { registerLocale } from "react-datepicker";
-import { th } from "date-fns/locale/th";
+import { th } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
 
