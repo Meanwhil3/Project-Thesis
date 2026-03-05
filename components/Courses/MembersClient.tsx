@@ -58,17 +58,22 @@ function buildPagination(current: number, total: number) {
   return pages;
 }
 
-function toCsv(rows: Record<string, string | number>[]) {
-  const headers = Object.keys(rows[0] ?? {});
+function toCsv(
+  rows: Record<string, string | number>[],
+  headers?: string[],
+) {
+  const cols = headers ?? Object.keys(rows[0] ?? {});
+
   const escape = (v: string | number) => {
     const s = String(v ?? "");
     const needsQuotes = /[",\n]/.test(s);
     const escaped = s.replace(/"/g, '""');
     return needsQuotes ? `"${escaped}"` : escaped;
   };
+
   const lines = [
-    headers.join(","),
-    ...rows.map((r) => headers.map((h) => escape(r[h] ?? "")).join(",")),
+    cols.join(","),
+    ...rows.map((r) => cols.map((h) => escape(r[h] ?? "")).join(",")),
   ];
   return "\uFEFF" + lines.join("\n");
 }
@@ -139,33 +144,40 @@ export default function MembersClient({
     [currentPage, totalPages],
   );
 
-  const onExportCsv = () => {
-    // สร้าง header แบบ dynamic ตามจำนวนข้อสอบ
-    const examTitles = (filteredSorted[0]?.examScores ?? []).map((es) => es.examTitle);
-    const rows = filteredSorted.map((m) => {
-      const row: Record<string, string | number> = {
-        courseId,
-        memberId: m.id,
-        name: m.name,
-        email: m.email,
-      };
-      for (const es of m.examScores) {
-        row[es.examTitle] = `${es.score}/${es.maxScore}`;
-      }
-      return row;
-    });
-    // fallback กรณีไม่มีสมาชิก — ใส่ header ว่างๆ
-    if (rows.length === 0) {
-      const emptyRow: Record<string, string | number> = { courseId, memberId: "", name: "", email: "" };
-      for (const t of examTitles) emptyRow[t] = "";
-      rows.push(emptyRow);
+const onExportCsv = () => {
+  const colKey = (es: { examTitle: string; maxScore: number }) =>
+    `${es.examTitle} (${es.maxScore})`;
+
+  const first = filteredSorted[0];
+  const examTitles = (first?.examScores ?? []).map(colKey);
+  const headers = ["name", "email", ...examTitles];
+
+  const rows = filteredSorted.map((m) => {
+    const row: Record<string, string | number> = {
+      name: m.name,
+      email: m.email,
+    };
+
+    for (const t of examTitles) row[t] = "";
+
+    for (const es of m.examScores) {
+      row[colKey(es)] = `${es.score}`;
     }
-    downloadTextFile(
-      `course-${courseId}-members.csv`,
-      toCsv(rows),
-      "text/csv;charset=utf-8",
-    );
-  };
+    return row;
+  });
+
+  if (rows.length === 0) {
+    const emptyRow: Record<string, string | number> = { name: "", email: "" };
+    for (const t of examTitles) emptyRow[t] = "";
+    rows.push(emptyRow);
+  }
+
+  downloadTextFile(
+    `course-${courseId}-members.csv`,
+    toCsv(rows, headers),
+    "text/csv;charset=utf-8",
+  );
+};
 
   async function handleDelete(m: MemberModel) {
     const ok = confirm(`ลบสมาชิก "${m.name}" ออกจากคอร์สนี้?`);
