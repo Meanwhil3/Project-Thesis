@@ -15,6 +15,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { getEnrollmentStatus } from "@/lib/getEnrollmentStatus";
 import EnrollButton from "@/components/Courses/EnrollButton";
+import AddAnnouncementModal from "@/components/Courses/AddAnnouncementModal";
 
 type Announcement = {
   id: string;
@@ -34,7 +35,7 @@ function buildGoogleMapsUrl(query: string) {
   const q = query.trim();
   if (!q) return "https://www.google.com/maps";
   const params = new URLSearchParams({ api: "1", query: q });
-  return `https://www.google.com/maps/search/?${params.toString()}`;
+  return `https://www.google.com/maps/search/?$?${params.toString()}`;
 }
 
 function formatThaiDate(d: Date | null) {
@@ -82,7 +83,7 @@ export default async function CourseOverviewPage({
 }: {
   params: Promise<{ courseId: string }>;
 }) {
-  const { courseId: courseIdStr } = await params; // ✅ Next 15 ต้อง await
+  const { courseId: courseIdStr } = await params;
 
   let courseId: bigint;
   try {
@@ -116,7 +117,7 @@ export default async function CourseOverviewPage({
     course.course_description ?? "ยังไม่มีคำอธิบายคอร์ส";
   const courseLocation = course.location ?? "";
 
-  // --- fetch announcements ---
+  // --- fetch announcements (Updated to include Author) ---
   const annRows = await prisma.announcements.findMany({
     where: {
       course_id: courseId,
@@ -128,6 +129,11 @@ export default async function CourseOverviewPage({
       title: true,
       content: true,
       created_at: true,
+      author: {
+        select: {
+          first_name: true,
+        },
+      },
     },
     take: 20,
   });
@@ -136,16 +142,13 @@ export default async function CourseOverviewPage({
     id: a.announcement_id.toString(),
     title: a.title,
     message: a.content,
-    meta: a.created_at ? formatThaiDate(a.created_at) : "",
+    meta: `${formatThaiDate(a.created_at)}${a.author ? ` • โดย ${a.author.first_name}` : ""}`,
   }));
 
-  // --- fetch instructors (join table Instructor -> User) ---
-  // ❗ สำคัญ: ไม่ใส่ deleted_at ที่นี่เพื่อเลี่ยง PrismaClientValidationError ที่คุณเจอ
+  // --- fetch instructors ---
   const insRows = await prisma.instructor.findMany({
     where: {
       course_id: courseId,
-      // ถ้าคุณ migrate + generate แล้ว และ Instructor มี deleted_at จริง ค่อยเปิดบรรทัดนี้กลับ:
-      // deleted_at: null,
     },
     include: {
       user: {
@@ -157,8 +160,6 @@ export default async function CourseOverviewPage({
         },
       },
     },
-    // ถ้า Instructor ไม่มี created_at ใน DB/Prisma ตอนนี้ อย่า orderBy created_at
-    // orderBy: { created_at: "desc" },
   });
 
   const instructors: Instructor[] = insRows.map((r) => ({
@@ -168,10 +169,10 @@ export default async function CourseOverviewPage({
     avatarUrl: "https://placehold.co/60x60",
   }));
 
-  // TODO: ผูกสิทธิ์จริง
-  const canManageAnnouncements = true;
-  const canEditAnnouncements = true;
-  const canManageInstructors = true;
+  // สิทธิ์การจัดการ
+  const canManageAnnouncements = role === "ADMIN" || role === "INSTRUCTOR";
+  const canEditAnnouncements = canManageAnnouncements;
+  const canManageInstructors = role === "ADMIN";
 
   return (
     <div className="grid gap-6">
@@ -186,19 +187,13 @@ export default async function CourseOverviewPage({
         </div>
       )}
 
-      {/* Announcements */}
+      {/* Announcements Section */}
       <SectionShell
         title="ประกาศ"
         icon={Megaphone}
         right={
           canManageAnnouncements ? (
-            <button
-              type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#16A34A] px-4 font-kanit text-[14px] font-medium text-white shadow-[0_10px_30px_-18px_rgba(22,163,74,0.65)] transition hover:opacity-95 active:scale-[0.99]"
-            >
-              <Plus className="h-4 w-4" />
-              เพิ่มประกาศ
-            </button>
+            <AddAnnouncementModal courseId={courseIdStr} />
           ) : null
         }
       >
@@ -214,18 +209,18 @@ export default async function CourseOverviewPage({
                 {canEditAnnouncements && (
                   <button
                     type="button"
-                    className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl hover:bg-gray-100 active:scale-[0.98]"
+                    className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl hover:bg-gray-100 active:scale-[0.98] z-20"
                     aria-label="แก้ไขประกาศ"
                   >
                     <Pencil className="h-5 w-5 text-[#111827]" />
                   </button>
                 )}
 
-                <div className="font-kanit">
+                <div className="font-kanit relative z-10">
                   <div className="text-[14px] font-medium text-[#14532D]">
                     {a.title}
                   </div>
-                  <div className="mt-2 text-[12px] leading-5 text-[#2D5C3F]">
+                  <div className="mt-2 text-[12px] leading-5 text-[#2D5C3F] whitespace-pre-wrap">
                     {a.message}
                   </div>
                   <div className="mt-3 text-[10px] text-[#6E8E59]">
@@ -235,7 +230,7 @@ export default async function CourseOverviewPage({
               </article>
             ))
           ) : (
-            <div className="rounded-2xl border border-[#CDE3BD] bg-white p-5 text-sm text-[#6E8E59]">
+            <div className="rounded-2xl border border-dashed border-[#CDE3BD] bg-white p-8 text-center text-sm text-[#6E8E59]">
               ยังไม่มีประกาศในคอร์สนี้
             </div>
           )}
@@ -247,9 +242,9 @@ export default async function CourseOverviewPage({
         {/* Course detail */}
         <SectionShell title="รายละเอียดอบรม" icon={Info}>
           <div className="text-[15px] leading-7 text-[#14532D]">
-            <p className="rounded-2xl bg-[#F8FFF9] p-5 ring-1 ring-[#BBF7D0]/70">
+            <div className="rounded-2xl bg-[#F8FFF9] p-5 ring-1 ring-[#BBF7D0]/70 whitespace-pre-wrap">
               {courseDescription}
-            </p>
+            </div>
 
             <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[#CDE3BD] bg-white p-5">
               <div className="flex items-start gap-3">
