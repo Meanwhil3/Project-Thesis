@@ -1,36 +1,16 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, PencilLine, Trash2, Plus, Loader2, GripVertical, ArrowUpDown, Check } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Eye, EyeOff, PencilLine, Trash2, Plus, Loader2, GripVertical, ArrowUpDown, Check } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from "next-auth/react";
 
-// --- dnd-kit components ---
-import {
-  DndContext, 
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 // --- Sortable Item Component ---
-function SortableLessonItem({ lesson, index, isReordering, onEdit, onView }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ 
+function SortableLessonItem({ lesson, isReordering, canManage, onEdit, onView, onDelete, onToggleStatus, isDeleting }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
     id: lesson.lesson_id, 
     disabled: !isReordering 
   });
@@ -42,62 +22,44 @@ function SortableLessonItem({ lesson, index, isReordering, onEdit, onView }) {
     opacity: isDragging ? 0.6 : 1,
   };
 
+  const isVisible = lesson.lesson_status === "OPEN";
+
   return (
     <div 
       ref={setNodeRef} 
       style={style}
-      // เพิ่ม onClick ให้กดเข้าไปดูเนื้อหาได้เมื่อไม่ได้ Reordering
       onClick={() => !isReordering && onView(lesson.lesson_id)}
       className={`flex items-center justify-between p-4 bg-white border rounded-xl mb-3 transition-all group ${
-        isReordering 
-          ? "border-blue-200 shadow-md ring-1 ring-blue-100 cursor-default" 
-          : "border-gray-100 hover:border-green-300 hover:shadow-sm cursor-pointer"
-      }`}
+        isReordering ? "border-blue-200 shadow-md ring-1 ring-blue-100" : "border-gray-100 hover:border-green-300 cursor-pointer"
+      } ${!isVisible && !isReordering ? "opacity-75 bg-gray-50/50" : ""}`}
     >
       <div className="flex items-center gap-4 flex-1 overflow-hidden">
         {isReordering && (
-          <div 
-            {...attributes} 
-            {...listeners} 
-            className="text-blue-400 cursor-grab active:cursor-grabbing p-2 hover:bg-blue-50 rounded-lg"
-          >
+          <div {...attributes} {...listeners} className="text-blue-400 cursor-grab p-2 hover:bg-blue-50 rounded-lg">
             <GripVertical size={20} />
           </div>
         )}
         <div className="flex flex-col gap-0.5 overflow-hidden">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-bold text-[#14532D] bg-green-50 px-2 py-0.5 rounded border border-green-100">
-              บทที่ : {index + 1}
-            </span>
-            <h3 className="text-[15px] font-medium text-[#14532D] truncate group-hover:text-green-700">
+            <h3 className={`text-[15px] font-medium truncate ${isVisible ? "text-[#14532D]" : "text-gray-400"}`}>
               {lesson.lesson_title}
+              {!isVisible && <span className="ml-2 text-[10px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full">ซ่อนอยู่</span>}
             </h3>
           </div>
-          {!isReordering && (
-            <p className="text-[12px] text-gray-400 line-clamp-1 ml-1 font-light">
-              กดเพื่อดูรายละเอียดเนื้อหา...
-            </p>
-          )}
+          {!isReordering && <p className="text-[12px] text-gray-400 line-clamp-1 ml-1 font-light">กดเพื่อดูรายละเอียดเนื้อหา...</p>}
         </div>
       </div>
 
-      {!isReordering && (
+      {!isReordering && canManage && (
         <div className="flex gap-1 ml-4" onClick={(e) => e.stopPropagation()}> 
-          {/* stopPropagation ป้องกันไม่ให้กดปุ่มแล้วไปเด้งหน้า View */}
-          <button 
-            onClick={() => onView(lesson.lesson_id)}
-            className="p-2 text-gray-400 hover:bg-gray-50 hover:text-blue-500 rounded-full transition-colors"
-          >
-            <Eye size={18} />
+          <button onClick={() => onToggleStatus(lesson.lesson_id, lesson.lesson_status)} className={`p-2 rounded-full ${isVisible ? "text-blue-500 hover:bg-blue-50" : "text-gray-300 hover:bg-gray-100"}`}>
+            {isVisible ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>
-          <button 
-            onClick={() => onEdit(lesson.lesson_id)}
-            className="p-2 text-[#22C55E] hover:bg-green-50 rounded-full transition-colors"
-          >
+          <button onClick={() => onEdit(lesson.lesson_id)} className="p-2 text-[#22C55E] hover:bg-green-50 rounded-full">
             <PencilLine size={18} />
           </button>
-          <button className="p-2 text-[#EF4444] hover:bg-red-50 rounded-full transition-colors">
-            <Trash2 size={18} />
+          <button onClick={() => onDelete(lesson.lesson_id)} disabled={isDeleting} className="p-2 text-[#EF4444] hover:bg-red-50 rounded-full">
+            {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
           </button>
         </div>
       )}
@@ -107,6 +69,7 @@ function SortableLessonItem({ lesson, index, isReordering, onEdit, onView }) {
 
 // --- Main Page Component ---
 export default function CourseLessonsPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const router = useRouter();
   const courseId = params?.courseId;
@@ -115,6 +78,15 @@ export default function CourseLessonsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const role = String(session?.user?.role ?? "").toUpperCase();
+  const canManage = role === "ADMIN" || role === "INSTRUCTOR";
+
+  // กรองบทเรียน: ถ้าไม่ใช่คนสอน ให้เห็นเฉพาะ OPEN
+  const displayItems = useMemo(() => {
+    return canManage ? items : items.filter(item => item.lesson_status === "OPEN");
+  }, [items, canManage]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -128,18 +100,12 @@ export default function CourseLessonsPage() {
       const response = await fetch(`/api/courses/${courseId}/lessons`);
       if (response.ok) {
         const data = await response.json();
-        setItems(data);
+        setItems(data.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
       }
-    } catch (error) {
-      console.error("Fetch error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (error) { console.error(error); } finally { setIsLoading(false); }
   }, [courseId]);
 
-  useEffect(() => {
-    fetchLessons();
-  }, [fetchLessons]);
+  useEffect(() => { fetchLessons(); }, [fetchLessons]);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -153,121 +119,96 @@ export default function CourseLessonsPage() {
   };
 
   const handleSaveOrder = async () => {
+    if (!canManage) return;
     setIsSubmitting(true);
     try {
       const reorderedList = items.map((item, index) => ({
         lesson_id: item.lesson_id,
         order_index: index + 1
       }));
-
       const response = await fetch(`/api/admin/courses/${courseId}/lessons`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessons: reorderedList }),
       });
-
-      if (response.ok) {
-        setIsReordering(false);
-        fetchLessons();
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+      if (response.ok) { setIsReordering(false); fetchLessons(); }
+    } catch (error) { console.error(error); } finally { setIsSubmitting(false); }
   };
 
-  // ฟังก์ชันสำหรับการนำทาง
-  const goToViewPage = (lessonId) => {
-    // นำทางไปหน้าแสดงผลบทเรียน (ฝั่งผู้เรียน)
-    router.push(`/courses/${courseId}/lessons/${lessonId}`);
+  const handleToggleStatus = async (lessonId, currentStatus) => {
+    if (!canManage) return;
+    const newStatus = currentStatus === "OPEN" ? "CLOSED" : "OPEN";
+    try {
+      setItems(prev => prev.map(item => item.lesson_id === lessonId ? { ...item, lesson_status: newStatus } : item));
+      await fetch(`/api/admin/courses/${courseId}/lessons/${lessonId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus === "OPEN" ? "SHOW" : "HIDE", toggleOnly: true }),
+      });
+    } catch (error) { alert("Error"); fetchLessons(); }
   };
 
-  const goToCreatePage = () => {
-    router.push(`/admin/courses/${courseId}/lessons/create`);
+  const handleDelete = async (lessonId) => {
+    if (!canManage || !confirm("ยืนยันการลบ?")) return;
+    try {
+      setDeletingId(lessonId);
+      const response = await fetch(`/api/admin/courses/${courseId}/lessons/${lessonId}`, { method: 'DELETE' });
+      if (response.ok) setItems((prev) => prev.filter(item => item.lesson_id !== lessonId));
+    } catch (error) { console.error(error); } finally { setDeletingId(null); }
   };
 
-  const goToEditPage = (lessonId) => {
-    router.push(`/admin/courses/${courseId}/lessons/${lessonId}/edit`);
-  };
+  const goToViewPage = (lessonId) => router.push(`/courses/${courseId}/lessons/${lessonId}`);
+  const goToCreatePage = () => router.push(`/admin/courses/${courseId}/lessons/create`);
+  const goToEditPage = (lessonId) => router.push(`/admin/courses/${courseId}/lessons/${lessonId}/edit`);
 
   return (
     <div className="mt-7 w-full font-kanit">
       <div className="rounded-2xl bg-white/80 p-6 shadow-sm ring-1 ring-black/5 backdrop-blur">
-        
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📖</span>
-            <h1 className="text-[20px] font-semibold text-[#14532D]">
-              {isReordering ? "จัดลำดับเนื้อหา (ลากวาง)" : "เนื้อหาการเรียน"}
-            </h1>
-          </div>
-
-          <div className="flex gap-2">
-            {!isReordering ? (
-              <>
-                <button 
-                  onClick={() => setIsReordering(true)}
-                  className="flex items-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-600 px-4 py-2 rounded-xl text-sm transition-all"
-                >
-                  <ArrowUpDown size={18} />
-                  <span>แก้ไขลำดับ</span>
-                </button>
-                <button 
-                  onClick={goToCreatePage}
-                  className="flex items-center gap-2 bg-[#22C55E] hover:bg-[#16A34A] text-white px-4 py-2 rounded-xl text-sm transition-all shadow-sm"
-                >
-                  <Plus size={18} />
-                  <span>เพิ่มเนื้อหา</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <button 
-                  onClick={() => { setIsReordering(false); fetchLessons(); }} 
-                  className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
-                >
-                  ยกเลิก
-                </button>
-                <button 
-                  onClick={handleSaveOrder}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white px-4 py-2 rounded-xl text-sm transition-all shadow-md"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
-                  <span>บันทึกลำดับ</span>
-                </button>
-              </>
-            )}
-          </div>
+          <h1 className="text-[20px] font-semibold text-[#14532D]">เนื้อหาการเรียน</h1>
+          {canManage && (
+            <div className="flex gap-2">
+              {!isReordering ? (
+                <>
+                  <button onClick={() => setIsReordering(true)} className="flex items-center gap-2 border px-4 py-2 rounded-xl text-sm"><ArrowUpDown size={18} /> แก้ไขลำดับ</button>
+                  <button onClick={goToCreatePage} className="flex items-center gap-2 bg-[#22C55E] text-white px-4 py-2 rounded-xl text-sm"><Plus size={18} /> เพิ่มเนื้อหา</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => { setIsReordering(false); fetchLessons(); }} className="px-4 py-2 text-sm">ยกเลิก</button>
+                  <button onClick={handleSaveOrder} disabled={isSubmitting} className="flex items-center gap-2 bg-[#3B82F6] text-white px-4 py-2 rounded-xl text-sm">
+                    {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />} บันทึกลำดับ
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col">
           {isLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="animate-spin text-green-600" /></div>
-          ) : items.length > 0 ? (
-            <DndContext 
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext 
-                items={items.map(item => item.lesson_id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {items.map((lesson, index) => (
+            <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>
+          ) : displayItems.length > 0 ? (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={displayItems.map(item => item.lesson_id)} strategy={verticalListSortingStrategy}>
+                {displayItems.map((lesson) => (
                   <SortableLessonItem 
-                    key={lesson.lesson_id} 
+                    key={lesson.lesson_id.toString()} 
                     lesson={lesson} 
-                    index={index} 
                     isReordering={isReordering}
+                    canManage={canManage}
                     onEdit={goToEditPage}
-                    onView={goToViewPage} // ส่งฟังก์ชัน view เข้าไป
+                    onView={goToViewPage}
+                    onDelete={handleDelete}
+                    onToggleStatus={handleToggleStatus}
+                    isDeleting={deletingId === lesson.lesson_id}
                   />
                 ))}
               </SortableContext>
             </DndContext>
           ) : (
-            <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl font-light">
-              ยังไม่มีเนื้อหาในบทเรียนนี้
+            <div className="text-center py-10 text-gray-400 border-2 border-dashed rounded-xl">
+               {canManage ? "ยังไม่มีบทเรียน" : "ยังไม่มีเนื้อหาเปิดให้เข้าชม"}
             </div>
           )}
         </div>

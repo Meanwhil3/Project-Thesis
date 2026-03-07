@@ -265,7 +265,7 @@ export default function CreateLessonPage() {
           line-height: 1.9;
           font-size: 1.15rem;
         }
-        /* ระบบ Auto-Resize รูปภาพผ่าน CSS */
+        
         .ql-editor img {
           max-width: 100%;
           height: auto;

@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 
-const prisma = new PrismaClient();
+async function isAdminOrInstructor() {
+  const session = await getServerSession(authOptions);
+  const role = String(session?.user?.role ?? "").toUpperCase();
+  return role === "ADMIN" || role === "INSTRUCTOR";
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
+    if (!(await isAdminOrInstructor())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const { courseId } = await params;
     const { title, content, status, videoUrls, attachments } = await request.json();
     const cId = BigInt(courseId);
@@ -26,18 +34,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
         }
       });
 
-      const attachmentRecords = [];
-
+      const attachmentRecords: any[] = [];
       if (videoUrls && Array.isArray(videoUrls)) {
-        videoUrls.forEach((url: string, index: number) => {
-          if (url.trim()) {
-            attachmentRecords.push({
-              lesson_id: newLesson.lesson_id,
-              display_name: `Video ${index + 1}`,
-              file_type: "VIDEO",
-              file_path: url.trim(),
-            });
-          }
+        videoUrls.forEach((url: string, i: number) => {
+          if (url.trim()) attachmentRecords.push({
+            lesson_id: newLesson.lesson_id,
+            display_name: `Video ${i + 1}`,
+            file_type: "VIDEO",
+            file_path: url.trim(),
+          });
         });
       }
 
@@ -52,44 +57,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
         });
       }
 
-      if (attachmentRecords.length > 0) {
-        await tx.lesson_Attachments.createMany({ data: attachmentRecords });
-      }
+      if (attachmentRecords.length > 0) await tx.lesson_Attachments.createMany({ data: attachmentRecords });
       return newLesson;
     });
 
-    return NextResponse.json({
-      ...result,
-      lesson_id: result.lesson_id.toString(),
-      course_id: result.course_id?.toString()
-    });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
+    return NextResponse.json({ ...result, lesson_id: result.lesson_id.toString(), course_id: result.course_id?.toString() });
+  } catch (error) { return NextResponse.json({ error: "Server Error" }, { status: 500 }); }
 }
 
-// PUT: แก้ไขลำดับ (Reorder)
 export async function PUT(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
   try {
+    if (!(await isAdminOrInstructor())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const { courseId } = await params;
     const { lessons } = await request.json();
 
     await prisma.$transaction(
-      lessons.map((item: any) =>
-        prisma.lessons.update({
-          where: { 
-            lesson_id: BigInt(item.lesson_id),
-            course_id: BigInt(courseId) 
-          },
-          data: { order_index: item.order_index },
-        })
-      )
+      lessons.map((item: any) => prisma.lessons.update({
+        where: { lesson_id: BigInt(item.lesson_id), course_id: BigInt(courseId) },
+        data: { order_index: item.order_index },
+      }))
     );
-
     return NextResponse.json({ message: "Reorder success" });
-  } catch (error) {
-    console.error("PUT Reorder Error:", error);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
-  }
+  } catch (error) { return NextResponse.json({ error: "Update failed" }, { status: 500 }); }
 }

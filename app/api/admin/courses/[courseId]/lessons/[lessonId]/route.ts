@@ -1,5 +1,3 @@
-// api/admin/courses/[courseId]/lessons/[lessonId]/route.ts
-
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
@@ -11,17 +9,13 @@ export async function GET(
 ) {
   try {
     const { lessonId } = await params;
-
     const lesson = await prisma.lessons.findUnique({
       where: { lesson_id: BigInt(lessonId) },
       include: { attachments: true },
     });
 
-    if (!lesson) {
-      return NextResponse.json({ error: "ไม่พบบทเรียน" }, { status: 404 });
-    }
+    if (!lesson) return NextResponse.json({ error: "ไม่พบบทเรียน" }, { status: 404 });
 
-    // แยกวิดีโอ (file_type: "VIDEO") ออกมา
     const videoAttachments = lesson.attachments.filter(at => at.file_type === "VIDEO");
     const docAttachments = lesson.attachments.filter(at => at.file_type !== "VIDEO");
 
@@ -29,11 +23,7 @@ export async function GET(
       lesson_title: lesson.lesson_title,
       lesson_content: lesson.lesson_content,
       lesson_status: lesson.lesson_status === "OPEN" ? "SHOW" : "HIDE",
-      // ส่งเป็น Array ของวิดีโอเพื่อให้สอดคล้องกับ List ในหน้า Edit
-      video_list: videoAttachments.map(v => ({
-        url: v.file_path,
-        title: v.display_name
-      })),
+      video_list: videoAttachments.map(v => ({ url: v.file_path, title: v.display_name })),
       attachments: docAttachments.map((at) => ({
         id: at.attachment_id.toString(),
         name: at.display_name,
@@ -52,8 +42,20 @@ export async function PUT(
 ) {
   try {
     const { lessonId } = await params;
-    const { title, content, status, videoUrls, attachments } = await req.json();
+    const body = await req.json();
 
+    // --- ส่วนที่เพิ่ม: รองรับการ Toggle Status อย่างเดียว ---
+    if (body.toggleOnly) {
+      const mappedStatus = body.status === "SHOW" ? "OPEN" : "CLOSED";
+      await prisma.lessons.update({
+        where: { lesson_id: BigInt(lessonId) },
+        data: { lesson_status: mappedStatus as any },
+      });
+      return NextResponse.json({ message: "อัปเดตสถานะสำเร็จ" });
+    }
+
+    // --- Logic การอัปเดตเต็มรูปแบบ (ของเดิม) ---
+    const { title, content, status, videoUrls, attachments } = body;
     const mappedStatus = status === "SHOW" ? "OPEN" : "CLOSED";
 
     await prisma.$transaction(async (tx) => {
@@ -66,13 +68,9 @@ export async function PUT(
         },
       });
 
-      await tx.lesson_Attachments.deleteMany({
-        where: { lesson_id: BigInt(lessonId) }
-      });
+      await tx.lesson_Attachments.deleteMany({ where: { lesson_id: BigInt(lessonId) } });
 
       const attachmentRecords = [];
-
-      // บันทึกวิดีโอ (ใช้ URL และข้อมูลที่ส่งมา)
       if (videoUrls && Array.isArray(videoUrls)) {
         videoUrls.forEach((v: any, index: number) => {
           attachmentRecords.push({
@@ -84,7 +82,6 @@ export async function PUT(
         });
       }
 
-      // บันทึกไฟล์เอกสาร
       if (attachments && Array.isArray(attachments)) {
         attachments.forEach((at: any) => {
           attachmentRecords.push({
@@ -104,5 +101,24 @@ export async function PUT(
     return NextResponse.json({ message: "บันทึกสำเร็จ" });
   } catch (error) {
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ courseId: string; lessonId: string }> }
+) {
+  try {
+    const { lessonId } = await params;
+    const id = BigInt(lessonId);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.lesson_Attachments.deleteMany({ where: { lesson_id: id } });
+      await tx.lessons.delete({ where: { lesson_id: id } });
+    });
+
+    return NextResponse.json({ message: "ลบสำเร็จ" });
+  } catch (error) {
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
   }
 }
