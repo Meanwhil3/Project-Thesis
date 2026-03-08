@@ -9,6 +9,7 @@ import {
   type ElementType,
   type FormEvent,
 } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -63,12 +64,20 @@ function buildGoogleMapsSearchUrl(query: string) {
 }
 
 export default function NewCoursePage() {
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [form, setForm] = useState<CourseFormState>(initialState);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string>(
     "https://placehold.co/760x380",
   );
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!session) { router.replace("/login"); return; }
+    const role = String((session.user as any)?.role ?? "").toUpperCase();
+    if (role === "TRAINEE") router.replace("/");
+  }, [session, status, router]);
 
   const [touched, setTouched] = useState<
     Record<keyof CourseFormState, boolean>

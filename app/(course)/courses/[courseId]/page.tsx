@@ -150,10 +150,11 @@ export default async function CourseOverviewPage({
     meta: `${formatThaiDate(a.created_at)}${a.author ? ` • โดย ${a.author.first_name}` : ""}`,
   }));
 
-  // --- fetch instructors ---
   const insRows = await prisma.instructor.findMany({
     where: {
       course_id: courseId,
+      // ถ้า migrate + generate แล้ว และ Instructor มี deleted_at จริง ค่อยเปิดบรรทัดนี้กลับ:
+      // deleted_at: null,
     },
     select: {
       user_id: true,
@@ -176,10 +177,10 @@ export default async function CourseOverviewPage({
     email: r.user.email,
   }));
 
-  // สิทธิ์การจัดการ
-  const canManageAnnouncements = role === "ADMIN" || role === "INSTRUCTOR";
-  const canEditAnnouncements = canManageAnnouncements;
-  const canManageInstructors = role === "ADMIN";
+  // ผูกสิทธิ์จริง
+  const canManageAnnouncements = !isTrainee;
+  const canEditAnnouncements = !isTrainee;
+  const canManageInstructors = !isTrainee;
 
   return (
     <div className="grid gap-6">

@@ -1,6 +1,7 @@
 "use client"
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from "next-auth/react"; // เพิ่มการดึง Session
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,10 +16,25 @@ import {
 
 export default function AddWoodPage() {
   const router = useRouter();
+  const { data: session, status } = useSession(); // ดึงข้อมูล Session
+  
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+
+  // --- ตรวจสอบสิทธิ์ (Role Protection) ---
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    } else if (status === "authenticated") {
+      const role = String((session?.user as any)?.role ?? "").toUpperCase();
+      if (role !== "ADMIN" && role !== "INSTRUCTOR") {
+        alert("คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
+        router.push("/");
+      }
+    }
+  }, [status, session, router]);
 
   // จัดการค่า Select ทั้งหมด
   const [selectValues, setSelectValues] = useState({
@@ -79,6 +95,8 @@ export default function AddWoodPage() {
       });
       images.forEach((file) => formData.append('images', file));
 
+      // หมายเหตุ: created_by จะถูกจัดการที่ฝั่ง API Route โดยดึงจาก Session 
+      // เพื่อความปลอดภัยตามมาตรฐาน Server-side validation
       const response = await fetch('/api/woods/create', { method: 'POST', body: formData });
       if (!response.ok) throw new Error('Failed to save');
       alert('บันทึกข้อมูลเรียบร้อยแล้ว');
@@ -98,6 +116,11 @@ export default function AddWoodPage() {
     { id: 'rays-ap', label: 'เรย์และพาเรงคิมา', icon: <Layers size={18} /> },
     { id: 'others', label: 'องค์ประกอบอื่นๆ', icon: <Dna size={18} /> },
   ];
+
+  // ถ้ากำลังโหลด Session ให้แสดง Loader กันหน้ากระพริบ
+  if (status === "loading") {
+    return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#14532D]" /></div>;
+  }
 
   return (
     <div className="bg-white min-h-screen w-full flex flex-col text-slate-900 font-kanit">
@@ -409,7 +432,7 @@ export default function AddWoodPage() {
   );
 }
 
-// --- Helper Components (แก้ไขการตกแต่ง Dropdown) ---
+// --- Helper Components ---
 
 function Field({ label, name, placeholder, icon: Icon, required = false }: any) {
   return (
@@ -441,10 +464,8 @@ function SelectField({ label, value, onValueChange, icon: Icon, children, placeh
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           
-          {/* แก้ไขส่วนนี้: เพิ่ม bg-white และกำหนด z-index ให้สูงขึ้นเพื่อไม่ให้มองทะลุ */}
           <SelectContent className="rounded-xl border-[#CDE3BD] bg-white shadow-2xl max-h-80 overflow-y-auto z-[9999] relative">
             <style jsx global>{`
-              /* กำหนดให้พื้นหลังของ viewport ทึบแน่นอน */
               [data-radix-select-viewport] {
                 background-color: white !important;
                 border-radius: 12px;
@@ -456,7 +477,7 @@ function SelectField({ label, value, onValueChange, icon: Icon, children, placeh
                 margin: 2px 4px;
                 font-size: 14px;
                 color: #1e293b;
-                background-color: white; /* ใส่พื้นหลังให้แต่ละ option */
+                background-color: white; 
                 transition: all 0.2s;
                 cursor: pointer;
                 position: relative;
@@ -474,7 +495,6 @@ function SelectField({ label, value, onValueChange, icon: Icon, children, placeh
                 color: #ffffff !important;
               }
 
-              /* ป้องกันการมองทะลุผ่านช่องว่างระหว่างบรรทัด */
               .SelectContent {
                 background-color: white !important;
               }

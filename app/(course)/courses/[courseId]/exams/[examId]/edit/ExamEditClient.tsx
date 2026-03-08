@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2, Save, Trash2 } from "lucide-react";
 import { ExamType } from "@prisma/client";
 
 import ExamMetaForm from "@/components/Courses/Exams/forms/ExamMetaForm";
@@ -20,6 +20,8 @@ export type ExamEditInitial = {
   exam_description: string;
   exam_type: ExamType;
   duration_minute: number;
+  open_at: string | null;
+  close_at: string | null;
   exam_status: ExamStatus;
   questions: Array<{
     question_id: string;
@@ -108,10 +110,14 @@ export default function ExamEditClient({
   const [description, setDescription] = useState(
     initial.exam_description ?? "",
   );
-  const [durationMinutes, setDurationMinutes] = useState<number>(
-    initial.duration_minute,
-  );
-  const [examDate, setExamDate] = useState<string>(""); // UI-only
+  const [startDateTime, setStartDateTime] = useState<string>(() => {
+    if (!initial.open_at) return "";
+    return new Date(initial.open_at).toISOString().slice(0, 16);
+  });
+  const [endDateTime, setEndDateTime] = useState<string>(() => {
+    if (!initial.close_at) return "";
+    return new Date(initial.close_at).toISOString().slice(0, 16);
+  });
   const [status, setStatus] = useState<ExamStatus>(initial.exam_status);
 
   const isFill = initial.exam_type === ExamType.FILL_IN_THE_BLANK;
@@ -126,14 +132,6 @@ export default function ExamEditClient({
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const totalScore = useMemo(() => {
-    const qs = isFill ? fillQuestions : mcqQuestions;
-    return qs.reduce(
-      (sum: number, q: any) => sum + (Number.isFinite(q.score) ? q.score : 0),
-      0,
-    );
-  }, [isFill, fillQuestions, mcqQuestions]);
 
   async function onDelete() {
     setError(null);
@@ -173,9 +171,10 @@ export default function ExamEditClient({
     const t = title.trim();
     if (!t) return setError("กรุณากรอกชื่อการสอบ");
 
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-      return setError("เวลาในการสอบต้องมากกว่า 0");
-    }
+    if (!startDateTime) return setError("กรุณากำหนดเวลาเริ่มสอบ");
+    if (!endDateTime) return setError("กรุณากำหนดเวลาสิ้นสุดสอบ");
+    if (new Date(endDateTime) <= new Date(startDateTime))
+      return setError("เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม");
 
     if (isFill) {
       if (fillQuestions.length === 0) return setError("ต้องมีอย่างน้อย 1 ข้อ");
@@ -220,7 +219,8 @@ export default function ExamEditClient({
           exam_title: t,
           exam_description: description.trim() || null,
           exam_type: ExamType.FILL_IN_THE_BLANK,
-          duration_minute: Number(durationMinutes),
+          open_at: new Date(startDateTime).toISOString(),
+          close_at: new Date(endDateTime).toISOString(),
           exam_status: status,
           questions: fillQuestions.map((q) => {
             const codes = Array.from(
@@ -242,7 +242,8 @@ export default function ExamEditClient({
           exam_title: t,
           exam_description: description.trim() || null,
           exam_type: ExamType.MULTIPLE_CHOICE,
-          duration_minute: Number(durationMinutes),
+          open_at: new Date(startDateTime).toISOString(),
+          close_at: new Date(endDateTime).toISOString(),
           exam_status: status,
           questions: mcqQuestions.map((q) => ({
             score: Number(q.score),
@@ -305,7 +306,7 @@ export default function ExamEditClient({
               className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-2 text-sm text-white shadow hover:bg-red-700 disabled:opacity-60"
               title="ลบข้อสอบ"
             >
-              <Trash2 className="h-4 w-4" />
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               {deleting ? "กำลังลบ..." : "ลบข้อสอบ"}
             </button>
 
@@ -315,7 +316,7 @@ export default function ExamEditClient({
               disabled={saving || deleting}
               className="inline-flex items-center gap-2 rounded-full bg-[#14532D] px-5 py-2 text-sm text-white shadow disabled:opacity-60"
             >
-              <Save className="h-4 w-4" />
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {saving ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
             </button>
           </div>
@@ -332,7 +333,8 @@ export default function ExamEditClient({
           </div>
 
           {error ? (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 font-kanit text-sm text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               {error}
             </div>
           ) : null}
@@ -343,17 +345,13 @@ export default function ExamEditClient({
             setTitle={setTitle}
             description={description}
             setDescription={setDescription}
-            examDate={examDate}
-            setExamDate={setExamDate}
-            durationMinutes={durationMinutes}
-            setDurationMinutes={setDurationMinutes}
+            startDateTime={startDateTime}
+            setStartDateTime={setStartDateTime}
+            endDateTime={endDateTime}
+            setEndDateTime={setEndDateTime}
             status={status}
             setStatus={setStatus}
           />
-
-          <div className="mt-6 text-sm text-[#14532D]/70">
-            คะแนนรวม: <b className="text-[#14532D]">{totalScore}</b>
-          </div>
 
           <div className="mt-6">
             {isFill ? (

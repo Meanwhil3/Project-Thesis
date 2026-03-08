@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -40,8 +41,10 @@ export default function CourseManagement({
     return "trainee";
   }, [mode, pathname]);
 
+  const { data: session } = useSession();
+  const userRole = String((session?.user as any)?.role ?? "").toUpperCase();
   const canCreateCourse =
-    resolvedMode === "admin" || resolvedMode === "instructor";
+    (resolvedMode === "admin" || resolvedMode === "instructor") && userRole !== "TRAINEE";
   const createHref =
     resolvedMode === "admin"
       ? "/admin/courses/new"

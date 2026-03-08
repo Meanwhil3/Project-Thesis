@@ -1,5 +1,7 @@
 // app/admin/courses/[courseId]/edit/page.tsx
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import EditCourseClient from "./EditCourseClient";
 
@@ -21,6 +23,11 @@ export default async function EditCoursePage({
 }: {
   params: Promise<{ courseId: string }>; // Next 15 ต้อง await params 
 }) {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/login");
+  const role = String((session.user as any)?.role ?? "").toUpperCase();
+  if (role === "TRAINEE") redirect("/");
+
   const { courseId } = await params;
 
   let courseIdBig: bigint;

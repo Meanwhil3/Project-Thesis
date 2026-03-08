@@ -231,13 +231,8 @@ export default async function TakePage({
 
   if (!attempt) redirect("/error");
 
-  // ─── คำนวณ deadline ──────────────────────────────────────────────────────────
-  const perAttemptDeadline = new Date(
-    attempt.started_at.getTime() + exam.duration_minute * 60_000,
-  );
-  const deadline = exam.close_at
-    ? new Date(Math.min(perAttemptDeadline.getTime(), exam.close_at.getTime()))
-    : perAttemptDeadline;
+  // ─── คำนวณ deadline (ใช้ close_at ตรงๆ) ─────────────────────────────────────
+  const deadline = exam.close_at ?? new Date(Date.now() + exam.duration_minute * 60_000);
 
   // ─── หมดเวลา → auto-complete attempt ────────────────────────────────────────
   if (now > deadline) {
@@ -273,8 +268,6 @@ export default async function TakePage({
     title: exam.exam_title,
     description: exam.exam_description ?? null,
     examType,
-    durationMinute: exam.duration_minute,
-    startedAtISO: attempt.started_at.toISOString(),
     deadlineISO: deadline.toISOString(),
     questions: (exam.questions ?? []).map((q) => ({
       id: q.question_id.toString(),

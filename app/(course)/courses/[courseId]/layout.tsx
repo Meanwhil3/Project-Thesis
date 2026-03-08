@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
 import { BookOpen, FileText, Users, Pencil } from "lucide-react";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import CourseTabs from "@/components/Courses/CourseTabs";
 import BackButton from "@/components/Courses/BackButton";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export const runtime = "nodejs";
+
+// ✅ เพิ่ม dynamic configuration เพื่อให้ตัวเลข Update เสมอเมื่อมีการสลับหน้า
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Course = {
   id: string;
@@ -26,36 +32,52 @@ async function getCourse(courseIdStr: string): Promise<Course> {
     notFound();
   }
 
-  const c = await prisma.course.findUnique({
-    where: { course_id: courseId },
-    select: {
-      course_id: true,
-      course_name: true,
-      course_description: true,
-      image_url: true,
-      deleted_at: true,
-    },
-  });
+  // ✅ ใช้ Promise.all เพื่อดึงข้อมูลทุกอย่างพร้อมกัน (ลดเวลา Loading)
+  const [c, lessonsCount, examsCount, membersCount] = await Promise.all([
+    prisma.course.findUnique({
+      where: { course_id: courseId },
+      select: {
+        course_id: true,
+        course_name: true,
+        course_description: true,
+        image_url: true,
+        deleted_at: true,
+      },
+    }),
+    // ✅ นับจำนวนบทเรียนที่มีสถานะเป็น SHOW (ใน Enum คือ OPEN)
+    prisma.lessons.count({
+      where: {
+        course_id: courseId,
+        lesson_status: "OPEN",
+        deleted_at: null,
+      },
+    }),
+    // ✅ นับจำนวนการสอบที่มีสถานะเป็น SHOW
+    prisma.exams.count({
+      where: {
+        course_id: courseId,
+        exam_status: "SHOW",
+        deleted_at: null,
+      },
+    }),
+    // ✅ นับสมาชิกจริง
+    prisma.courseEnrollments.count({
+      where: {
+        course_id: courseId,
+        deleted_at: null,
+      },
+    }),
+  ]);
 
   if (!c || c.deleted_at) notFound();
-
-  // ✅ นับสมาชิกจริงจากตาราง enrollments
-  // (อิงจากไฟล์ api ของคุณที่ใช้ prisma.courseEnrollments อยู่แล้ว)
-  const membersCount = await prisma.courseEnrollments.count({
-    where: {
-      course_id: courseId,
-      deleted_at: null,
-    },
-  });
 
   return {
     id: c.course_id.toString(),
     title: c.course_name,
     subtitle: c.course_description ?? "",
     bannerUrl: c.image_url ?? "https://placehold.co/1200x250",
-    // ถ้ายังไม่มี schema lesson/exam ในโปรเจกต์ ให้เป็น 0 ไว้ก่อน (ไม่พังคอมไพล์)
-    lessonsCount: 0,
-    examsCount: 0,
+    lessonsCount,
+    examsCount,
     membersCount,
   };
 }
@@ -94,14 +116,15 @@ export default async function CourseLayout({
   params,
   children,
 }: {
-  params: Promise<{ courseId: string }>; // ✅ Next 15: params ต้อง await
+  params: Promise<{ courseId: string }>; 
   children: ReactNode;
 }) {
-  const { courseId } = await params; // ✅ แก้ error "params should be awaited"
+  const { courseId } = await params; 
   const course = await getCourse(courseId);
 
-  // TODO: ผูกสิทธิ์จริงจาก session/role
-  const canEditCourse = true;
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role ?? "").toUpperCase();
+  const canEditCourse = role !== "TRAINEE";
 
   return (
     <div >

@@ -142,12 +142,8 @@ export async function POST(
   }
 
   // ─── ตรวจว่าหมดเวลาหรือยัง (server-side) ────────────────────────────────────
-  const perAttemptDeadline = new Date(
-    attempt.started_at.getTime() + exam.duration_minute * 60_000,
-  );
   const deadline = exam.close_at
-    ? new Date(Math.min(perAttemptDeadline.getTime(), exam.close_at.getTime()))
-    : perAttemptDeadline;
+    ?? new Date(attempt.started_at.getTime() + exam.duration_minute * 60_000);
 
   // อนุญาต grace period 30 วินาที (กันกรณี network delay)
   const gracePeriodMs = 30_000;

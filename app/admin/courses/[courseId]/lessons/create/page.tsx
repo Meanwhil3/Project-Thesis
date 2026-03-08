@@ -71,22 +71,43 @@ export default function CreateLessonPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.title) return alert('กรุณาระบุชื่อบทเรียน');
+    // 1. Validation เบื้องต้น
+    if (!formData.title.trim()) return alert('กรุณาระบุชื่อบทเรียน');
+    if (!formData.content.trim() || formData.content === '<p><br></p>') {
+      return alert('กรุณาระบุเนื้อหาบทเรียน');
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/admin/courses/${courseId}/lessons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          ...formData, 
+          title: formData.title,
+          content: formData.content,
+          status: formData.status, // "SHOW" หรือ "HIDE"
           videoUrls: videoList.map(v => v.url),
-          attachments 
+          // ส่งเฉพาะข้อมูลที่ API ต้องการ
+          attachments: attachments.map(at => ({
+            name: at.name,
+            type: at.type
+          }))
         }),
       });
+
+      const data = await response.json();
+
       if (response.ok) {
+        // บันทึกสำเร็จ
         router.push(`/courses/${courseId}/lessons`);
         router.refresh();
+      } else {
+        // บันทึกไม่สำเร็จ (แสดง Error จาก API)
+        alert(`ไม่สามารถบันทึกได้: ${data.error || 'เกิดข้อผิดพลาดบางอย่าง'}`);
       }
+    } catch (error) {
+      console.error("FAILED_TO_SAVE:", error);
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     } finally {
       setIsSubmitting(false);
     }
