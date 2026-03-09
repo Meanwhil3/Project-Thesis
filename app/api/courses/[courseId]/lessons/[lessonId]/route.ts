@@ -10,11 +10,6 @@ export async function GET(
   try {
     const { courseId, lessonId } = await params;
 
-    // ตรวจสอบความถูกต้องของ ID
-    if (!lessonId || isNaN(Number(lessonId))) {
-      return NextResponse.json({ error: "Invalid Lesson ID" }, { status: 400 });
-    }
-
     const lesson = await prisma.lessons.findUnique({
       where: { 
         lesson_id: BigInt(lessonId),
@@ -23,6 +18,12 @@ export async function GET(
       },
       include: { 
         attachments: true,
+        author: {
+          select: {
+            first_name: true,
+            last_name: true,
+          }
+        },
         course: { select: { course_name: true } }
       },
     });
@@ -31,18 +32,27 @@ export async function GET(
       return NextResponse.json({ error: "ไม่พบบทเรียน" }, { status: 404 });
     }
 
-    // แยกวิดีโอและเอกสารจากตารางเดียวกัน
+    // กรองแยกประเภทข้อมูล
     const videos = lesson.attachments.filter(at => at.file_type === "VIDEO");
     const documents = lesson.attachments.filter(at => at.file_type !== "VIDEO");
 
     return NextResponse.json({
       title: lesson.lesson_title,
       content: lesson.lesson_content,
-      courseName: lesson.course?.course_name,
-      courseId: lesson.course_id?.toString(),
-      videos: videos.map(v => ({ url: v.file_path, title: v.display_name })),
+      courseName: lesson.course?.course_name || "Unknown Course",
+      authorName: lesson.author 
+        ? `${lesson.author.first_name} ${lesson.author.last_name}` 
+        : "ไม่ระบุผู้เขียน",
+      createdAt: lesson.created_at,
+      // ส่งข้อมูลวิดีโอ
+      videos: videos.map(v => ({ 
+        url: v.file_path, 
+        title: v.display_name,
+        type: v.file_type // ส่งประเภทไปด้วยเพื่อความชัวร์
+      })),
+      // ส่งข้อมูลเอกสาร
       documents: documents.map(d => ({
-        id: d.attachment_id.toString(),
+        id: d.attachment_id.toString(), // แปลง BigInt เป็น String
         name: d.display_name,
         path: d.file_path,
         type: d.file_type

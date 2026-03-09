@@ -119,11 +119,11 @@ export default function AddWoodPage() {
 
   // ถ้ากำลังโหลด Session ให้แสดง Loader กันหน้ากระพริบ
   if (status === "loading") {
-    return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="animate-spin text-[#14532D]" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-[#14532D]" /></div>;
   }
 
   return (
-    <div className="bg-white min-h-screen w-full flex flex-col text-slate-900 font-kanit">
+    <div className="min-h-screen w-full flex flex-col text-slate-900 font-kanit">
       <form onSubmit={handleSubmit} className="flex flex-col h-full">
 
         {/* --- Header --- */}

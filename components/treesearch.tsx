@@ -2,14 +2,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  Plus, Search, Filter, Eye, EyeOff, 
+  Plus, Search, Filter, Eye, EyeOff,
   Edit, Trash2, X, AlertTriangle, ChevronRight,
   Microscope, Layers, Search as SearchIcon, Wind, Dna,
-  ChevronLeft
+  ChevronLeft, Palette, Droplets, MapPin, Ruler
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { useSession } from "next-auth/react"; // เพิ่มการนำเข้า useSession
+
+// ✅ นำเข้า FilterSelect ตัวใหม่
+import FilterSelect from "@/components/ui/FilterSelect";
 
 // --- Types & Interfaces ---
 interface WoodImage {
@@ -33,15 +36,24 @@ interface WoodFromDB {
   vp_porosity?: string | null;
   vp_vessel_arrangement?: string | null;
   vp_inclusions_in_Pores?: string | null;
+  vp_Pores_frequency?: string | null;
+  vp_Pores_rays_ratio?: string | null;
   rays_width?: string | null;
   rays_two_distinct_sizes?: string | null;
   rays_storied_ripple_mark?: string | null;
+  rays_per_mm?: string | null;
+  rays_aggregate?: string | null;
+  rays_deposit_in_rays?: string | null;
   ap_type?: string | null;
   ap_paratracheal?: string | null;
+  ap_apotracheal?: string | null;
+  ap_banded?: string | null;
   sapwood_heartwood_color_diff?: string | null;
   included_phloem?: string | null;
   intercellular_canals?: string | null;
   wood_status: 'SHOW' | 'HIDE' | null;
+  wood_colors?: string | null;
+  wood_taste?: string | null;
   images: WoodImage[];
 }
 
@@ -49,37 +61,27 @@ interface FilterState {
   name: string; region: string; color: string; weight: string; scent: string; growthRings: string;
   texture: string; grain: string; luster: string; poresSize: string; vesselGrouping: string;
   vp_porosity: string; vp_vessel_arrangement: string; vp_inclusions_in_Pores: string;
+  vp_Pores_frequency: string; vp_Pores_rays_ratio: string;
   rays_width: string; rays_two_distinct_sizes: string; rays_storied_ripple_mark: string;
-  ap_type: string; ap_paratracheal: string; sapwood_heartwood_color_diff: string;
-  included_phloem: string; intercellular_canals: string;
+  rays_per_mm: string; rays_aggregate: string; rays_deposit_in_rays: string;
+  ap_type: string; ap_paratracheal: string; ap_apotracheal: string; ap_banded: string;
+  sapwood_heartwood_color_diff: string; included_phloem: string; intercellular_canals: string;
+  wood_taste: string; wood_status: string;
 }
 
 const initialFilters: FilterState = {
   name: '', region: '', color: '', weight: '', scent: '', growthRings: '',
   texture: '', grain: '', luster: '', poresSize: '', vesselGrouping: '',
   vp_porosity: '', vp_vessel_arrangement: '', vp_inclusions_in_Pores: '',
+  vp_Pores_frequency: '', vp_Pores_rays_ratio: '',
   rays_width: '', rays_two_distinct_sizes: '', rays_storied_ripple_mark: '',
-  ap_type: '', ap_paratracheal: '', sapwood_heartwood_color_diff: '',
-  included_phloem: '', intercellular_canals: '',
+  rays_per_mm: '', rays_aggregate: '', rays_deposit_in_rays: '',
+  ap_type: '', ap_paratracheal: '', ap_apotracheal: '', ap_banded: '',
+  sapwood_heartwood_color_diff: '', included_phloem: '', intercellular_canals: '',
+  wood_taste: '', wood_status: '',
 };
 
 // --- Sub-Components ---
-function FilterSelect({ label, value, onValueChange, children, placeholder = "ทั้งหมด" }: any) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-semibold text-[#14532D]">{label}</Label>
-      <Select value={value || 'all'} onValueChange={onValueChange}>
-        <SelectTrigger className="h-10 rounded-xl border-[#CDE3BD] text-sm bg-white hover:bg-slate-50 transition-colors relative z-10">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent className="bg-white border-[#CDE3BD] z-[200] shadow-xl">
-          <SelectItem value="all">{placeholder}</SelectItem>
-          {children}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
 
 const DeleteConfirmDialog: React.FC<{
   isOpen: boolean; onClose: () => void; onConfirm: () => void;
@@ -109,11 +111,12 @@ const DeleteConfirmDialog: React.FC<{
   );
 };
 
-const WoodCard: React.FC<{ 
-  wood: WoodFromDB; 
+const WoodCard: React.FC<{
+  wood: WoodFromDB;
   onDelete: (wood: WoodFromDB) => void;
   onToggleStatus: (wood: WoodFromDB) => void;
-}> = ({ wood, onDelete, onToggleStatus }) => {
+  canManage: boolean; // รับสิทธิเข้ามาเช็ค
+}> = ({ wood, onDelete, onToggleStatus, canManage }) => {
   const displayImage = wood.images && wood.images.length > 0
     ? wood.images[0].image_url
     : 'https://placehold.co/400x300?text=No+Image';
@@ -136,28 +139,34 @@ const WoodCard: React.FC<{
           </div>
         )}
       </Link>
-      <div className="p-5 flex flex-col flex-1">
-        <h3 className="text-lg font-bold text-[#14532D] mb-1 truncate">
+      <div className="p-1 flex flex-col flex-1">
+        <h3 className="text-lg font-bold text-[#14532D] mb-1 truncate ml-1">
           {wood.common_name || 'ไม่ทราบชื่อ'}
         </h3>
-        <p className="text-xs text-[#6E8E59] italic truncate mb-4">
+        <p className="text-xs text-[#6E8E59] italic truncate mb-2 ml-1">
           {wood.scientific_name || 'N/A'}
         </p>
-        <div className="mt-auto pt-4 border-t border-[#F0F7EB] flex justify-around items-center">
-          <button onClick={() => onDelete(wood)} className="p-2 hover:bg-red-50 rounded-xl transition-colors group">
-            <Trash2 className="h-5 w-5 text-red-400 group-hover:text-red-600" />
-          </button>
-          <button onClick={() => onToggleStatus(wood)} className="p-2 hover:bg-blue-50 rounded-xl transition-colors group">
-            {isHidden ? (
-              <EyeOff className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
-            ) : (
-              <Eye className="w-5 h-5 text-blue-400 group-hover:text-blue-600" />
-            )}
-          </button>
-          <Link href={`/tree/edittree/${wood.wood_id}`} className="p-2 hover:bg-green-50 rounded-xl transition-colors group">
-            <Edit className="w-5 h-5 text-green-400 group-hover:text-green-600" />
-          </Link>
-        </div>
+        {canManage ? (
+          <>
+            <div className="mt-auto pt-1 border-t border-[#F0F7EB] flex justify-around items-center">
+              <button onClick={() => onDelete(wood)} className="p-2 hover:bg-red-50 rounded-xl transition-colors group">
+                <Trash2 className="h-5 w-5 text-red-400 group-hover:text-red-600" />
+              </button>
+              <button onClick={() => onToggleStatus(wood)} className="p-2 hover:bg-blue-50 rounded-xl transition-colors group">
+                {isHidden ? (
+                  <EyeOff className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+                ) : (
+                  <Eye className="w-5 h-5 text-blue-400 group-hover:text-blue-600" />
+                )}
+              </button>
+              <Link href={`/tree/edittree/${wood.wood_id}`} className="p-2 hover:bg-green-50 rounded-xl transition-colors group">
+                <Edit className="w-5 h-5 text-green-400 group-hover:text-green-600" />
+              </Link>
+            </div>
+          </>
+        ) : (
+          <div className="py-2 text-[10px] text-[#86A97A] font-light italic"></div>
+        )}
       </div>
     </div>
   );
@@ -192,31 +201,107 @@ const MoreFiltersDialog: React.FC<{
               <SearchIcon size={14} /> Pores / Vessels Structure
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FilterSelect label="การกระจายของพอร์ (Porosity)" value={filters.vp_porosity} onValueChange={(v:any)=>updateFilter('vp_porosity', v)}>
-                <SelectItem value="ไม้พอร์วง (Ring-porous wood)">ไม้พอร์วง (Ring-porous)</SelectItem>
-                <SelectItem value="ไม้พอร์กระจาย (Diffuse-porous wood)">ไม้พอร์กระจาย (Diffuse-porous)</SelectItem>
-                <SelectItem value="ไม้พอร์กึ่งวง (Semi-ring-porous wood)">ไม้พอร์กึ่งวง (Semi-ring-porous)</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="การเรียงตัวของพอร์ (Arrangement)" value={filters.vp_vessel_arrangement} onValueChange={(v:any)=>updateFilter('vp_vessel_arrangement', v)}>
-                <SelectItem value="พอร์เรียงตัวเป็นแถบตามแนวด้านสัมผัส">แถบตามแนวด้านสัมผัส</SelectItem>
-                <SelectItem value="พอร์เรียงตัวแนวเฉียง และ/หรือ เรียงตามแนวรัศมี">แนวเฉียง/แนวรัศมี</SelectItem>
-                <SelectItem value="พอร์เรียงเป็นกลุ่ม">เรียงเป็นกลุ่ม</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="กลุ่มของพอร์ (Grouping)" value={filters.vesselGrouping} onValueChange={(v:any)=>updateFilter('vesselGrouping', v)}>
-                <SelectItem value="พอร์เดี่ยว">พอร์เดี่ยว</SelectItem>
-                <SelectItem value="พอร์แฝด">พอร์แฝด</SelectItem>
-                <SelectItem value="พอร์เรียงเป็นกลุ่ม">พอร์กลุ่ม</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="ขนาดความโตของพอร์ (Size)" value={filters.poresSize} onValueChange={(v:any)=>updateFilter('poresSize', v)}>
-                <SelectItem value="พอร์ขนาดใหญ่ ขนาดที่เห็นได้อย่างสบาย">พอร์ขนาดใหญ่</SelectItem>
-                <SelectItem value="พอร์ขนาดกลาง ขนาดที่พอเห็นได้">พอร์ขนาดกลาง</SelectItem>
-                <SelectItem value="พอร์ขนาดเล็ก ขนาดที่เห็นได้ด้วยแว่นขยาย">พอร์ขนาดเล็ก</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="สิ่งที่อยู่ในพอร์ (Inclusions)" value={filters.vp_inclusions_in_Pores} onValueChange={(v:any)=>updateFilter('vp_inclusions_in_Pores', v)}>
-                <SelectItem value="ไทโลส ( Tyloses )">ไทโลส (Tyloses)</SelectItem>
-                <SelectItem value="ดีพอซิท ( Deposit )">ดีพอซิท (Deposit)</SelectItem>
-                <SelectItem value="ยางไม้ ( Gum )">ยางไม้ (Gum)</SelectItem>
-              </FilterSelect>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">การกระจายของพอร์ (Porosity)</Label>
+                <FilterSelect
+                  value={filters.vp_porosity || 'all'}
+                  onValueChange={(v) => updateFilter('vp_porosity', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'ไม้พอร์วง (Ring-porous wood)', label: 'ไม้พอร์วง (Ring-porous)' },
+                    { value: 'ไม้พอร์กระจาย (Diffuse-porous wood)', label: 'ไม้พอร์กระจาย (Diffuse-porous)' },
+                    { value: 'ไม้พอร์กึ่งวง (Semi-ring-porous wood)', label: 'ไม้พอร์กึ่งวง (Semi-ring-porous)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">การเรียงตัวของพอร์ (Arrangement)</Label>
+                <FilterSelect
+                  value={filters.vp_vessel_arrangement || 'all'}
+                  onValueChange={(v) => updateFilter('vp_vessel_arrangement', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พอร์เรียงตัวเป็นแถบตามแนวด้านสัมผัส', label: 'แถบตามแนวด้านสัมผัส' },
+                    { value: 'พอร์เรียงตัวแนวเฉียง และ/หรือ เรียงตามแนวรัศมี', label: 'แนวเฉียง/แนวรัศมี' },
+                    { value: 'พอร์เรียงเป็นกลุ่ม', label: 'เรียงเป็นกลุ่ม' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">กลุ่มของพอร์ (Grouping)</Label>
+                <FilterSelect
+                  value={filters.vesselGrouping || 'all'}
+                  onValueChange={(v) => updateFilter('vesselGrouping', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พอร์เดี่ยว', label: 'พอร์เดี่ยว' },
+                    { value: 'พอร์แฝด', label: 'พอร์แฝด' },
+                    { value: 'พอร์เรียงเป็นกลุ่ม', label: 'พอร์กลุ่ม' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">จำนวนของพอร์ (Frequency)</Label>
+                <FilterSelect
+                  value={filters.vp_Pores_frequency || 'all'}
+                  onValueChange={(v) => updateFilter('vp_Pores_frequency', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'หนาแน่นน้อยมาก ( ≤ 5 vessels per square millimeter )', label: 'น้อยมาก (≤ 5)' },
+                    { value: 'หนาแน่นน้อย ( 5 - 20 vessels per square millimeter )', label: 'น้อย (5 - 20)' },
+                    { value: 'หนาแน่นปานกลาง ( 20 - 40 vessels per square millimeter )', label: 'ปานกลาง (20 - 40)' },
+                    { value: 'หนาแน่นมาก ( 40 - 100 vessels per square millimeter )', label: 'มาก (40 - 100)' },
+                    { value: 'หนาแน่นสูงมาก ( ≥ 100 vessels per square millimeter )', label: 'สูงมาก (≥ 100)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ขนาดความโตของพอร์ (Size)</Label>
+                <FilterSelect
+                  value={filters.poresSize || 'all'}
+                  onValueChange={(v) => updateFilter('poresSize', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พอร์ขนาดใหญ่ ขนาดที่เห็นได้อย่างสบาย', label: 'พอร์ขนาดใหญ่' },
+                    { value: 'พอร์ขนาดกลาง ขนาดที่พอเห็นได้', label: 'พอร์ขนาดกลาง' },
+                    { value: 'พอร์ขนาดเล็ก ขนาดที่เห็นได้ด้วยแว่นขยาย', label: 'พอร์ขนาดเล็ก' },
+                    { value: 'พอร์ขนาดเล็กมาก ขนาดที่พอมองเห็นได้ต้องใช้แว่นขยาย 10 - 15 เท่า', label: 'พอร์ขนาดเล็กมาก (10-15x)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">สิ่งที่อยู่ในพอร์ (Inclusions)</Label>
+                <FilterSelect
+                  value={filters.vp_inclusions_in_Pores || 'all'}
+                  onValueChange={(v) => updateFilter('vp_inclusions_in_Pores', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'ไทโลส ( Tyloses )', label: 'ไทโลส (Tyloses)' },
+                    { value: 'ดีพอซิท ( Deposit )', label: 'ดีพอซิท (Deposit)' },
+                    { value: 'ยางไม้ ( Gum )', label: 'ยางไม้ (Gum)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">สัดส่วนเรย์กับพอร์</Label>
+                <FilterSelect
+                  value={filters.vp_Pores_rays_ratio || 'all'}
+                  onValueChange={(v) => updateFilter('vp_Pores_rays_ratio', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'เรย์มีขนาดเล็กกว่าขนาดความกว้างของพอร์', label: 'เรย์เล็กกว่าพอร์' },
+                    { value: 'เรย์มีขนาดเท่ากับขนาดของพอร์', label: 'เรย์เท่ากับพอร์' },
+                    { value: 'เรย์มีขนาดใหญ่กว่าพอร์', label: 'เรย์ใหญ่กว่าพอร์' },
+                  ]}
+                />
+              </div>
             </div>
           </section>
 
@@ -226,30 +311,148 @@ const MoreFiltersDialog: React.FC<{
               <Layers size={14} /> Rays & Parenchyma
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FilterSelect label="ขนาดความกว้างของเส้นเรย์" value={filters.rays_width} onValueChange={(v:any)=>updateFilter('rays_width', v)}>
-                <SelectItem value="เล็กมาก คือ ขนาดที่พอเห็นได้ด้วยแว่นขยาย">เล็กมาก (แว่นขยาย)</SelectItem>
-                <SelectItem value="เล็ก คือ ขนาดที่เห็นได้ด้วยแว่นขยาย">เล็ก (แว่นขยาย)</SelectItem>
-                <SelectItem value="ปานกลาง คือ ขนาดที่พอเห็นได้ด้วยตา">ปานกลาง (ตาเปล่า)</SelectItem>
-                <SelectItem value="ใหญ่ คือ ขนาดที่เห็นอย่างสบาย ๆ ด้วยตาเปล่า">ใหญ่ (ตาเปล่า)</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="เรย์มีสองขนาด" value={filters.rays_two_distinct_sizes} onValueChange={(v:any)=>updateFilter('rays_two_distinct_sizes', v)}>
-                <SelectItem value="มี">มี</SelectItem>
-                <SelectItem value="ไม่มี">ไม่มี</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="ประเภทของพาเรงคิมา" value={filters.ap_type} onValueChange={(v:any)=>updateFilter('ap_type', v)}>
-                <SelectItem value="พาเรงคิมาแบบไม่ติดพอร์ ( Apotracheal axial parenchyma )">Apotracheal (ไม่ติดพอร์)</SelectItem>
-                <SelectItem value="พาเรงคิมาที่ติดพอร์ ( Paratracheal axial parenchyma )">Paratracheal (ติดพอร์)</SelectItem>
-                <SelectItem value="พาเรงคิมาแบบแถบ ( Banded parenchyma )">Banded (แบบแถบ)</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="พาเรงคิมาที่ติดพอร์ (รูปแบบ)" value={filters.ap_paratracheal} onValueChange={(v:any)=>updateFilter('ap_paratracheal', v)}>
-                <SelectItem value="พาเรงคิมาแบบรอบพอร์ (Axial parenchyma vasicentric)">Vasicentric (รอบพอร์)</SelectItem>
-                <SelectItem value="พาเรงคิมาแบบปีก (Axial parenchyma aliform)">Aliform (แบบปีก)</SelectItem>
-                <SelectItem value="พาเรงคิมาแบบปีกต่อ (Axial parenchyma confluent)">Confluent (ปีกต่อ)</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="ลักษณะเรย์เป็นชั้นๆ หรือ ริ้วลาย (Ripple marks)" value={filters.rays_storied_ripple_mark} onValueChange={(v:any)=>updateFilter('rays_storied_ripple_mark', v)}>
-                <SelectItem value="มี">มี</SelectItem>
-                <SelectItem value="ไม่มี">ไม่มี</SelectItem>
-              </FilterSelect>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">จำนวนของเส้นเรย์ (per mm)</Label>
+                <FilterSelect
+                  value={filters.rays_per_mm || 'all'}
+                  onValueChange={(v) => updateFilter('rays_per_mm', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'LOW', label: 'น้อย (< 4 เส้น/มม.)' },
+                    { value: 'MEDIUM', label: 'ปานกลาง (4 - 12 เส้น/มม.)' },
+                    { value: 'HIGH', label: 'มาก (> 12 เส้น/มม.)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ขนาดความกว้างของเส้นเรย์</Label>
+                <FilterSelect
+                  value={filters.rays_width || 'all'}
+                  onValueChange={(v) => updateFilter('rays_width', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'เล็กมาก คือ ขนาดที่พอเห็นได้ด้วยแว่นขยาย', label: 'เล็กมาก (แว่นขยาย)' },
+                    { value: 'เล็ก คือ ขนาดที่เห็นได้ด้วยแว่นขยาย', label: 'เล็ก (แว่นขยาย)' },
+                    { value: 'ปานกลาง คือ ขนาดที่พอเห็นได้ด้วยตา', label: 'ปานกลาง (ตาเปล่า)' },
+                    { value: 'ใหญ่ คือ ขนาดที่เห็นอย่างสบาย ๆ ด้วยตาเปล่า', label: 'ใหญ่ (ตาเปล่า)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">เรย์มีสองขนาด</Label>
+                <FilterSelect
+                  value={filters.rays_two_distinct_sizes || 'all'}
+                  onValueChange={(v) => updateFilter('rays_two_distinct_sizes', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'มี', label: 'มี' },
+                    { value: 'ไม่มี', label: 'ไม่มี' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ลักษณะเรย์รวม (Aggregate)</Label>
+                <FilterSelect
+                  value={filters.rays_aggregate || 'all'}
+                  onValueChange={(v) => updateFilter('rays_aggregate', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'มี', label: 'มี' },
+                    { value: 'ไม่มี', label: 'ไม่มี' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ประเภทของพาเรงคิมา</Label>
+                <FilterSelect
+                  value={filters.ap_type || 'all'}
+                  onValueChange={(v) => updateFilter('ap_type', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พาเรงคิมาแบบไม่ติดพอร์ ( Apotracheal axial parenchyma )', label: 'Apotracheal (ไม่ติดพอร์)' },
+                    { value: 'พาเรงคิมาที่ติดพอร์ ( Paratracheal axial parenchyma )', label: 'Paratracheal (ติดพอร์)' },
+                    { value: 'พาเรงคิมาแบบแถบ ( Banded parenchyma )', label: 'Banded (แบบแถบ)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">พาเรงคิมาที่ติดพอร์ (รูปแบบ)</Label>
+                <FilterSelect
+                  value={filters.ap_paratracheal || 'all'}
+                  onValueChange={(v) => updateFilter('ap_paratracheal', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พาเรงคิมาแบบติดพอร์เป็นหย่อม (Axial parenchyma scanty)', label: 'Scanty (เป็นหย่อม)' },
+                    { value: 'พาเรงคิมาแบบติดพอร์ด้านเดียว (Axial parenchyma unilateral)', label: 'Unilateral (ด้านเดียว)' },
+                    { value: 'พาเรงคิมาแบบรอบพอร์ (Axial parenchyma vasicentric)', label: 'Vasicentric (รอบพอร์)' },
+                    { value: 'พาเรงคิมาแบบปีก (Axial parenchyma aliform)', label: 'Aliform (แบบปีก)' },
+                    { value: 'พาเรงคิมาแบบปีกสั้น (Axial parenchyma lozenge-aliform)', label: 'Lozenge-aliform (ปีกสั้น)' },
+                    { value: 'พาเรงคิมาแบบปีกยาว (Axial parenchyma winged-aliform)', label: 'Winged-aliform (ปีกยาว)' },
+                    { value: 'พาเรงคิมาแบบปีกต่อ (Axial parenchyma confluent)', label: 'Confluent (ปีกต่อ)' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">พาเรงคิมาแบบไม่ติดพอร์</Label>
+                <FilterSelect
+                  value={filters.ap_apotracheal || 'all'}
+                  onValueChange={(v) => updateFilter('ap_apotracheal', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พาเรงคิมาแบบกระจาย (diffuse parenchyma)', label: 'Diffuse (แบบกระจาย)' },
+                    { value: 'พาเรงคิมาแบบกลุ่มกระจาย (diffuse-in-aggregates parenchyma)', label: 'Diffuse-in-aggregates' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">พาเรงคิมาแบบแถบ</Label>
+                <FilterSelect
+                  value={filters.ap_banded || 'all'}
+                  onValueChange={(v) => updateFilter('ap_banded', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'พาเรงคิมาแบบแถบกว้าง', label: 'แถบกว้าง' },
+                    { value: 'พาเรงคิมาแบบแถบแคบ', label: 'แถบแคบ' },
+                    { value: 'พาเรงคิมาแบบตาข่าย (Axial parenchyma reticulate)', label: 'Reticulate (ตาข่าย)' },
+                    { value: 'พาเรงคิมาแบบบันได (Axial parenchyma scalariform)', label: 'Scalariform (บันได)' },
+                    { value: 'พาเรงคิมาแบบขอบ', label: 'แบบขอบ' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ริ้วลาย (Ripple marks)</Label>
+                <FilterSelect
+                  value={filters.rays_storied_ripple_mark || 'all'}
+                  onValueChange={(v) => updateFilter('rays_storied_ripple_mark', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'มี', label: 'มี' },
+                    { value: 'ไม่มี', label: 'ไม่มี' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ดีพอซิทในเส้นเรย์</Label>
+                <FilterSelect
+                  value={filters.rays_deposit_in_rays || 'all'}
+                  onValueChange={(v) => updateFilter('rays_deposit_in_rays', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'มีสี', label: 'มีสี' },
+                    { value: 'ไม่มี', label: 'ไม่มี' },
+                  ]}
+                />
+              </div>
             </div>
           </section>
 
@@ -259,43 +462,110 @@ const MoreFiltersDialog: React.FC<{
               <Dna size={14} /> Physical & Other Features
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FilterSelect label="ความหยาบละเอียดของเนื้อไม้ (Texture)" value={filters.texture} onValueChange={(v:any)=>updateFilter('texture', v)}>
-                <SelectItem value="เนื้อไม้ละเอียด (Fine texture)">เนื้อไม้ละเอียด</SelectItem>
-                <SelectItem value="เนื้อไม้หยาบปานกลาง (Medium texture)">หยาบปานกลาง</SelectItem>
-                <SelectItem value="เนื้อไม้หยาบ (Coarse texture)">เนื้อไม้หยาบ</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="เสี้ยนเนื้อไม้ (Grain)" value={filters.grain} onValueChange={(v:any)=>updateFilter('grain', v)}>
-                <SelectItem value="เสี้ยนตรง (Straight grain)">เสี้ยนตรง</SelectItem>
-                <SelectItem value="เสี้ยนสน (Interlocked grain)">เสี้ยนสน</SelectItem>
-                <SelectItem value="เสี้ยนบิด (Spiral gain)">เสี้ยนบิด</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="ความมันวาว (Luster)" value={filters.luster} onValueChange={(v:any)=>updateFilter('luster', v)}>
-                <SelectItem value="เป็นมันวาว (Lustrous)">เป็นมันวาว</SelectItem>
-                <SelectItem value="ด้าน (Dull)">ด้าน</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="ความต่างของกระพี้และสีแก่นไม้" value={filters.sapwood_heartwood_color_diff} onValueChange={(v:any)=>updateFilter('sapwood_heartwood_color_diff', v)}>
-                 <SelectItem value="สีกระพี้และสีแก่นไม้แตกต่างกันอย่างชัดเจน">แตกต่างชัดเจน</SelectItem>
-                 <SelectItem value="สีกระพี้เหมือนหรือใกล้เคียงกับสีแก่นไม้">เหมือน/ใกล้เคียง</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="โฟลเอ็มในไม้" value={filters.included_phloem} onValueChange={(v:any)=>updateFilter('included_phloem', v)}>
-                <SelectItem value="มี">มี</SelectItem>
-                <SelectItem value="ไม่มี">ไม่มี</SelectItem>
-              </FilterSelect>
-              <FilterSelect label="ท่อระหว่างเซลล์" value={filters.intercellular_canals} onValueChange={(v:any)=>updateFilter('intercellular_canals', v)}>
-                <SelectItem value="ท่อเรียงต่อกันเป็นเส้นยาว (Axial canals in long tangential lines)">เรียงเป็นเส้นยาว</SelectItem>
-                <SelectItem value="ท่อเรียงต่อกันเป็นเส้นสั้น ๆ (Axial canals in short tangential lines)">เรียงเป็นเส้นสั้น</SelectItem>
-              </FilterSelect>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ความหยาบละเอียด (Texture)</Label>
+                <FilterSelect
+                  value={filters.texture || 'all'}
+                  onValueChange={(v) => updateFilter('texture', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'เนื้อไม้ละเอียด (Fine texture)', label: 'เนื้อไม้ละเอียด' },
+                    { value: 'เนื้อไม้หยาบปานกลาง (Medium texture)', label: 'หยาบปานกลาง' },
+                    { value: 'เนื้อไม้หยาบ (Coarse texture)', label: 'เนื้อไม้หยาบ' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">เสี้ยนเนื้อไม้ (Grain)</Label>
+                <FilterSelect
+                  value={filters.grain || 'all'}
+                  onValueChange={(v) => updateFilter('grain', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'เสี้ยนตรง (Straight grain)', label: 'เสี้ยนตรง' },
+                    { value: 'เสี้ยนสน (Interlocked grain)', label: 'เสี้ยนสน' },
+                    { value: 'เสี้ยนบิด (Spiral gain)', label: 'เสี้ยนบิด' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ความมันวาว (Luster)</Label>
+                <FilterSelect
+                  value={filters.luster || 'all'}
+                  onValueChange={(v) => updateFilter('luster', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'เป็นมันวาว (Lustrous)', label: 'เป็นมันวาว' },
+                    { value: 'ด้าน (Dull)', label: 'ด้าน' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">รสชาติ (Taste)</Label>
+                <FilterSelect
+                  value={filters.wood_taste || 'all'}
+                  onValueChange={(v) => updateFilter('wood_taste', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'มีรส', label: 'มีรส' },
+                    { value: 'ไม่มีรส', label: 'ไม่มีรส' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ความต่างกระพี้-แก่น</Label>
+                <FilterSelect
+                  value={filters.sapwood_heartwood_color_diff || 'all'}
+                  onValueChange={(v) => updateFilter('sapwood_heartwood_color_diff', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'สีกระพี้และสีแก่นไม้แตกต่างกันอย่างชัดเจน', label: 'แตกต่างชัดเจน' },
+                    { value: 'สีกระพี้เหมือนหรือใกล้เคียงกับสีแก่นไม้', label: 'เหมือน/ใกล้เคียง' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">โฟลเอ็มในไม้</Label>
+                <FilterSelect
+                  value={filters.included_phloem || 'all'}
+                  onValueChange={(v) => updateFilter('included_phloem', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'มี', label: 'มี' },
+                    { value: 'ไม่มี', label: 'ไม่มี' },
+                  ]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#14532D]">ท่อระหว่างเซลล์</Label>
+                <FilterSelect
+                  value={filters.intercellular_canals || 'all'}
+                  onValueChange={(v) => updateFilter('intercellular_canals', v)}
+                  placeholder="ทั้งหมด"
+                  options={[
+                    { value: 'all', label: 'ทั้งหมด' },
+                    { value: 'ท่อเรียงต่อกันเป็นเส้นยาว (Axial canals in long tangential lines)', label: 'เรียงเป็นเส้นยาว' },
+                    { value: 'ท่อเรียงต่อกันเป็นเส้นสั้น ๆ (Axial canals in short tangential lines)', label: 'เรียงเป็นเส้นสั้น' },
+                  ]}
+                />
+              </div>
             </div>
           </section>
         </div>
 
         <div className="mt-6 pt-4 border-t border-[#F0F7EB] flex justify-end gap-3">
-          <Button 
-            variant="ghost" 
-            onClick={() => setFilters(f => ({ 
-              ...initialFilters, 
-              name: f.name, region: f.region, color: f.color, weight: f.weight, scent: f.scent, growthRings: f.growthRings 
-            }))} 
+          <Button
+            variant="ghost"
+            onClick={() => setFilters(f => ({
+              ...initialFilters,
+              name: f.name, region: f.region, color: f.color, weight: f.weight, scent: f.scent, growthRings: f.growthRings
+            }))}
             className="text-[#6E8E59]"
           >
             ล้างตัวกรองละเอียด
@@ -320,8 +590,8 @@ const SidebarFilters: React.FC<{
         <h3 className="font-bold text-lg text-[#14532D] flex items-center gap-2">
           <Filter className="w-5 h-5" /> ตัวกรอง
         </h3>
-        <button 
-          onClick={() => setFilters(initialFilters)} 
+        <button
+          onClick={() => setFilters(initialFilters)}
           className="text-xs font-semibold text-[#16A34A] hover:underline"
         >
           รีเซ็ต
@@ -335,78 +605,105 @@ const SidebarFilters: React.FC<{
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86A97A] w-4 h-4" />
           <input
             placeholder="ชื่อสามัญ / วิทยาศาสตร์"
-            className="w-full h-10 pl-9 pr-4 rounded-xl border-[#CDE3BD] text-sm focus:ring-2 focus:ring-[#4CA771]/20 outline-none transition-all"
+            className="w-full h-11 pl-9 pr-4 rounded-[10px] border border-[#CDE3BD] text-sm focus:ring-2 focus:ring-[#4CA771]/20 outline-none transition-all"
             value={filters.name}
             onChange={(e) => setFilters(f => ({ ...f, name: e.target.value }))}
           />
         </div>
       </div>
 
-      {/* 2. ถิ่นกำเนิด */}
-      <FilterSelect 
-        label="ถิ่นกำเนิด (Distribution)" 
-        value={filters.region} 
-        onValueChange={(v: string) => setFilters(f => ({ ...f, region: v === 'all' ? '' : v }))}
-        placeholder="ทั้งหมด"
-      >
-        <SelectItem value="Southeast Asia and the Pacific">Southeast Asia and the Pacific</SelectItem>
-        <SelectItem value="Central South Asia">Central South Asia</SelectItem>
-        <SelectItem value="Europe and temperate Asia">Europe and temperate Asia</SelectItem>
-        <SelectItem value="Australia and New Zealand">Australia and New Zealand</SelectItem>
-        <SelectItem value="Tropical mainland Africa and adjacent islands">Tropical mainland Africa</SelectItem>
-      </FilterSelect>
+      {/* 2. ถิ่นกำเนิด - อัปเดตให้ครบตาม AddTree */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-[#14532D] flex items-center gap-1"><MapPin size={12} /> ถิ่นกำเนิด (Distribution)</Label>
+        <FilterSelect
+          value={filters.region || 'all'}
+          onValueChange={(v) => setFilters(f => ({ ...f, region: v === 'all' ? '' : v }))}
+          placeholder="ทั้งหมด"
+          options={[
+            { value: 'all', label: 'ทั้งหมด' },
+            { value: 'Europe and temperate Asia', label: 'Europe & temperate Asia' },
+            { value: 'Central South Asia', label: 'Central South Asia' },
+            { value: 'Southeast Asia and the Pacific', label: 'Southeast Asia & Pacific' },
+            { value: 'Australia and New Zealand', label: 'Australia & NZ' },
+            { value: 'Tropical mainland Africa and adjacent islands', label: 'Tropical mainland Africa' },
+            { value: 'Southern Africa', label: 'Southern Africa' },
+            { value: 'North America, north of Mexico', label: 'North America' },
+            { value: 'Neotropics and temperate Brazil', label: 'Neotropics & Brazil' },
+            { value: 'Temperate South America including Argentina, Chile, Uruguay, and S. Paraguay', label: 'Temperate South America' },
+          ]}
+        />
+      </div>
 
-      {/* 3. สีแก่นไม้ */}
-      <FilterSelect 
-        label="สีของแก่นไม้ (Heartwood)" 
-        value={filters.color} 
-        onValueChange={(v: string) => setFilters(f => ({ ...f, color: v === 'all' ? '' : v }))}
-        placeholder="ทั้งหมด"
-      >
-        <SelectItem value="สีน้ำตาลหรือโทนสีน้ำตาล (Brown or shades of brown)">สีน้ำตาล</SelectItem>
-        <SelectItem value="สีแดงหรือโทนสีแดง (Red or shades of red)">สีแดง</SelectItem>
-        <SelectItem value="สีเหลืองหรือโทนสีเหลือง (Yellow or shades of yellow)">สีเหลือง</SelectItem>
-        <SelectItem value="สีขาวหรือเทา (White or Gray)">สีขาว/เทา</SelectItem>
-        <SelectItem value="สีดำ (Black)">สีดำ</SelectItem>
-      </FilterSelect>
+      {/* 3. สีแก่นไม้ - อัปเดตให้ครบตาม AddTree */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-[#14532D] flex items-center gap-1"><Palette size={12} /> สีของแก่นไม้ (Heartwood)</Label>
+        <FilterSelect
+          value={filters.color || 'all'}
+          onValueChange={(v) => setFilters(f => ({ ...f, color: v === 'all' ? '' : v }))}
+          placeholder="ทั้งหมด"
+          options={[
+            { value: 'all', label: 'ทั้งหมด' },
+            { value: 'สีน้ำตาลหรือโทนสีน้ำตาล (Brown or shades of brown)', label: 'สีน้ำตาล' },
+            { value: 'สีแดงหรือโทนสีแดง (Red or shades of red)', label: 'สีแดง' },
+            { value: 'สีเหลืองหรือโทนสีเหลือง (Yellow or shades of yellow)', label: 'สีเหลือง' },
+            { value: 'สีขาวหรือเทา (White or Gray)', label: 'สีขาว/เทา' },
+            { value: 'สีดำ (Black)', label: 'สีดำ' },
+            { value: 'สีม่วง (Purple)', label: 'สีม่วง' },
+            { value: 'สีส้ม (Orange)', label: 'สีส้ม' },
+            { value: 'สีเขียว (Green)', label: 'สีเขียว' },
+          ]}
+        />
+      </div>
 
       {/* 4. น้ำหนัก */}
-      <FilterSelect 
-        label="น้ำหนัก (Weight)" 
-        value={filters.weight} 
-        onValueChange={(v: string) => setFilters(f => ({ ...f, weight: v === 'all' ? '' : v }))}
-        placeholder="ทั้งหมด"
-      >
-        <SelectItem value="LIGHT">ต่ำ (≤ 0.40)</SelectItem>
-        <SelectItem value="MEDIUM">กลาง (0.40 - 0.75)</SelectItem>
-        <SelectItem value="HEAVY">สูง (≥ 0.75)</SelectItem>
-      </FilterSelect>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-[#14532D] flex items-center gap-1"><Ruler size={12} /> น้ำหนัก (Weight)</Label>
+        <FilterSelect
+          value={filters.weight || 'all'}
+          onValueChange={(v) => setFilters(f => ({ ...f, weight: v === 'all' ? '' : v }))}
+          placeholder="ทั้งหมด"
+          options={[
+            { value: 'all', label: 'ทั้งหมด' },
+            { value: 'LIGHT', label: 'ต่ำ (≤ 0.40)' },
+            { value: 'MEDIUM', label: 'กลาง (0.40 - 0.75)' },
+            { value: 'HEAVY', label: 'สูง (≥ 0.75)' },
+          ]}
+        />
+      </div>
 
       {/* 5. กลิ่น */}
-      <FilterSelect 
-        label="กลิ่น (Odor)" 
-        value={filters.scent} 
-        onValueChange={(v: string) => setFilters(f => ({ ...f, scent: v === 'all' ? '' : v }))}
-        placeholder="ทั้งหมด"
-      >
-        <SelectItem value="มีกลิ่น">มีกลิ่น</SelectItem>
-        <SelectItem value="ไม่มีกลิ่น">ไม่มีกลิ่น</SelectItem>
-      </FilterSelect>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-[#14532D] flex items-center gap-1"><Wind size={12} /> กลิ่น (Odor)</Label>
+        <FilterSelect
+          value={filters.scent || 'all'}
+          onValueChange={(v) => setFilters(f => ({ ...f, scent: v === 'all' ? '' : v }))}
+          placeholder="ทั้งหมด"
+          options={[
+            { value: 'all', label: 'ทั้งหมด' },
+            { value: 'มีกลิ่น', label: 'มีกลิ่น' },
+            { value: 'ไม่มีกลิ่น', label: 'ไม่มีกลิ่น' },
+          ]}
+        />
+      </div>
 
       {/* 6. วงเจริญเติบโต */}
-      <FilterSelect 
-        label="วงเจริญเติบโต (Growth rings)" 
-        value={filters.growthRings} 
-        onValueChange={(v: string) => setFilters(f => ({ ...f, growthRings: v === 'all' ? '' : v }))}
-        placeholder="ทั้งหมด"
-      >
-        <SelectItem value="มีเห็นได้อย่างชัดเจน">มีเห็นได้อย่างชัดเจน</SelectItem>
-        <SelectItem value="ไม่มีหรือเห็นไม่ชัดเจน">ไม่มีหรือเห็นไม่ชัดเจน</SelectItem>
-      </FilterSelect>
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-[#14532D] flex items-center gap-1"><Layers size={12} /> วงเจริญเติบโต (Growth rings)</Label>
+        <FilterSelect
+          value={filters.growthRings || 'all'}
+          onValueChange={(v) => setFilters(f => ({ ...f, growthRings: v === 'all' ? '' : v }))}
+          placeholder="ทั้งหมด"
+          options={[
+            { value: 'all', label: 'ทั้งหมด' },
+            { value: 'มีเห็นได้อย่างชัดเจน', label: 'เห็นชัดเจน' },
+            { value: 'ไม่มีหรือเห็นไม่ชัดเจน', label: 'ไม่ชัดเจน/ไม่มี' },
+          ]}
+        />
+      </div>
 
       <Button
         onClick={onOpenMoreFilters}
-        className="w-full h-11 rounded-xl text-[#14532D] border-[#CDE3BD] hover:bg-[#F6FBF6] hover:border-[#16A34A] flex items-center justify-between px-4"
+        className="w-full h-11 rounded-xl text-[#14532D] border-[#CDE3BD] hover:bg-[#F6FBF6] hover:border-[#16A34A] flex items-center justify-between px-4 transition-all"
         variant="outline"
       >
         <span className="flex items-center gap-2 text-sm font-medium"><Plus size={16} /> ตัวกรองละเอียด</span>
@@ -418,12 +715,17 @@ const SidebarFilters: React.FC<{
 
 // --- Main Page (Treesearch) ---
 const Treesearch: React.FC = () => {
+  const { data: session } = useSession(); // ดึง Session
   const [woods, setWoods] = useState<WoodFromDB[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WoodFromDB | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // ตรวจสอบสิทธิ: ต้องเป็น ADMIN หรือ INSTRUCTOR เท่านั้นถึงจะจัดการได้
+  const userRole = session?.user?.role?.toUpperCase();
+  const canManage = userRole === "ADMIN" || userRole === "INSTRUCTOR";
 
   // --- Pagination States ---
   const [currentPage, setCurrentPage] = useState(1);
@@ -436,13 +738,12 @@ const Treesearch: React.FC = () => {
       .catch(err => { console.error("Error:", err); setLoading(false); });
   }, []);
 
-  // รีเซ็ตหน้ากลับไปที่ 1 เมื่อเปลี่ยน Filter
   useEffect(() => {
     setCurrentPage(1);
   }, [filters]);
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !canManage) return; // เช็ค canManage เพิ่ม
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/woods/${deleteTarget.wood_id}`, { method: 'DELETE' });
@@ -454,6 +755,7 @@ const Treesearch: React.FC = () => {
   };
 
   const handleToggleStatus = async (wood: WoodFromDB) => {
+    if (!canManage) return; // เช็ค canManage เพิ่ม
     const nextStatus = wood.wood_status === 'SHOW' ? 'HIDE' : 'SHOW';
     try {
       const res = await fetch(`/api/woods/${wood.wood_id}`, {
@@ -468,11 +770,14 @@ const Treesearch: React.FC = () => {
   };
 
   const filteredWoods = useMemo(() => {
-    return woods.filter(wood => {
-      // Logic Filter เดิมทั้งหมดของคุณ
-      if (filters.name && !(wood.common_name?.toLowerCase().includes(filters.name.toLowerCase()) || 
-          wood.scientific_name?.toLowerCase().includes(filters.name.toLowerCase()))) return false;
+    const result = woods.filter(wood => {
+      // ✅ เพิ่มเงื่อนไข: ถ้าไม่ใช่ ADMIN/INSTRUCTOR และสถานะคือ HIDE จะถูกกรองออกทันที
+      if (!canManage && wood.wood_status === 'HIDE') return false;
+
+      if (filters.name && !(wood.common_name?.toLowerCase().includes(filters.name.toLowerCase()) ||
+        wood.scientific_name?.toLowerCase().includes(filters.name.toLowerCase()))) return false;
       if (filters.region && wood.wood_origin !== filters.region) return false;
+      if (filters.color && wood.wood_colors !== filters.color) return false;
       if (filters.weight && wood.wood_weight !== filters.weight) return false;
       if (filters.scent && wood.wood_odor !== filters.scent) return false;
       if (filters.growthRings && wood.growth_rings !== filters.growthRings) return false;
@@ -484,19 +789,32 @@ const Treesearch: React.FC = () => {
       if (filters.vp_porosity && wood.vp_porosity !== filters.vp_porosity) return false;
       if (filters.vp_vessel_arrangement && wood.vp_vessel_arrangement !== filters.vp_vessel_arrangement) return false;
       if (filters.vp_inclusions_in_Pores && wood.vp_inclusions_in_Pores !== filters.vp_inclusions_in_Pores) return false;
+      if (filters.vp_Pores_frequency && wood.vp_Pores_frequency !== filters.vp_Pores_frequency) return false;
+      if (filters.vp_Pores_rays_ratio && wood.vp_Pores_rays_ratio !== filters.vp_Pores_rays_ratio) return false;
       if (filters.rays_width && wood.rays_width !== filters.rays_width) return false;
       if (filters.rays_two_distinct_sizes && wood.rays_two_distinct_sizes !== filters.rays_two_distinct_sizes) return false;
       if (filters.rays_storied_ripple_mark && wood.rays_storied_ripple_mark !== filters.rays_storied_ripple_mark) return false;
+      if (filters.rays_per_mm && wood.rays_per_mm !== filters.rays_per_mm) return false;
+      if (filters.rays_aggregate && wood.rays_aggregate !== filters.rays_aggregate) return false;
+      if (filters.rays_deposit_in_rays && wood.rays_deposit_in_rays !== filters.rays_deposit_in_rays) return false;
       if (filters.ap_type && wood.ap_type !== filters.ap_type) return false;
       if (filters.ap_paratracheal && wood.ap_paratracheal !== filters.ap_paratracheal) return false;
+      if (filters.ap_apotracheal && wood.ap_apotracheal !== filters.ap_apotracheal) return false;
+      if (filters.ap_banded && wood.ap_banded !== filters.ap_banded) return false;
       if (filters.sapwood_heartwood_color_diff && wood.sapwood_heartwood_color_diff !== filters.sapwood_heartwood_color_diff) return false;
       if (filters.included_phloem && wood.included_phloem !== filters.included_phloem) return false;
       if (filters.intercellular_canals && wood.intercellular_canals !== filters.intercellular_canals) return false;
+      if (filters.wood_taste && wood.wood_taste !== filters.wood_taste) return false;
       return true;
     });
-  }, [filters, woods]);
 
-  // --- Pagination Logic ---
+    return result.sort((a, b) => {
+      const nameA = a.common_name || "";
+      const nameB = b.common_name || "";
+      return nameA.localeCompare(nameB, 'th'); // รองรับการเรียงภาษาไทย (ก-ฮ)
+    });
+  }, [filters, woods, canManage]); // เพิ่ม canManage ใน dependency array
+
   const totalPages = Math.ceil(filteredWoods.length / itemsPerPage);
   const currentWoods = useMemo(() => {
     const firstPageIndex = (currentPage - 1) * itemsPerPage;
@@ -512,11 +830,14 @@ const Treesearch: React.FC = () => {
             <h1 className="text-3xl font-bold text-[#14532D]">ฐานข้อมูลพันธุ์ไม้</h1>
             <p className="text-[#6E8E59] mt-1">จัดการและสืบค้นข้อมูลโครงสร้างเนื้อไม้</p>
           </div>
-          <Link href="/tree/addtree">
-            <Button className="bg-[#14532D] hover:bg-[#0F3F22] text-white rounded-xl px-6 h-12 shadow-lg shadow-green-900/10">
-              <Plus className="w-5 h-5 mr-2" /> เพิ่มข้อมูลใหม่
-            </Button>
-          </Link>
+          {/* ซ่อนปุ่ม "เพิ่มข้อมูลใหม่" หากไม่ใช่ canManage */}
+          {canManage && (
+            <Link href="/tree/addtree">
+              <Button className="bg-[#14532D] hover:bg-[#0F3F22] text-white rounded-xl px-6 h-12 shadow-lg shadow-green-900/10">
+                <Plus className="w-5 h-5 mr-2" /> เพิ่มข้อมูลใหม่
+              </Button>
+            </Link>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -526,7 +847,7 @@ const Treesearch: React.FC = () => {
                 พบข้อมูล {filteredWoods.length} รายการ (หน้า {currentPage}/{totalPages || 1})
               </span>
             </div>
-            
+
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50">
                 {[1, 2, 3].map(i => <div key={i} className="h-64 bg-slate-100 animate-pulse rounded-2xl" />)}
@@ -535,47 +856,46 @@ const Treesearch: React.FC = () => {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {currentWoods.map(wood => (
-                    <WoodCard 
-                      key={wood.wood_id} 
-                      wood={wood} 
-                      onDelete={setDeleteTarget} 
-                      onToggleStatus={handleToggleStatus} 
+                    <WoodCard
+                      key={wood.wood_id}
+                      wood={wood}
+                      onDelete={setDeleteTarget}
+                      onToggleStatus={handleToggleStatus}
+                      canManage={canManage} // ส่งสิทธิไปให้ Card
                     />
                   ))}
                 </div>
 
-                {/* --- Pagination Controls --- */}
                 {filteredWoods.length > itemsPerPage && (
                   <div className="mt-12 flex justify-center items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
+                    <Button
+                      variant="outline"
+                      size="icon"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                       className="rounded-xl border-[#CDE3BD] hover:bg-[#F6FBF6] disabled:opacity-30"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    
+
                     <div className="flex gap-1">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
-                            currentPage === page
-                              ? 'bg-[#14532D] text-white shadow-md'
-                              : 'bg-white text-[#6E8E59] border border-[#CDE3BD] hover:border-[#14532D] hover:text-[#14532D]'
-                          }`}
+                          className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${currentPage === page
+                            ? 'bg-[#14532D] text-white shadow-md'
+                            : 'bg-white text-[#6E8E59] border border-[#CDE3BD] hover:border-[#14532D] hover:text-[#14532D]'
+                            }`}
                         >
                           {page}
                         </button>
                       ))}
                     </div>
 
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
+                    <Button
+                      variant="outline"
+                      size="icon"
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
                       className="rounded-xl border-[#CDE3BD] hover:bg-[#F6FBF6] disabled:opacity-30"

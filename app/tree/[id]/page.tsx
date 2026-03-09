@@ -45,7 +45,7 @@ export default function WoodDetailPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center font-kanit gap-4 bg-white">
+    <div className="min-h-screen flex flex-col items-center justify-center font-kanit gap-4">
       <div className="w-10 h-10 border-4 border-[#14532D]/20 border-t-[#14532D] rounded-full animate-spin"></div>
       <p className="text-[#14532D] font-medium">กำลังดึงข้อมูล...</p>
     </div>
@@ -75,7 +75,7 @@ export default function WoodDetailPage() {
   const hasImages = wood.images && wood.images.length > 0;
 
   return (
-    <div className="bg-[#F8FAFC] min-h-screen pb-20 font-kanit">
+    <div className="min-h-screen pb-20 font-kanit">
       <main className="max-w-7xl mx-auto px-4 md:px-8 pt-8">
 
         {/* Navigation & Header */}

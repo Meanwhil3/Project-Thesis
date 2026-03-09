@@ -98,7 +98,7 @@ export default function EditWoodPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center font-kanit gap-4 bg-white">
+    <div className="min-h-screen flex flex-col items-center justify-center font-kanit gap-4">
       <Loader2 className="w-10 h-10 animate-spin text-[#14532D]" />
       <p className="text-[#14532D] font-medium">กำลังเตรียมข้อมูล...</p>
     </div>
@@ -116,7 +116,7 @@ export default function EditWoodPage() {
   ];
 
   return (
-    <div className="bg-white min-h-screen w-full flex flex-col text-slate-900 font-kanit">
+    <div className="min-h-screen w-full flex flex-col text-slate-900 font-kanit">
       <form onSubmit={handleSave} className="flex flex-col h-full">
         
         {/* --- Header --- */}
