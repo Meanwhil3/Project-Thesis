@@ -1,6 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from "next-auth/react"; // เพิ่มการดึง Session
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,7 @@ import {
 export default function EditWoodPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session, status } = useSession(); // ดึงข้อมูล Session
   
   const [wood, setWood] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -22,11 +24,24 @@ export default function EditWoodPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [selectedFiles, setSelectedFiles] = useState<{file: File, preview: string}[]>([]);
 
+  // --- ตรวจสอบสิทธิ์ (Role Protection) ---
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    } else if (status === "authenticated") {
+      const role = String((session?.user as any)?.role ?? "").toUpperCase();
+      // ไม่อนุญาตให้ TRAINEE เข้าถึง (อนุญาตเฉพาะ ADMIN และ INSTRUCTOR)
+      if (role !== "ADMIN" && role !== "INSTRUCTOR") {
+        alert("คุณไม่มีสิทธิ์เข้าถึงหรือแก้ไขข้อมูลในหน้านี้");
+        router.push("/tree/treesearch");
+      }
+    }
+  }, [status, session, router]);
+
   useEffect(() => {
     fetch(`/api/woods/${id}`)
       .then(res => res.json())
       .then(data => {
-        // รวมค่า default เพื่อป้องกัน field หาย
         setWood({
           wood_status: 'SHOW',
           wood_weight: 'MEDIUM',
@@ -74,7 +89,6 @@ export default function EditWoodPage() {
     setSaving(true);
     const formData = new FormData();
     
-    // กรองเอาเฉพาะข้อมูลที่ไม่ใช่รูปภาพส่งไปก่อน
     Object.keys(wood).forEach(key => {
       if (key !== 'images' && key !== 'wood_id') {
         formData.append(key, wood[key] ?? "");
@@ -97,14 +111,21 @@ export default function EditWoodPage() {
     }
   };
 
-  if (loading) return (
+  // แสดง Loader ระหว่างตรวจสอบ Session หรือโหลดข้อมูลไม้
+  if (status === "loading" || loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center font-kanit gap-4">
       <Loader2 className="w-10 h-10 animate-spin text-[#14532D]" />
       <p className="text-[#14532D] font-medium">กำลังเตรียมข้อมูล...</p>
     </div>
   );
   
-  if (!wood) return <div className="min-h-screen flex items-center justify-center font-kanit">ไม่พบข้อมูล</div>;
+  // ตรวจสอบขั้นสุดท้ายก่อน Render UI
+  const isAuthorized = status === "authenticated" && 
+    ["ADMIN", "INSTRUCTOR"].includes(String((session?.user as any)?.role ?? "").toUpperCase());
+
+  if (!isAuthorized || !wood) {
+    return <div className="min-h-screen flex items-center justify-center font-kanit">ไม่พบข้อมูลหรือไม่มีสิทธิ์เข้าถึง</div>;
+  }
 
   const menuItems = [
     { id: 'basic', label: 'ข้อมูลพื้นฐานและอัตลักษณ์', icon: <Info size={18} /> },

@@ -31,7 +31,7 @@ export default function AddWoodPage() {
       const role = String((session?.user as any)?.role ?? "").toUpperCase();
       if (role !== "ADMIN" && role !== "INSTRUCTOR") {
         alert("คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
-        router.push("/");
+        router.push("/tree/treesearch");
       }
     }
   }, [status, session, router]);
