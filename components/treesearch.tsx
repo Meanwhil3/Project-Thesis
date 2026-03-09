@@ -732,11 +732,26 @@ const Treesearch: React.FC = () => {
   const itemsPerPage = 12;
 
   useEffect(() => {
-    fetch('/api/woods')
-      .then(res => res.json())
-      .then(data => { setWoods(data); setLoading(false); })
-      .catch(err => { console.error("Error:", err); setLoading(false); });
-  }, []);
+  fetch('/api/woods')
+    .then(res => res.json())
+    .then(data => { 
+      // ✅ ถ้า API ส่งมาเป็น { data: [...] } ต้องใช้ data.data
+      // แต่ถ้าส่งมาเป็น [...] เลย ก็ใช้ data ได้เลย
+      // เพื่อความชัวร์ ให้เช็คแบบนี้ครับ:
+      if (Array.isArray(data)) {
+        setWoods(data);
+      } else {
+        console.error("Data received is not an array:", data);
+        setWoods([]); // ป้องกันพัง
+      }
+      setLoading(false); 
+    })
+    .catch(err => { 
+      console.error("Error:", err); 
+      setLoading(false); 
+      setWoods([]); // ถ้า Error ให้เป็น Array ว่างไว้
+    });
+}, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -770,6 +785,7 @@ const Treesearch: React.FC = () => {
   };
 
   const filteredWoods = useMemo(() => {
+    if (!Array.isArray(woods)) return [];
     const result = woods.filter(wood => {
       // ✅ เพิ่มเงื่อนไข: ถ้าไม่ใช่ ADMIN/INSTRUCTOR และสถานะคือ HIDE จะถูกกรองออกทันที
       if (!canManage && wood.wood_status === 'HIDE') return false;
