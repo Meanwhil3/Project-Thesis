@@ -27,8 +27,8 @@ export async function GET() {
     // ใช้ฟังก์ชัน serializeBigInt ก่อนส่งข้อมูล
     return NextResponse.json(serializeBigInt(woods));
     
-  } catch (error) {
+  } catch (error: any) {
     console.error("Fetch wood error:", error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal Server Error' }, { status: 500 });
   }
 }

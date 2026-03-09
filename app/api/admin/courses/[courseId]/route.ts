@@ -104,6 +104,7 @@ export async function PATCH(
   if (statusRaw !== "SHOW" && statusRaw !== "HIDE") {
     return NextResponse.json({ message: "สถานะคอร์สไม่ถูกต้อง" }, { status: 400 });
   }
+  const courseStatus = statusRaw === "SHOW" ? "OPEN" : "CLOSED";
 
   const existing = await prisma.course.findUnique({
     where: { course_id: courseId },
@@ -148,7 +149,7 @@ export async function PATCH(
       course_description: subtitle,
       enroll_code: enrollCode,
       location,
-      course_status: statusRaw as any,
+      course_status: courseStatus,
       start_date: start,
       end_date: end,
       image_url: imageUrl,

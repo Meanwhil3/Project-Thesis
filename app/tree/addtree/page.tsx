@@ -128,7 +128,7 @@ export default function AddWoodPage() {
 
         {/* --- Header --- */}
         <header className="flex-none bg-white border-b border-[#CDE3BD] sticky top-0 z-50 shadow-[0_2px_10px_-4px_rgba(202,224,188,0.5)]">
-          <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button type="button" onClick={() => router.back()} className="inline-flex items-center gap-2 rounded-xl border border-[#CDE3BD] bg-white px-3 py-2 text-sm font-medium text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/50 transition hover:bg-[#F6FBF6] active:scale-[0.99]">
                 <ArrowLeft size={18} /> กลับ
@@ -147,7 +147,7 @@ export default function AddWoodPage() {
           </div>
         </header>
 
-        <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
+        <main className="flex-1 max-w-6xl mx-auto px-4 py-10 w-full">
           <div className="flex flex-col lg:flex-row gap-8">
 
             {/* --- Sidebar Navigation --- */}

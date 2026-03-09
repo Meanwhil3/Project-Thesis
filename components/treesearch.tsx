@@ -840,30 +840,30 @@ const Treesearch: React.FC = () => {
 
   return (
     <div className="min-h-screen font-kanit">
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
+        <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#14532D]">ฐานข้อมูลพันธุ์ไม้</h1>
-            <p className="text-[#6E8E59] mt-1">จัดการและสืบค้นข้อมูลโครงสร้างเนื้อไม้</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-[#14532D]">ฐานข้อมูลพันธุ์ไม้</h1>
+            <p className="text-sm text-[#6E8E59]">จัดการและสืบค้นข้อมูลโครงสร้างเนื้อไม้</p>
           </div>
-          {/* ซ่อนปุ่ม "เพิ่มข้อมูลใหม่" หากไม่ใช่ canManage */}
-          {canManage && (
-            <Link href="/tree/addtree">
-              <Button className="bg-[#14532D] hover:bg-[#0F3F22] text-white rounded-xl px-6 h-12 shadow-lg shadow-green-900/10">
-                <Plus className="w-5 h-5 mr-2" /> เพิ่มข้อมูลใหม่
-              </Button>
-            </Link>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            {canManage && (
+              <Link
+                href="/tree/addtree"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#14532D] px-4 text-sm font-semibold text-white shadow-[0_10px_30px_-18px_rgba(20,83,45,0.65)] transition hover:bg-[#0F3F22] active:scale-[0.99]"
+              >
+                <Plus className="h-4 w-4" />
+                เพิ่มข้อมูลใหม่
+              </Link>
+            )}
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CDE3BD] bg-white px-3 py-1 text-xs text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/60">
+              <span>ทั้งหมด {filteredWoods.length} รายการ</span>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1">
-            <div className="mb-6 flex items-center justify-between text-sm">
-              <span className="text-[#6E8E59] font-medium bg-[#DCFCE7]/50 px-4 py-1.5 rounded-full border border-[#86EFAC]/30">
-                พบข้อมูล {filteredWoods.length} รายการ (หน้า {currentPage}/{totalPages || 1})
-              </span>
-            </div>
-
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50">
                 {[1, 2, 3].map(i => <div key={i} className="h-64 bg-slate-100 animate-pulse rounded-2xl" />)}
