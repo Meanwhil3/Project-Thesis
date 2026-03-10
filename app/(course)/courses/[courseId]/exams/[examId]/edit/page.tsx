@@ -38,6 +38,7 @@ export default async function ExamEditPage({
       open_at: true,
       close_at: true,
       exam_status: true,    // ExamStatus | null
+      examAccessCode: true,
       questions: {
         where: { deleted_at: null },
         orderBy: { question_id: "asc" },
@@ -68,6 +69,7 @@ export default async function ExamEditPage({
     open_at: exam.open_at?.toISOString() ?? null,
     close_at: exam.close_at?.toISOString() ?? null,
     exam_status: exam.exam_status ?? ExamStatus.HIDE,
+    examAccessCode: exam.examAccessCode ?? null,
     questions: exam.questions.map((q) => ({
       question_id: q.question_id.toString(),
       score: q.score,

@@ -90,6 +90,7 @@ export default function WoodFillExamCreateClient({ courseId }: { courseId: strin
           open_at: new Date(startDateTime).toISOString(),
           close_at: new Date(endDateTime).toISOString(),
           exam_status: status,
+          exam_access_code: code,
 
           questions: questions.map((q) => {
             const codes = Array.from(
@@ -107,8 +108,6 @@ export default function WoodFillExamCreateClient({ courseId }: { courseId: strin
             };
           }),
 
-          // accessCode / examDate ยังไม่เก็บใน DB -> ไม่ส่ง
-          // ถ้าจะเก็บจริงต้องเพิ่ม column ใน DB
         }),
       });
 

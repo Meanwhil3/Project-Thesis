@@ -24,6 +24,7 @@ const CreateExamSchema = z.object({
   open_at: z.string().min(1, "กรุณากำหนดเวลาเริ่มสอบ"),
   close_at: z.string().min(1, "กรุณากำหนดเวลาสิ้นสุดสอบ"),
   exam_status: z.nativeEnum(ExamStatus).optional(), // HIDE | SHOW
+  exam_access_code: z.string().regex(/^\d{6}$/, "รหัสเข้าสอบต้องเป็นตัวเลข 6 หลัก").optional(),
   questions: z.array(QuestionSchema).min(1, "ต้องมีอย่างน้อย 1 คำถาม"),
 });
 
@@ -73,16 +74,31 @@ export async function POST(req: Request, ctx: { params: Promise<{ courseId: stri
     const u = session.user as any;
     const role = getRoleFromSessionUser(u);
 
-    // ✅ อนุญาตเฉพาะ ADMIN/EXAMINER เท่านั้น (role หายก็ถือว่าไม่อนุญาต)
-    if (role !== "ADMIN" && role !== "EXAMINER") {
+    const { courseId } = await ctx.params;
+    const courseIdBigInt = toBigIntOrThrow(courseId, "courseId");
+
+    // ✅ อนุญาต ADMIN, EXAMINER, หรือ INSTRUCTOR ที่ถูกเพิ่มในคอร์สนี้
+    let allowed = role === "ADMIN" || role === "EXAMINER";
+    if (!allowed && role === "INSTRUCTOR") {
+      const userId = await resolveUserIdFromSessionUser(u);
+      if (userId) {
+        const isInstructor = await prisma.instructor.findUnique({
+          where: {
+            user_id_course_id: {
+              user_id: userId,
+              course_id: courseIdBigInt,
+            },
+          },
+        });
+        if (isInstructor) allowed = true;
+      }
+    }
+    if (!allowed) {
       return NextResponse.json(
         { message: "Forbidden: คุณไม่มีสิทธิ์สร้างข้อสอบ" },
         { status: 403 },
       );
     }
-
-    const { courseId } = await ctx.params;
-    const courseIdBigInt = toBigIntOrThrow(courseId, "courseId");
 
     const json = await req.json();
     const parsed = CreateExamSchema.safeParse(json);
@@ -169,6 +185,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ courseId: stri
         open_at: openAt,
         close_at: closeAt,
         exam_status: data.exam_status ?? ExamStatus.HIDE,
+        examAccessCode: data.exam_access_code ?? null,
 
         created_at: now,
         author: { connect: { user_id: createdBy } },

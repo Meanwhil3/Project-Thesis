@@ -10,7 +10,7 @@ import { ExamStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-type Role = "ADMIN" | "EXAMINER" | "TRAINEE";
+type Role = "ADMIN" | "EXAMINER" | "INSTRUCTOR" | "TRAINEE";
 
 export default async function ExamsPage({
   params,
@@ -27,12 +27,23 @@ export default async function ExamsPage({
   if (!session) return <div className="p-6 text-red-600">กรุณาเข้าสู่ระบบ</div>;
 
   const role = (session.user as any)?.role as Role | undefined;
+  const userId = (session.user as any)?.id || (session.user as any)?.user_id || (session.user as any)?.sub;
 
-  // ✅ allow-list เท่านั้น (role หาย = ไม่ให้จัดการ)
-  const canManage = role === "ADMIN" || role === "EXAMINER";
+  // ✅ allow-list: ADMIN, EXAMINER, or INSTRUCTOR assigned to this course
+  let canManage = role === "ADMIN" || role === "EXAMINER";
   const isTrainee = role === "TRAINEE";
 
-  const userId = (session.user as any)?.id || (session.user as any)?.user_id || (session.user as any)?.sub;
+  if (!canManage && role === "INSTRUCTOR" && userId) {
+    const isInstructor = await prisma.instructor.findUnique({
+      where: {
+        user_id_course_id: {
+          user_id: BigInt(userId),
+          course_id: BigInt(courseId),
+        },
+      },
+    });
+    if (isInstructor) canManage = true;
+  }
 
   const exams = await prisma.exams.findMany({
     where: {

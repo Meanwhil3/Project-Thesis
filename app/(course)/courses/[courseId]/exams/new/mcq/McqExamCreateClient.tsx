@@ -118,6 +118,7 @@ export default function McqExamCreateClient({
           exam_description: description.trim() || null,
           exam_type: "MULTIPLE_CHOICE",
           exam_status: status,
+          exam_access_code: code,
 
           open_at: new Date(startDateTime).toISOString(),
           close_at: new Date(endDateTime).toISOString(),

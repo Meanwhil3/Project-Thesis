@@ -23,6 +23,7 @@ export type ExamEditInitial = {
   open_at: string | null;
   close_at: string | null;
   exam_status: ExamStatus;
+  examAccessCode: string | null;
   questions: Array<{
     question_id: string;
     score: number;
@@ -119,6 +120,7 @@ export default function ExamEditClient({
     return new Date(initial.close_at).toISOString().slice(0, 16);
   });
   const [status, setStatus] = useState<ExamStatus>(initial.exam_status);
+  const [accessCode, setAccessCode] = useState(initial.examAccessCode ?? "");
 
   const isFill = initial.exam_type === ExamType.FILL_IN_THE_BLANK;
 
@@ -214,6 +216,8 @@ export default function ExamEditClient({
       }
     }
 
+    const codeTrimmed = accessCode.trim();
+
     const payload = isFill
       ? {
           exam_title: t,
@@ -222,6 +226,7 @@ export default function ExamEditClient({
           open_at: new Date(startDateTime).toISOString(),
           close_at: new Date(endDateTime).toISOString(),
           exam_status: status,
+          ...(codeTrimmed ? { exam_access_code: codeTrimmed } : {}),
           questions: fillQuestions.map((q) => {
             const codes = Array.from(
               new Set(
@@ -245,6 +250,7 @@ export default function ExamEditClient({
           open_at: new Date(startDateTime).toISOString(),
           close_at: new Date(endDateTime).toISOString(),
           exam_status: status,
+          ...(codeTrimmed ? { exam_access_code: codeTrimmed } : {}),
           questions: mcqQuestions.map((q) => ({
             score: Number(q.score),
             question_detail: q.prompt,
@@ -339,10 +345,14 @@ export default function ExamEditClient({
             </div>
           ) : null}
 
-          {/* ไม่โชว์ accessCode เพราะ DB คุณยังไม่ได้เก็บ */}
           <ExamMetaForm
             title={title}
             setTitle={setTitle}
+            accessCode={accessCode}
+            setAccessCode={setAccessCode}
+            onRegenerateCode={() =>
+              setAccessCode(String(Math.floor(100000 + Math.random() * 900000)))
+            }
             description={description}
             setDescription={setDescription}
             startDateTime={startDateTime}

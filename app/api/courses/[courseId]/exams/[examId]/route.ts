@@ -47,6 +47,7 @@ const UpdateExamSchema = z.object({
   open_at: z.string().min(1, "กรุณากำหนดเวลาเริ่มสอบ"),
   close_at: z.string().min(1, "กรุณากำหนดเวลาสิ้นสุดสอบ"),
   exam_status: z.nativeEnum(ExamStatus),
+  exam_access_code: z.string().regex(/^\d{6}$/, "รหัสเข้าสอบต้องเป็นตัวเลข 6 หลัก").optional(),
   questions: z.array(QuestionSchema).min(1, "ต้องมีอย่างน้อย 1 คำถาม"),
 });
 
@@ -60,12 +61,24 @@ export async function DELETE(
   }
   const delUser = delSession.user as any;
   const delRole = String(delUser?.role ?? "").toUpperCase();
-  if (!["ADMIN", "EXAMINER"].includes(delRole)) {
-    return NextResponse.json({ message: "ไม่มีสิทธิ์ลบข้อสอบ" }, { status: 403 });
-  }
 
   try {
     const courseId = BigInt(params.courseId);
+
+    // ✅ อนุญาต ADMIN, EXAMINER, หรือ INSTRUCTOR ที่ถูกเพิ่มในคอร์สนี้
+    let delAllowed = ["ADMIN", "EXAMINER"].includes(delRole);
+    if (!delAllowed && delRole === "INSTRUCTOR") {
+      const delUserId = await getCreatedByUserId();
+      if (delUserId) {
+        const isInstructor = await prisma.instructor.findUnique({
+          where: { user_id_course_id: { user_id: delUserId, course_id: courseId } },
+        });
+        if (isInstructor) delAllowed = true;
+      }
+    }
+    if (!delAllowed) {
+      return NextResponse.json({ message: "ไม่มีสิทธิ์ลบข้อสอบ" }, { status: 403 });
+    }
     const examId = BigInt(params.examId);
 
     const now = new Date();
@@ -100,12 +113,24 @@ export async function GET(
   }
   const getUser = getSession.user as any;
   const getRole = String(getUser?.role ?? "").toUpperCase();
-  if (!["ADMIN", "EXAMINER"].includes(getRole)) {
-    return NextResponse.json({ message: "ไม่มีสิทธิ์เข้าถึงข้อมูลนี้" }, { status: 403 });
-  }
 
   try {
     const { courseId, examId } = ctx.params;
+
+    // ✅ อนุญาต ADMIN, EXAMINER, หรือ INSTRUCTOR ที่ถูกเพิ่มในคอร์สนี้
+    let getAllowed = ["ADMIN", "EXAMINER"].includes(getRole);
+    if (!getAllowed && getRole === "INSTRUCTOR") {
+      const getUserId = await getCreatedByUserId();
+      if (getUserId) {
+        const isInstructor = await prisma.instructor.findUnique({
+          where: { user_id_course_id: { user_id: getUserId, course_id: BigInt(courseId) } },
+        });
+        if (isInstructor) getAllowed = true;
+      }
+    }
+    if (!getAllowed) {
+      return NextResponse.json({ message: "ไม่มีสิทธิ์เข้าถึงข้อมูลนี้" }, { status: 403 });
+    }
     const courseIdBigInt = toBigIntOrThrow(courseId, "courseId");
     const examIdBigInt = toBigIntOrThrow(examId, "examId");
 
@@ -125,6 +150,7 @@ export async function GET(
         open_at: true,
         close_at: true,
         exam_status: true,
+        examAccessCode: true,
         created_at: true,
         created_by: true,
         author: { select: { first_name: true } },
@@ -199,12 +225,31 @@ export async function PATCH(
     const data = parsed.data;
 
     // ✅ ต้องล็อกอิน
+    const patchSession = await getServerSession(authOptions);
+    if (!patchSession) {
+      return NextResponse.json({ message: "กรุณาเข้าสู่ระบบก่อนแก้ไข" }, { status: 401 });
+    }
+    const patchUser = patchSession.user as any;
+    const patchRole = String(patchUser?.role ?? "").toUpperCase();
+
     const editorId = await getCreatedByUserId();
     if (!editorId) {
       return NextResponse.json(
         { message: "กรุณาเข้าสู่ระบบก่อนแก้ไข" },
         { status: 401 }
       );
+    }
+
+    // ✅ อนุญาต ADMIN, EXAMINER, หรือ INSTRUCTOR ที่ถูกเพิ่มในคอร์สนี้
+    let patchAllowed = ["ADMIN", "EXAMINER"].includes(patchRole);
+    if (!patchAllowed && patchRole === "INSTRUCTOR") {
+      const isInstructor = await prisma.instructor.findUnique({
+        where: { user_id_course_id: { user_id: editorId, course_id: courseIdBigInt } },
+      });
+      if (isInstructor) patchAllowed = true;
+    }
+    if (!patchAllowed) {
+      return NextResponse.json({ message: "ไม่มีสิทธิ์แก้ไขข้อสอบ" }, { status: 403 });
     }
 
     // ✅ เช็คข้อสอบอยู่ในคอร์สนี้จริง
@@ -303,6 +348,9 @@ export async function PATCH(
           open_at: openAt,
           close_at: closeAt,
           exam_status: data.exam_status,
+          ...(data.exam_access_code !== undefined
+            ? { examAccessCode: data.exam_access_code }
+            : {}),
           // ไม่แตะ created_at / created_by
           questions: {
             create: data.questions.map((q) => ({

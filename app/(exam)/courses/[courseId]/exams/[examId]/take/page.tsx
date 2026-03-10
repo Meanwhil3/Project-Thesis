@@ -1,11 +1,13 @@
 // app/courses/[courseId]/exams/[examId]/take/page.tsx
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { AttemptStatus, ExamStatus, ExamType } from "@prisma/client";
 
 import TakeExamClient, { type TakeExamModel } from "./TakeExamClient";
+import AccessCodeGate from "./AccessCodeGate";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +98,7 @@ export default async function TakePage({
       duration_minute: true,
       open_at: true,
       close_at: true,
+      examAccessCode: true,
       questions: {
         where: { deleted_at: null },
         orderBy: { question_id: "asc" },
@@ -149,6 +152,21 @@ export default async function TakePage({
         </div>
       </div>
     );
+  }
+
+  // ─── ตรวจรหัสเข้าสอบ (access code gate) ────────────────────────────────────
+  if (exam.examAccessCode) {
+    const cookieStore = await cookies();
+    const savedCode = cookieStore.get(`exam_code_${examId}`)?.value;
+    if (savedCode !== exam.examAccessCode) {
+      return (
+        <AccessCodeGate
+          courseId={courseId}
+          examId={examId}
+          examTitle={exam.exam_title}
+        />
+      );
+    }
   }
 
   // ─── ดึง attempt ที่กำลังทำอยู่ หรือที่ submit แล้ว ─────────────────────────

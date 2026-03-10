@@ -27,8 +27,8 @@ export async function joinExamByCode(
   if (role !== "TRAINEE") return { ok: false, message: "เฉพาะผู้เข้าสอบ (TRAINEE) เท่านั้น" };
 
   const code = normalizeCode(String(formData.get("code") ?? ""));
-  if (!/^[A-Z0-9]{6}$/.test(code)) {
-    return { ok: false, message: "รหัสเข้าสอบต้องเป็น A-Z/0-9 จำนวน 6 ตัว" };
+  if (!/^\d{6}$/.test(code)) {
+    return { ok: false, message: "รหัสเข้าสอบต้องเป็นตัวเลข 6 หลัก" };
   }
 
   const exam = await prisma.exams.findFirst({
