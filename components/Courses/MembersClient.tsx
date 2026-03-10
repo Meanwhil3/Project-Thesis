@@ -100,9 +100,11 @@ function getInitials(name: string) {
 export default function MembersClient({
   courseId,
   initialMembers,
+  canManage = true,
 }: {
   courseId: string;
   initialMembers: MemberModel[];
+  canManage?: boolean;
 }) {
   const [members, setMembers] = useState<MemberModel[]>(initialMembers);
   const [q, setQ] = useState("");
@@ -150,7 +152,8 @@ const onExportCsv = () => {
 
   const first = filteredSorted[0];
   const examTitles = (first?.examScores ?? []).map(colKey);
-  const headers = ["name", "email", ...examTitles];
+  const totalCol = `คะแนนรวม (${first?.maxScore ?? 0})`;
+  const headers = ["name", "email", ...examTitles, totalCol];
 
   const rows = filteredSorted.map((m) => {
     const row: Record<string, string | number> = {
@@ -163,12 +166,14 @@ const onExportCsv = () => {
     for (const es of m.examScores) {
       row[colKey(es)] = `${es.score}`;
     }
+    row[totalCol] = `${m.score}`;
     return row;
   });
 
   if (rows.length === 0) {
     const emptyRow: Record<string, string | number> = { name: "", email: "" };
     for (const t of examTitles) emptyRow[t] = "";
+    emptyRow[totalCol] = "";
     rows.push(emptyRow);
   }
 
@@ -275,9 +280,9 @@ const onExportCsv = () => {
       <div className="mt-5 hidden rounded-xl bg-[#F0FDF4] px-5 py-3 sm:block">
         <div className="grid grid-cols-12 items-center gap-3 font-kanit text-sm font-medium text-[#14532D]/70">
           <div className="col-span-5">ชื่อสมาชิก</div>
-          <div className="col-span-4">อีเมล</div>
+          <div className={canManage ? "col-span-4" : "col-span-5"}>อีเมล</div>
           <div className="col-span-2 text-center">คะแนนรวม</div>
-          <div className="col-span-1 text-center">จัดการ</div>
+          {canManage && <div className="col-span-1 text-center">จัดการ</div>}
         </div>
       </div>
 
@@ -340,31 +345,33 @@ const onExportCsv = () => {
                   </div>
 
                   {/* Actions */}
-                  <div
-                    className="col-span-4 flex justify-end gap-1 sm:col-span-1 sm:justify-center"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => alert(`edit member ${m.id}`)}
-                      disabled={isDeleting}
-                      className="rounded-xl p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-                      aria-label="แก้ไข"
-                      title="แก้ไข"
+                  {canManage && (
+                    <div
+                      className="col-span-4 flex justify-end gap-1 sm:col-span-1 sm:justify-center"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(m)}
-                      disabled={isDeleting}
-                      className="rounded-xl p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
-                      aria-label="ลบ"
-                      title="ลบสมาชิกออกจากคอร์ส"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => alert(`edit member ${m.id}`)}
+                        disabled={isDeleting}
+                        className="rounded-xl p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+                        aria-label="แก้ไข"
+                        title="แก้ไข"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(m)}
+                        disabled={isDeleting}
+                        className="rounded-xl p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
+                        aria-label="ลบ"
+                        title="ลบสมาชิกออกจากคอร์ส"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Expanded exam scores ── */}

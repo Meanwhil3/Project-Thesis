@@ -24,7 +24,24 @@ export default async function MembersPage({
   }
 
   const role = String((session.user as any)?.role ?? "").toUpperCase();
-  if (role !== "ADMIN" && role !== "EXAMINER") {
+  const userId = (session.user as any)?.id || (session.user as any)?.user_id || (session.user as any)?.sub;
+
+  let canManage = role === "ADMIN" || role === "EXAMINER";
+  let canView = canManage;
+
+  if (!canView && role === "INSTRUCTOR" && userId) {
+    const isInstructor = await prisma.instructor.findUnique({
+      where: {
+        user_id_course_id: {
+          user_id: BigInt(userId),
+          course_id: BigInt(courseId),
+        },
+      },
+    });
+    if (isInstructor) canView = true;
+  }
+
+  if (!canView) {
     return <div className="p-6 font-kanit text-red-600">ไม่มีสิทธิ์เข้าถึงหน้านี้</div>;
   }
 
@@ -125,5 +142,5 @@ export default async function MembersPage({
       };
     });
 
-  return <MembersClient courseId={courseId} initialMembers={members} />;
+  return <MembersClient courseId={courseId} initialMembers={members} canManage={canManage} />;
 }
