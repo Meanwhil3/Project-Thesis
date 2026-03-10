@@ -725,7 +725,7 @@ const Treesearch: React.FC = () => {
 
   // ตรวจสอบสิทธิ: ต้องเป็น ADMIN หรือ INSTRUCTOR เท่านั้นถึงจะจัดการได้
   const userRole = session?.user?.role?.toUpperCase();
-  const canManage = userRole === "ADMIN" || userRole === "INSTRUCTOR";
+  const canManage = userRole === "ADMIN";
 
   // --- Pagination States ---
   const [currentPage, setCurrentPage] = useState(1);

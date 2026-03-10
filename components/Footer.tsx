@@ -32,21 +32,20 @@ export default function Footer() {
         />
       </div>
 
-      {/* ✅ Inner content container */}
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
           <div>
             <h3 className="text-base font-semibold tracking-tight text-[#14532D]">
-              Contact
+              กรมป่าไม้
             </h3>
             <ul className="mt-3 space-y-1 text-sm leading-6 text-[#6E8E59]">
-              <li>0888888888</li>
+              <li>025614292-3</li>
               <li>
                 <a
-                  href="mailto:hellosawadee@gmail.com"
+                  href="mailto:saraban@forest.go.th"
                   className="underline-offset-2 hover:underline"
                 >
-                  hellosawadee@gmail.com
+                  saraban@forest.go.th
                 </a>
               </li>
               <li>
