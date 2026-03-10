@@ -12,6 +12,8 @@ import {
   Users,
 } from "lucide-react";
 
+import ConfirmModal from "@/components/modals/ConfirmModal";
+
 import FilterSelect, { type SelectOption } from "@/components/ui/FilterSelect";
 
 export type ExamScore = {
@@ -112,6 +114,7 @@ export default function MembersClient({
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<MemberModel | null>(null);
   const pageSize = 5;
 
   const filteredSorted = useMemo(() => {
@@ -184,10 +187,7 @@ const onExportCsv = () => {
   );
 };
 
-  async function handleDelete(m: MemberModel) {
-    const ok = confirm(`ลบสมาชิก "${m.name}" ออกจากคอร์สนี้?`);
-    if (!ok) return;
-
+  async function doDelete(m: MemberModel) {
     setDeletingId(m.enrollmentId);
     try {
       const res = await fetch(
@@ -362,7 +362,7 @@ const onExportCsv = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(m)}
+                        onClick={() => setConfirmTarget(m)}
                         disabled={isDeleting}
                         className="rounded-xl p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
                         aria-label="ลบ"
@@ -461,6 +461,19 @@ const onExportCsv = () => {
           </button>
         </div>
       )}
+      <ConfirmModal
+        open={confirmTarget !== null}
+        title="ลบสมาชิก"
+        description={`ต้องการลบสมาชิก "${confirmTarget?.name}" ออกจากคอร์สนี้?`}
+        confirmText="ลบ"
+        cancelText="ยกเลิก"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmTarget) doDelete(confirmTarget);
+          setConfirmTarget(null);
+        }}
+        onClose={() => setConfirmTarget(null)}
+      />
     </section>
   );
 }

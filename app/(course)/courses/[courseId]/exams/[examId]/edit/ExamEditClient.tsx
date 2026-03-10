@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Loader2, Save, Trash2 } from "lucide-react";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 import { ExamType } from "@prisma/client";
 
 import ExamMetaForm from "@/components/Courses/Exams/forms/ExamMetaForm";
@@ -134,15 +135,10 @@ export default function ExamEditClient({
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  async function onDelete() {
+  async function doDelete() {
     setError(null);
-
-    const ok = window.confirm(
-      `ยืนยันลบข้อสอบนี้?\n\n"${title.trim() || initial.exam_title}"\n\nการลบจะย้อนกลับไม่ได้`,
-    );
-    if (!ok) return;
-
     setDeleting(true);
     try {
       const res = await fetch(
@@ -307,7 +303,7 @@ export default function ExamEditClient({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={onDelete}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={saving || deleting}
               className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-2 text-sm text-white shadow hover:bg-red-700 disabled:opacity-60"
               title="ลบข้อสอบ"
@@ -378,6 +374,20 @@ export default function ExamEditClient({
           </div>
         </section>
       </main>
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="ลบข้อสอบ"
+        description={`ยืนยันลบข้อสอบ "${title.trim() || initial.exam_title}" หรือไม่? การลบจะย้อนกลับไม่ได้`}
+        confirmText="ลบข้อสอบ"
+        cancelText="ยกเลิก"
+        variant="danger"
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          doDelete();
+        }}
+        onClose={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

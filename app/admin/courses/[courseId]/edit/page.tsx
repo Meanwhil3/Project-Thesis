@@ -66,9 +66,12 @@ export default async function EditCoursePage({
 
   if (!c || c.deleted_at) notFound();
 
+  const isAdmin = role === "ADMIN";
+
   return (
     <EditCourseClient
       courseId={courseId}
+      isAdmin={isAdmin}
       initial={{
         title: c.course_name ?? "",
         subtitle: c.course_description ?? "",

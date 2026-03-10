@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 // --- Sortable Item Component ---
 function SortableLessonItem({ lesson, isReordering, canManage, onEdit, onView, onDelete, onToggleStatus, isDeleting }) {
@@ -78,7 +79,8 @@ export default function CourseLessonsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const role = String(session?.user?.role ?? "").toUpperCase();
   const canManage = role === "ADMIN" || role === "INSTRUCTOR";
@@ -148,8 +150,12 @@ export default function CourseLessonsPage() {
     } catch (error) { alert("Error"); fetchLessons(); }
   };
 
-  const handleDelete = async (lessonId) => {
-    if (!canManage || !confirm("ยืนยันการลบ?")) return;
+  const handleDelete = (lessonId: string) => {
+    if (!canManage) return;
+    setDeleteTargetId(lessonId);
+  };
+
+  const doDeleteLesson = async (lessonId: string) => {
     try {
       setDeletingId(lessonId);
       const response = await fetch(`/api/admin/courses/${courseId}/lessons/${lessonId}`, { method: 'DELETE' });
@@ -213,6 +219,20 @@ export default function CourseLessonsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={deleteTargetId !== null}
+        title="ลบบทเรียน"
+        description="ยืนยันการลบบทเรียนนี้? การลบจะไม่สามารถย้อนกลับได้"
+        confirmText="ลบ"
+        cancelText="ยกเลิก"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteTargetId) doDeleteLesson(deleteTargetId);
+          setDeleteTargetId(null);
+        }}
+        onClose={() => setDeleteTargetId(null)}
+      />
     </div>
   );
 }

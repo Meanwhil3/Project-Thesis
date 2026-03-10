@@ -11,8 +11,11 @@ import {
   MapPin,
   Save,
   TextCursorInput,
+  Trash2,
   UploadCloud,
 } from "lucide-react";
+
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 type CourseStatusUI = "open" | "closed";
 
@@ -41,12 +44,16 @@ type FormState = {
 export default function EditCourseForm({
   courseId,
   initial,
+  isAdmin = false,
 }: {
   courseId: string;
   initial: Initial;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [form, setForm] = useState<FormState>({
     title: initial.title,
@@ -105,6 +112,26 @@ export default function EditCourseForm({
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function doDelete() {
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/admin/courses/${courseId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message ?? "ลบคอร์สไม่สำเร็จ");
+      }
+      router.push("/admin/courses");
+      router.refresh();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "ลบคอร์สไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -248,15 +275,27 @@ export default function EditCourseForm({
                 />
               </div>
 
-              <div className="mt-2 flex justify-end">
+              <div className="mt-2 flex items-center justify-between">
                 <button
                   type="submit"
-                  disabled={!isValid || submitting}
+                  disabled={!isValid || submitting || deleting}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#14532D] px-5 text-sm font-semibold text-white shadow-[0_10px_30px_-18px_rgba(20,83,45,0.65)] transition hover:bg-[#0F3F22] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Save className="h-4 w-4" />
                   {submitting ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
                 </button>
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleting || submitting}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deleting ? "กำลังลบ..." : "ลบคอร์ส"}
+                  </button>
+                )}
               </div>
             </div>
           </form>
@@ -274,6 +313,20 @@ export default function EditCourseForm({
           </div>
         </div>
       </main>
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="ลบคอร์ส"
+        description="คุณต้องการลบคอร์สนี้หรือไม่? การลบจะไม่สามารถย้อนกลับได้"
+        confirmText="ลบคอร์ส"
+        cancelText="ยกเลิก"
+        variant="danger"
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          doDelete();
+        }}
+        onClose={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

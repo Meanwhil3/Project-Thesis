@@ -182,3 +182,43 @@ export async function PATCH(
 
   return NextResponse.json({ id: updated.course_id.toString() }, { status: 200 });
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ courseId: string }> }
+) {
+  const { courseId: courseIdStr } = await params;
+
+  let courseId: bigint;
+  try {
+    courseId = BigInt(courseIdStr);
+  } catch {
+    return NextResponse.json({ message: "Invalid courseId" }, { status: 400 });
+  }
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role !== "ADMIN") {
+    return NextResponse.json({ message: "Forbidden: เฉพาะ Admin เท่านั้นที่สามารถลบคอร์สได้" }, { status: 403 });
+  }
+
+  const existing = await prisma.course.findUnique({
+    where: { course_id: courseId },
+    select: { deleted_at: true },
+  });
+
+  if (!existing || existing.deleted_at) {
+    return NextResponse.json({ message: "Not found" }, { status: 404 });
+  }
+
+  await prisma.course.update({
+    where: { course_id: courseId },
+    data: { deleted_at: new Date() },
+  });
+
+  return NextResponse.json({ ok: true }, { status: 200 });
+}

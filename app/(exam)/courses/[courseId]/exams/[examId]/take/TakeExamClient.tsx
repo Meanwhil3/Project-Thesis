@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 export type TakeExamQuestion = {
   id: string;
@@ -75,6 +76,7 @@ export default function TakeExamClient({
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
   const [mounted, setMounted] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const autoSubmitOnceRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -365,8 +367,9 @@ export default function TakeExamClient({
             href={backHref}
             className="rounded-xl border border-black/10 bg-white px-4 py-2 text-sm text-[#14532D] hover:bg-black/5"
             onClick={(e) => {
-              if (leftMs > 0 && !window.confirm("คุณต้องการออกจากข้อสอบหรือไม่? คำตอบจะถูกบันทึกชั่วคราว")) {
+              if (leftMs > 0) {
                 e.preventDefault();
+                setShowLeaveConfirm(true);
               }
             }}
           >
@@ -404,6 +407,20 @@ export default function TakeExamClient({
           <path d="M18 15l-6-6-6 6" />
         </svg>
       </button>
+
+      <ConfirmModal
+        open={showLeaveConfirm}
+        title="ออกจากข้อสอบ"
+        description="คุณต้องการออกจากข้อสอบหรือไม่? คำตอบจะถูกบันทึกชั่วคราว"
+        confirmText="ออก"
+        cancelText="ทำต่อ"
+        variant="warning"
+        onConfirm={() => {
+          setShowLeaveConfirm(false);
+          window.location.href = backHref;
+        }}
+        onClose={() => setShowLeaveConfirm(false)}
+      />
     </div>
   );
 }
