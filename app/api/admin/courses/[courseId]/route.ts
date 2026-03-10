@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -73,6 +75,27 @@ export async function PATCH(
     courseId = BigInt(courseIdStr);
   } catch {
     return NextResponse.json({ message: "Invalid courseId" }, { status: 400 });
+  }
+
+  // ตรวจสอบสิทธิ์: เฉพาะ ADMIN หรือ Instructor ของคอร์สนี้
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  const user = session.user as any;
+  const role = String(user.role ?? "").toUpperCase();
+  const rawUserId = user.id || user.user_id || user.sub;
+
+  if (role !== "ADMIN") {
+    if (!rawUserId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    const isInstructor = await prisma.instructor.findUnique({
+      where: { user_id_course_id: { user_id: BigInt(rawUserId), course_id: courseId } },
+    });
+    if (!isInstructor) {
+      return NextResponse.json({ message: "Forbidden: Only admin or assigned instructors can edit this course" }, { status: 403 });
+    }
   }
 
   const form = await req.formData();

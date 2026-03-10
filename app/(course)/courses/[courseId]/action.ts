@@ -17,10 +17,9 @@ export async function createAnnouncement(courseIdStr: string, formData: FormData
 
   const title = formData.get("title") as string;
   const content = formData.get("content") as string;
-  
+
   const courseId = BigInt(courseIdStr);
 
-  // แก้ไขจุดนี้: ลองดึงจาก id, user_id หรือ sub (ที่มักจะเป็น Default ของ Next-Auth)
   const user = session.user as any;
   const rawUserId = user.id || user.user_id || user.sub;
 
@@ -29,6 +28,16 @@ export async function createAnnouncement(courseIdStr: string, formData: FormData
   }
 
   const userId = BigInt(rawUserId);
+
+  // ตรวจสอบว่าเป็น ADMIN หรือเป็น Instructor ของคอร์สนี้
+  if (role !== "ADMIN") {
+    const isInstructor = await prisma.instructor.findUnique({
+      where: { user_id_course_id: { user_id: userId, course_id: courseId } },
+    });
+    if (!isInstructor) {
+      throw new Error("Forbidden: Only course creator or assigned instructors can create announcements");
+    }
+  }
 
   await prisma.announcements.create({
     data: {
@@ -54,6 +63,21 @@ export async function updateAnnouncement(
   const role = String((session.user as any).role ?? "").toUpperCase();
   if (role === "TRAINEE") throw new Error("Forbidden: Trainee cannot manage announcements");
 
+  const courseId = BigInt(courseIdStr);
+  const user = session.user as any;
+  const rawUserId = user.id || user.user_id || user.sub;
+  if (!rawUserId) throw new Error("User ID not found in session");
+  const userId = BigInt(rawUserId);
+
+  if (role !== "ADMIN") {
+    const isInstructor = await prisma.instructor.findUnique({
+      where: { user_id_course_id: { user_id: userId, course_id: courseId } },
+    });
+    if (!isInstructor) {
+      throw new Error("Forbidden: Only course creator or assigned instructors can manage announcements");
+    }
+  }
+
   const title = formData.get("title") as string;
   const content = formData.get("content") as string;
   const announcementId = BigInt(announcementIdStr);
@@ -75,6 +99,21 @@ export async function deleteAnnouncement(
 
   const role = String((session.user as any).role ?? "").toUpperCase();
   if (role === "TRAINEE") throw new Error("Forbidden: Trainee cannot manage announcements");
+
+  const courseId = BigInt(courseIdStr);
+  const user = session.user as any;
+  const rawUserId = user.id || user.user_id || user.sub;
+  if (!rawUserId) throw new Error("User ID not found in session");
+  const userId = BigInt(rawUserId);
+
+  if (role !== "ADMIN") {
+    const isInstructor = await prisma.instructor.findUnique({
+      where: { user_id_course_id: { user_id: userId, course_id: courseId } },
+    });
+    if (!isInstructor) {
+      throw new Error("Forbidden: Only course creator or assigned instructors can manage announcements");
+    }
+  }
 
   const announcementId = BigInt(announcementIdStr);
 

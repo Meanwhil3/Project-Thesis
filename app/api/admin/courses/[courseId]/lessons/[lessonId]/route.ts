@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import path from "path";
+import fs from "fs/promises";
+import crypto from "crypto";
 
 export async function GET(
   req: Request,
@@ -42,20 +43,30 @@ export async function PUT(
 ) {
   try {
     const { lessonId } = await params;
-    const body = await req.json();
+    const contentType = req.headers.get("content-type") || "";
 
-    // --- ส่วนที่เพิ่ม: รองรับการ Toggle Status อย่างเดียว ---
-    if (body.toggleOnly) {
-      const mappedStatus = body.status === "SHOW" ? "OPEN" : "CLOSED";
-      await prisma.lessons.update({
-        where: { lesson_id: BigInt(lessonId) },
-        data: { lesson_status: mappedStatus as any },
-      });
-      return NextResponse.json({ message: "อัปเดตสถานะสำเร็จ" });
+    // รองรับ toggle status แบบ JSON
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      if (body.toggleOnly) {
+        const mappedStatus = body.status === "SHOW" ? "OPEN" : "CLOSED";
+        await prisma.lessons.update({
+          where: { lesson_id: BigInt(lessonId) },
+          data: { lesson_status: mappedStatus as any },
+        });
+        return NextResponse.json({ message: "อัปเดตสถานะสำเร็จ" });
+      }
+      return NextResponse.json({ error: "Invalid JSON request" }, { status: 400 });
     }
 
-    // --- Logic การอัปเดตเต็มรูปแบบ (ของเดิม) ---
-    const { title, content, status, videoUrls, attachments } = body;
+    // FormData update (full edit)
+    const form = await req.formData();
+    const title = String(form.get("title") ?? "").trim();
+    const content = String(form.get("content") ?? "");
+    const status = String(form.get("status") ?? "HIDE");
+    const videoUrls: { url: string; title: string }[] = JSON.parse(String(form.get("videoUrls") ?? "[]"));
+    const existingPathEntries = form.getAll("existingPaths") as string[];
+    const files = form.getAll("files") as File[];
     const mappedStatus = status === "SHOW" ? "OPEN" : "CLOSED";
 
     await prisma.$transaction(async (tx) => {
@@ -68,9 +79,12 @@ export async function PUT(
         },
       });
 
+      // ลบ attachments เก่าทั้งหมด
       await tx.lesson_Attachments.deleteMany({ where: { lesson_id: BigInt(lessonId) } });
 
-      const attachmentRecords = [];
+      const attachmentRecords: any[] = [];
+
+      // Video URLs
       if (videoUrls && Array.isArray(videoUrls)) {
         videoUrls.forEach((v: any, index: number) => {
           attachmentRecords.push({
@@ -82,15 +96,39 @@ export async function PUT(
         });
       }
 
-      if (attachments && Array.isArray(attachments)) {
-        attachments.forEach((at: any) => {
+      // ไฟล์เดิมที่ยังคงอยู่ (ไม่ได้ลบ)
+      for (const ep of existingPathEntries) {
+        try {
+          const parsed = JSON.parse(ep);
           attachmentRecords.push({
             lesson_id: BigInt(lessonId),
-            display_name: at.name,
-            file_type: at.type,
-            file_path: at.path || `uploads/${lessonId}-${Date.now()}-${at.name}`,
+            display_name: parsed.name,
+            file_type: parsed.type,
+            file_path: parsed.path,
           });
-        });
+        } catch { /* skip invalid entries */ }
+      }
+
+      // ไฟล์ใหม่ที่อัปโหลด
+      if (files.length > 0) {
+        const uploadDir = path.join(process.cwd(), "uploads", "lessons", lessonId);
+        await fs.mkdir(uploadDir, { recursive: true });
+
+        for (const file of files) {
+          const ext = file.name.split(".").pop() || "file";
+          const filename = `${crypto.randomUUID()}.${ext}`;
+          const filepath = path.join(uploadDir, filename);
+
+          const arrayBuffer = await file.arrayBuffer();
+          await fs.writeFile(filepath, Buffer.from(arrayBuffer));
+
+          attachmentRecords.push({
+            lesson_id: BigInt(lessonId),
+            display_name: file.name,
+            file_type: ext.toUpperCase(),
+            file_path: `/api/download/lessons/${lessonId}/${filename}`,
+          });
+        }
       }
 
       if (attachmentRecords.length > 0) {
@@ -100,6 +138,7 @@ export async function PUT(
 
     return NextResponse.json({ message: "บันทึกสำเร็จ" });
   } catch (error) {
+    console.error("PUT_LESSON_ERROR:", error);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 }
@@ -116,6 +155,10 @@ export async function DELETE(
       await tx.lesson_Attachments.deleteMany({ where: { lesson_id: id } });
       await tx.lessons.delete({ where: { lesson_id: id } });
     });
+
+    // ลบโฟลเดอร์ไฟล์ (ถ้ามี)
+    const uploadDir = path.join(process.cwd(), "uploads", "lessons", lessonId);
+    await fs.rm(uploadDir, { recursive: true, force: true }).catch(() => {});
 
     return NextResponse.json({ message: "ลบสำเร็จ" });
   } catch (error) {

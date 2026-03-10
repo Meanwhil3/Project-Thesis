@@ -37,6 +37,17 @@ export default async function EditCoursePage({
     notFound();
   }
 
+  // ตรวจสอบสิทธิ์: เฉพาะ ADMIN หรือ Instructor ของคอร์สนี้
+  if (role !== "ADMIN") {
+    const user = session.user as any;
+    const rawUserId = user.id || user.user_id || user.sub;
+    if (!rawUserId) redirect("/");
+    const isInstructor = await prisma.instructor.findUnique({
+      where: { user_id_course_id: { user_id: BigInt(rawUserId), course_id: courseIdBig } },
+    });
+    if (!isInstructor) redirect(`/courses/${courseId}`);
+  }
+
   const c = await prisma.course.findUnique({
     where: { course_id: courseIdBig },
     select: {

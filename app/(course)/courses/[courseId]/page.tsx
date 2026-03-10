@@ -116,6 +116,9 @@ export default async function CourseOverviewPage({
   const session = await getServerSession(authOptions);
   const role = String((session?.user as any)?.role ?? "").toUpperCase();
   const isTrainee = role === "TRAINEE";
+  const isAdmin = role === "ADMIN";
+  const sessionUser = session?.user as any;
+  const sessionUserId = sessionUser?.id || sessionUser?.user_id || sessionUser?.sub;
 
   const courseDescription =
     course.course_description ?? "ยังไม่มีคำอธิบายคอร์ส";
@@ -177,10 +180,13 @@ export default async function CourseOverviewPage({
     email: r.user.email,
   }));
 
-  // ผูกสิทธิ์จริง
-  const canManageAnnouncements = !isTrainee;
-  const canEditAnnouncements = !isTrainee;
-  const canManageInstructors = !isTrainee;
+  // ผูกสิทธิ์จริง: เฉพาะ ADMIN หรือ Instructor ของคอร์สนี้เท่านั้น
+  const isInstructorOfCourse = sessionUserId
+    ? instructors.some((ins) => ins.userId === String(sessionUserId))
+    : false;
+  const canManageAnnouncements = isAdmin || isInstructorOfCourse;
+  const canEditAnnouncements = isAdmin || isInstructorOfCourse;
+  const canManageInstructors = isAdmin;
 
   return (
     <div className="grid gap-6">
