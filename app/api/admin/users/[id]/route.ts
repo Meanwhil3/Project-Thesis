@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 type UiRole = "admin" | "instructor" | "trainee";
 type UiStatus = "active" | "blocked";
 
-const ROLE_NAME_MAP: Record<UiRole, "ADMIN" | "INSTRUCTOR" | "TRAINEE"> = {
-  admin: "ADMIN",
-  instructor: "INSTRUCTOR",
-  trainee: "TRAINEE",
+const ROLE_NAME_MAP: Record<UiRole, string[]> = {
+  admin: ["ADMIN"],
+  instructor: ["INSTRUCTOR", "EXAMINER"],
+  trainee: ["TRAINEE"],
 };
 
 export async function PATCH(
@@ -61,16 +61,16 @@ export async function PATCH(
       return NextResponse.json({ message: "Invalid role" }, { status: 400 });
     }
 
-    const roleName = ROLE_NAME_MAP[body.role];
-    const role = await prisma.role.findUnique({
-      where: { name: roleName },
+    const roleNames = ROLE_NAME_MAP[body.role];
+    const role = await prisma.role.findFirst({
+      where: { name: { in: roleNames } },
       select: { role_id: true },
     });
 
     if (!role) {
       return NextResponse.json(
         {
-          message: `Role '${roleName}' not found in DB. Please seed Role table.`,
+          message: `Role '${roleNames.join("/")}' not found in DB. Please seed Role table.`,
         },
         { status: 400 }
       );

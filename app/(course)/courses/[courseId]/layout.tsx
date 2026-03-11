@@ -124,7 +124,26 @@ export default async function CourseLayout({
 
   const session = await getServerSession(authOptions);
   const role = String((session?.user as any)?.role ?? "").toUpperCase();
-  const canEditCourse = role !== "TRAINEE";
+
+  // ตรวจสอบว่าเป็น Instructor ของคอร์สนี้หรือไม่
+  let isCourseInstructor = false;
+  if (role !== "ADMIN" && session?.user) {
+    const user = session.user as any;
+    const rawUserId = user.id || user.user_id || user.sub;
+    if (rawUserId) {
+      const instructorRecord = await prisma.instructor.findUnique({
+        where: {
+          user_id_course_id: {
+            user_id: BigInt(rawUserId),
+            course_id: BigInt(courseId),
+          },
+        },
+      });
+      isCourseInstructor = !!instructorRecord;
+    }
+  }
+
+  const canEditCourse = role === "ADMIN" || isCourseInstructor;
 
   return (
     <div >

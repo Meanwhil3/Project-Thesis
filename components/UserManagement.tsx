@@ -424,7 +424,6 @@ function UserCard({
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#CDE3BD] to-[#86A97A] text-white text-lg font-bold">
               {user.fullName?.charAt(0)?.toUpperCase() || "?"}
             </div>
-            <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${isActive ? "bg-green-500" : "bg-red-400"}`} />
           </div>
 
           <div className="min-w-0 space-y-0.5">

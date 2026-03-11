@@ -27,6 +27,13 @@ export default function LessonDetailPage() {
     return url.includes("youtube.com") || url.includes("youtu.be");
   };
 
+  const ensureAbsoluteUrl = (url: string) => {
+    if (!/^https?:\/\//i.test(url)) {
+      return `https://${url}`;
+    }
+    return url;
+  };
+
   const formatDateThai = (dateString: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -132,7 +139,7 @@ export default function LessonDetailPage() {
                     return (
                       <a
                         key={idx}
-                        href={vid.url}
+                        href={ensureAbsoluteUrl(vid.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-between rounded-xl border border-[#CDE3BD] bg-white p-3 shadow-sm transition hover:shadow-md"

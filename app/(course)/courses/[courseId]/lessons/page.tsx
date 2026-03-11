@@ -8,6 +8,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import ConfirmModal from "@/components/modals/ConfirmModal";
+import { checkIsCourseInstructor } from "../action";
 
 // --- Sortable Item Component ---
 function SortableLessonItem({ lesson, isReordering, canManage, onEdit, onView, onDelete, onToggleStatus, isDeleting }) {
@@ -81,9 +82,20 @@ export default function CourseLessonsPage() {
   const [isReordering, setIsReordering] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [canManage, setCanManage] = useState(false);
 
   const role = String(session?.user?.role ?? "").toUpperCase();
-  const canManage = role === "ADMIN" || role === "INSTRUCTOR";
+
+  // ตรวจสอบสิทธิ์: ADMIN หรือ Instructor ที่ถูกเพิ่มในคอร์สนี้
+  useEffect(() => {
+    if (role === "ADMIN") {
+      setCanManage(true);
+      return;
+    }
+    if (courseId) {
+      checkIsCourseInstructor(String(courseId)).then(setCanManage);
+    }
+  }, [role, courseId]);
 
   // กรองบทเรียน: ถ้าไม่ใช่คนสอน ให้เห็นเฉพาะ OPEN
   const displayItems = useMemo(() => {
