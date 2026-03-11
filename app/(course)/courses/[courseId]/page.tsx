@@ -104,6 +104,7 @@ export default async function CourseOverviewPage({
         course_id: true,
         course_name: true,
         course_description: true,
+        course_status: true,
         location: true,
         deleted_at: true,
       },
@@ -197,6 +198,7 @@ export default async function CourseOverviewPage({
             courseId={courseIdStr}
             courseName={course.course_name}
             enrolled={enrollStatus === "enrolled"}
+            courseClosed={course.course_status !== "OPEN"}
           />
         </div>
       )}

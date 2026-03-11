@@ -43,11 +43,6 @@ enum WoodWeight {
   HEAVY
 }
 
-enum RaysPerMm {
-  LOW
-  MEDIUM
-  HIGH
-}
 
 // --- Models ---
 
@@ -282,7 +277,7 @@ model Wood {
   vp_Pores_frequency           String?     @db.VarChar(255)
   vp_Pores_size                String?     @db.VarChar(255)
   vp_Pores_rays_ratio          String?     @db.VarChar(255)
-  rays_per_mm                  RaysPerMm?
+  rays_per_mm                  String?     @db.VarChar(255)
   rays_width                   String?     @db.VarChar(255)
   rays_two_distinct_sizes      String?     @db.VarChar(255)
   rays_aggregate               String?     @db.VarChar(255)

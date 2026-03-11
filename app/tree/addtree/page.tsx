@@ -40,7 +40,7 @@ export default function AddWoodPage() {
   const [selectValues, setSelectValues] = useState({
     wood_status: 'SHOW',
     wood_weight: 'MEDIUM',
-    rays_per_mm: 'MEDIUM',
+    rays_per_mm: '',
     wood_origin: '',
     wood_colors: '',
     sapwood_heartwood_color_diff: '',

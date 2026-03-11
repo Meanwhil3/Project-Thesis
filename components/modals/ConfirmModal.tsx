@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 type ConfirmVariant = "danger" | "warning" | "default";
 
@@ -31,6 +32,12 @@ export default function ConfirmModal({
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   React.useEffect(() => {
     if (!open) return;
 
@@ -43,7 +50,7 @@ export default function ConfirmModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose, onConfirm]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const confirmClass =
     variant === "danger"
@@ -52,7 +59,7 @@ export default function ConfirmModal({
       ? "bg-amber-500 hover:bg-amber-600"
       : "bg-emerald-600 hover:bg-emerald-700";
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100]">
       {/* overlay */}
       <button
@@ -62,35 +69,38 @@ export default function ConfirmModal({
       />
 
       {/* dialog */}
-      <div className="relative mx-auto mt-24 w-[92%] max-w-md rounded-2xl bg-white p-5 shadow-xl">
-        <div className="font-[Kanit]">
-          <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
-          {description ? (
-            <p className="mt-2 text-sm text-neutral-600">{description}</p>
-          ) : null}
-        </div>
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+          <div className="font-[Kanit]">
+            <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
+            {description ? (
+              <p className="mt-2 text-sm text-neutral-600">{description}</p>
+            ) : null}
+          </div>
 
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
-          >
-            {cancelText}
-          </button>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+            >
+              {cancelText}
+            </button>
 
-          <button
-            type="button"
-            onClick={onConfirm}
-            className={cn(
-              "rounded-xl px-4 py-2 text-sm text-white",
-              confirmClass
-            )}
-          >
-            {confirmText}
-          </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className={cn(
+                "rounded-xl px-4 py-2 text-sm text-white",
+                confirmClass
+              )}
+            >
+              {confirmText}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -204,7 +204,7 @@ export default async function CourseLayout({
         </div>
 
         {/* Tabs */}
-        <CourseTabs courseId={courseId} />
+        <CourseTabs courseId={courseId} role={role} />
 
         {/* Content */}
         <div className="mt-6">{children}</div>
