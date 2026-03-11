@@ -125,6 +125,31 @@ export async function deleteAnnouncement(
   revalidatePath(`/courses/${courseIdStr}`);
 }
 
+// ─── Instructor Check ───
+
+export async function checkIsCourseInstructor(courseIdStr: string): Promise<boolean> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return false;
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  if (role === "ADMIN") return true;
+
+  const user = session.user as any;
+  const rawUserId = user.id || user.user_id || user.sub;
+  if (!rawUserId) return false;
+
+  const isInstructor = await prisma.instructor.findUnique({
+    where: {
+      user_id_course_id: {
+        user_id: BigInt(rawUserId),
+        course_id: BigInt(courseIdStr),
+      },
+    },
+  });
+
+  return !!isInstructor;
+}
+
 // ─── Instructor Management ───
 
 export async function getInstructorCandidates() {
@@ -134,14 +159,17 @@ export async function getInstructorCandidates() {
   const role = String((session.user as any).role ?? "").toUpperCase();
   if (role !== "ADMIN") throw new Error("Forbidden");
 
-  const instructorRole = await prisma.role.findUnique({
-    where: { name: "INSTRUCTOR" },
+  const instructorRoles = await prisma.role.findMany({
+    where: { name: { in: ["INSTRUCTOR", "EXAMINER"] } },
+    select: { role_id: true },
   });
-  if (!instructorRole) return [];
+  if (!instructorRoles.length) return [];
+
+  const roleIds = instructorRoles.map((r) => r.role_id);
 
   const users = await prisma.user.findMany({
     where: {
-      role_id: instructorRole.role_id,
+      role_id: { in: roleIds },
       deleted_at: null,
       is_active: true,
     },

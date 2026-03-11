@@ -40,6 +40,6 @@ function normalizeRole(name?: string | null): UiRole {
   const r = String(name ?? "").toLowerCase();
   // รองรับชื่อ role ได้ทั้งไทย/อังกฤษ
   if (r.includes("admin") || r.includes("ผู้ดูแล")) return "admin";
-  if (r.includes("instructor") || r.includes("ผู้สอน")) return "instructor";
+  if (r.includes("instructor") || r.includes("examiner") || r.includes("ผู้สอน")) return "instructor";
   return "trainee";
 }

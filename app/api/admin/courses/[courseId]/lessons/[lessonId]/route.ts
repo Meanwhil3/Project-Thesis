@@ -1,8 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
 import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
+
+async function getAuthenticatedUser(courseId: bigint) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return null;
+
+  const role = String((session.user as any).role ?? "").toUpperCase();
+  const user = session.user as any;
+  const rawUserId = user.id || user.user_id || user.sub;
+  if (!rawUserId) return null;
+
+  const userId = BigInt(rawUserId);
+
+  if (role === "ADMIN") {
+    return { userId, role };
+  }
+
+  const isInstructor = await prisma.instructor.findUnique({
+    where: { user_id_course_id: { user_id: userId, course_id: courseId } },
+  });
+  if (isInstructor) {
+    return { userId, role: "COURSE_INSTRUCTOR" };
+  }
+
+  return null;
+}
 
 export async function GET(
   req: Request,
@@ -42,7 +69,11 @@ export async function PUT(
   { params }: { params: Promise<{ courseId: string; lessonId: string }> }
 ) {
   try {
-    const { lessonId } = await params;
+    const { courseId, lessonId } = await params;
+    const auth = await getAuthenticatedUser(BigInt(courseId));
+    if (!auth) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const contentType = req.headers.get("content-type") || "";
 
     // รองรับ toggle status แบบ JSON
@@ -148,7 +179,11 @@ export async function DELETE(
   { params }: { params: Promise<{ courseId: string; lessonId: string }> }
 ) {
   try {
-    const { lessonId } = await params;
+    const { courseId, lessonId } = await params;
+    const auth = await getAuthenticatedUser(BigInt(courseId));
+    if (!auth) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const id = BigInt(lessonId);
 
     await prisma.$transaction(async (tx) => {

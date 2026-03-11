@@ -33,6 +33,30 @@ export default async function ExamsPage({
   let canManage = role === "ADMIN" || role === "EXAMINER";
   const isTrainee = role === "TRAINEE";
 
+  // ─── TRAINEE ต้องลงทะเบียนในคอร์สก่อนจึงจะดูข้อสอบได้ ───────────────
+  if (isTrainee && userId) {
+    const enrollment = await prisma.courseEnrollments.findFirst({
+      where: {
+        user_id: BigInt(userId),
+        course_id: BigInt(courseId),
+        deleted_at: null,
+      },
+      select: { enrollment_id: true },
+    });
+    if (!enrollment) {
+      return (
+        <div className="mx-auto max-w-2xl p-6">
+          <div className="rounded-3xl border border-black/10 bg-white p-8 text-center">
+            <div className="text-lg font-medium text-[#14532D]">ไม่สามารถดูข้อสอบได้</div>
+            <div className="mt-2 text-sm text-[#14532D]/70">
+              กรุณาลงทะเบียนเข้าอบรมก่อนจึงจะสามารถดูข้อสอบได้
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
   if (!canManage && role === "INSTRUCTOR" && userId) {
     const isInstructor = await prisma.instructor.findUnique({
       where: {

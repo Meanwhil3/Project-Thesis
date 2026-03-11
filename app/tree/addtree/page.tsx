@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Upload, X, Save, Microscope,
   Info, Layers, Search, Image as ImageIcon,
-  Ruler, ChevronRight, Loader2, ArrowLeft, Dna, MapPin, 
+  Ruler, ChevronRight, Loader2, ArrowLeft, Dna, MapPin,
   Plus, UploadCloud, TextCursorInput, Palette, Droplets, Wind
 } from 'lucide-react';
+import ConfirmModal from '@/components/modals/ConfirmModal';
 
 export default function AddWoodPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function AddWoodPage() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+  const [successOpen, setSuccessOpen] = useState(false);
 
   // --- ตรวจสอบสิทธิ์ (Role Protection) ---
   useEffect(() => {
@@ -99,8 +101,7 @@ export default function AddWoodPage() {
       // เพื่อความปลอดภัยตามมาตรฐาน Server-side validation
       const response = await fetch('/api/woods/create', { method: 'POST', body: formData });
       if (!response.ok) throw new Error('Failed to save');
-      alert('บันทึกข้อมูลเรียบร้อยแล้ว');
-      router.push('/tree/treesearch');
+      setSuccessOpen(true);
     } catch (error: any) {
       alert(`เกิดข้อผิดพลาด: ${error.message}`);
     } finally {
@@ -428,6 +429,16 @@ export default function AddWoodPage() {
           </div>
         </main>
       </form>
+
+      <ConfirmModal
+        open={successOpen}
+        title="บันทึกข้อมูลพันธุ์ไม้สำเร็จ"
+        description="ข้อมูลพันธุ์ไม้ถูกบันทึกเข้าสู่ระบบเรียบร้อยแล้ว"
+        confirmText="ตกลง"
+        variant="success"
+        onConfirm={() => router.push('/tree/treesearch')}
+        onClose={() => router.push('/tree/treesearch')}
+      />
     </div>
   );
 }

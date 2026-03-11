@@ -6,7 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Pencil,
+
   Search,
   Trash2,
   Users,
@@ -350,17 +350,7 @@ const onExportCsv = () => {
                       className="col-span-4 flex justify-end gap-1 sm:col-span-1 sm:justify-center"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        type="button"
-                        onClick={() => alert(`edit member ${m.id}`)}
-                        disabled={isDeleting}
-                        className="rounded-xl p-2 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-                        aria-label="แก้ไข"
-                        title="แก้ไข"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
+<button
                         type="button"
                         onClick={() => setConfirmTarget(m)}
                         disabled={isDeleting}

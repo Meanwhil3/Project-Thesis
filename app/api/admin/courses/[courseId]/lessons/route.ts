@@ -6,21 +6,33 @@ import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
 
-async function getAuthenticatedUser() {
+async function getAuthenticatedUser(courseId?: bigint) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return null;
 
   const role = String((session.user as any).role ?? "").toUpperCase();
-  const isAuthorized = role === "ADMIN" || role === "INSTRUCTOR";
-  if (!isAuthorized) return null;
-
   const user = session.user as any;
   const rawUserId = user.id || user.user_id || user.sub;
+  if (!rawUserId) return null;
 
-  return {
-    userId: rawUserId ? BigInt(rawUserId) : null,
-    role
-  };
+  const userId = BigInt(rawUserId);
+
+  // ADMIN สามารถจัดการได้ทุกคอร์ส
+  if (role === "ADMIN") {
+    return { userId, role };
+  }
+
+  // ตรวจสอบว่าเป็น Instructor ที่ถูกเพิ่มในคอร์สนี้หรือไม่
+  if (courseId) {
+    const isInstructor = await prisma.instructor.findUnique({
+      where: { user_id_course_id: { user_id: userId, course_id: courseId } },
+    });
+    if (isInstructor) {
+      return { userId, role: "COURSE_INSTRUCTOR" };
+    }
+  }
+
+  return null;
 }
 
 export async function POST(
@@ -28,13 +40,13 @@ export async function POST(
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const auth = await getAuthenticatedUser();
+    const { courseId } = await params;
+    const cId = BigInt(courseId);
+
+    const auth = await getAuthenticatedUser(cId);
     if (!auth || !auth.userId) {
       return NextResponse.json({ error: "Forbidden: Unauthorized access" }, { status: 403 });
     }
-
-    const { courseId } = await params;
-    const cId = BigInt(courseId);
 
     const form = await request.formData();
     const title = String(form.get("title") ?? "").trim();
@@ -131,10 +143,10 @@ export async function PUT(
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
-    const auth = await getAuthenticatedUser();
+    const { courseId } = await params;
+    const auth = await getAuthenticatedUser(BigInt(courseId));
     if (!auth) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { courseId } = await params;
     const { lessons } = await request.json();
 
     await prisma.$transaction(
