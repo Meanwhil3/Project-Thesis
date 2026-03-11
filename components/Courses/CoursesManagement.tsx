@@ -33,6 +33,7 @@ export default function CourseManagement({
   const [courseList, setCourseList] = useState<CourseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalUsers, setTotalUsers] = useState(0);
 
   const resolvedMode: CourseManagementMode = useMemo(() => {
     if (mode) return mode;
@@ -61,19 +62,38 @@ export default function CourseManagement({
         setLoading(true);
         setError(null);
 
-        const res = await fetch(endpoint, {
+        const fetchCourses = fetch(endpoint, {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
         });
 
-        if (!res.ok) {
-          const msg = await res.text().catch(() => "");
+        // ดึงจำนวนผู้ใช้งานจริง (เฉพาะ admin / instructor)
+        const fetchUsers =
+          resolvedMode !== "trainee"
+            ? fetch("/api/admin/users/count", {
+                cache: "no-store",
+                signal: controller.signal,
+              })
+            : null;
+
+        const [coursesRes, usersRes] = await Promise.all([
+          fetchCourses,
+          fetchUsers,
+        ]);
+
+        if (!coursesRes.ok) {
+          const msg = await coursesRes.text().catch(() => "");
           throw new Error(msg || "โหลดข้อมูลคอร์สไม่สำเร็จ");
         }
 
-        const data = (await res.json()) as CourseItem[];
+        const data = (await coursesRes.json()) as CourseItem[];
         setCourseList(Array.isArray(data) ? data : []);
+
+        if (usersRes?.ok) {
+          const usersData = await usersRes.json();
+          setTotalUsers(usersData.count ?? 0);
+        }
       } catch (e) {
         if ((e as any)?.name === "AbortError") return;
         setError(e instanceof Error ? e.message : "โหลดข้อมูลคอร์สไม่สำเร็จ");
@@ -88,7 +108,6 @@ export default function CourseManagement({
   const totalCourses = courseList.length;
   const openCount = courseList.filter((c) => c.status === "open").length;
   const enrolledCount = courseList.filter((c) => c.enrolled).length;
-  const totalUsers = 127; // mock
 
   const filteredCourses = useMemo(() => {
     const q = search.trim().toLowerCase();

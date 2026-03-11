@@ -5,6 +5,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import CourseTabs from "@/components/Courses/CourseTabs";
 import BackButton from "@/components/Courses/BackButton";
+import CourseEnrollPage from "@/components/Courses/CourseEnrollPage";
+import { getEnrollmentStatus } from "@/lib/getEnrollmentStatus";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -18,7 +20,12 @@ type Course = {
   id: string;
   title: string;
   subtitle: string;
+  description: string;
   bannerUrl: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  courseStatus: string;
   lessonsCount: number;
   examsCount: number;
   membersCount: number;
@@ -40,7 +47,11 @@ async function getCourse(courseIdStr: string): Promise<Course> {
         course_id: true,
         course_name: true,
         course_description: true,
+        course_status: true,
         image_url: true,
+        location: true,
+        start_date: true,
+        end_date: true,
         deleted_at: true,
       },
     }),
@@ -71,11 +82,26 @@ async function getCourse(courseIdStr: string): Promise<Course> {
 
   if (!c || c.deleted_at) notFound();
 
+  const fmtDate = (d: Date | null) =>
+    d
+      ? new Intl.DateTimeFormat("th-TH", {
+          timeZone: "Asia/Bangkok",
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        }).format(d)
+      : "";
+
   return {
     id: c.course_id.toString(),
     title: c.course_name,
     subtitle: c.course_description ?? "",
+    description: c.course_description ?? "",
     bannerUrl: c.image_url ?? "https://placehold.co/1200x250",
+    location: c.location ?? "",
+    startDate: fmtDate(c.start_date),
+    endDate: fmtDate(c.end_date),
+    courseStatus: c.course_status ?? "OPEN",
     lessonsCount,
     examsCount,
     membersCount,
@@ -124,6 +150,27 @@ export default async function CourseLayout({
 
   const session = await getServerSession(authOptions);
   const role = String((session?.user as any)?.role ?? "").toUpperCase();
+  const isTrainee = role === "TRAINEE";
+
+  // ตรวจสอบสถานะการลงทะเบียนสำหรับ Trainee
+  if (isTrainee) {
+    const { status: enrollStatus } = await getEnrollmentStatus(BigInt(courseId));
+    if (enrollStatus !== "enrolled") {
+      return (
+        <CourseEnrollPage
+          courseId={courseId}
+          courseName={course.title}
+          courseDescription={course.description}
+          courseLocation={course.location}
+          courseBannerUrl={course.bannerUrl}
+          startDate={course.startDate}
+          endDate={course.endDate}
+          membersCount={course.membersCount}
+          courseClosed={course.courseStatus !== "OPEN"}
+        />
+      );
+    }
+  }
 
   // ตรวจสอบว่าเป็น Instructor ของคอร์สนี้หรือไม่
   let isCourseInstructor = false;
