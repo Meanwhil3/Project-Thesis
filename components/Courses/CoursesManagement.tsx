@@ -118,8 +118,8 @@ export default function CourseManagement({
   }, [courseList, search]);
 
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
+    <div>
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Header */}
         <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -216,7 +216,7 @@ export default function CourseManagement({
             <p className="mt-1 text-xs text-[#6E8E59]">ลองปรับคำค้นหาให้สั้นลง หรือค้นด้วยชื่อสถานที่</p>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

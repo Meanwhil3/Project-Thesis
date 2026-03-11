@@ -41,6 +41,15 @@ export async function GET() {
     return NextResponse.json({ message: "ไม่พบผู้ใช้" }, { status: 401 });
   }
 
+  // ─── ตรวจสอบว่าผู้ใช้ถูกบล็อกหรือไม่ ─────────────────────────────────────
+  const dbUser = await prisma.user.findUnique({
+    where: { user_id: userId },
+    select: { is_active: true },
+  });
+  if (dbUser && !dbUser.is_active) {
+    return NextResponse.json({ message: "บัญชีของคุณถูกระงับการใช้งาน" }, { status: 403 });
+  }
+
   // ─── ดึงคอร์สทั้งหมดที่เปิดอยู่ ──────────────────────────────────────────
   const [courses, enrollments] = await Promise.all([
     prisma.course.findMany({

@@ -1,12 +1,12 @@
 // app/courses/[courseId]/page.tsx
 import {
   Megaphone,
-  Pencil,
-  Plus,
   Info,
   Users,
   ArrowUpRight,
   MapPin,
+  LockKeyhole,
+  CalendarDays,
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
 import { notFound } from "next/navigation";
@@ -15,6 +15,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { getEnrollmentStatus } from "@/lib/getEnrollmentStatus";
 import EnrollButton from "@/components/Courses/EnrollButton";
+import CourseEnrollForm from "@/components/Courses/CourseEnrollForm";
 import AddAnnouncementModal from "@/components/Courses/AddAnnouncementModal";
 import EditAnnouncementModal from "@/components/Courses/EditAnnouncementModal";
 import AnnouncementCard from "@/components/Courses/AnnouncementCard";
@@ -39,7 +40,7 @@ function buildGoogleMapsUrl(query: string) {
   const q = query.trim();
   if (!q) return "https://www.google.com/maps";
   const params = new URLSearchParams({ api: "1", query: q });
-  return `https://www.google.com/maps/search/?$?${params.toString()}`;
+  return `https://www.google.com/maps/search/?${params.toString()}`;
 }
 
 function formatThaiDate(d: Date | null) {
@@ -106,6 +107,8 @@ export default async function CourseOverviewPage({
         course_description: true,
         course_status: true,
         location: true,
+        start_date: true,
+        end_date: true,
         deleted_at: true,
       },
     }),
@@ -125,7 +128,110 @@ export default async function CourseOverviewPage({
     course.course_description ?? "ยังไม่มีคำอธิบายคอร์ส";
   const courseLocation = course.location ?? "";
 
-  // --- fetch announcements (Updated to include Author) ---
+  // ─── Trainee ที่ยังไม่ลงทะเบียน: แสดง enrollment form + course details ─────
+  if (isTrainee && enrollStatus !== "enrolled") {
+    const startDate = formatThaiDate(course.start_date);
+    const endDate = formatThaiDate(course.end_date);
+    const membersCount = await prisma.courseEnrollments.count({
+      where: { course_id: courseId, deleted_at: null },
+    });
+
+    return (
+      <div className="grid gap-6">
+        {/* Enrollment Section */}
+        <SectionShell title="ลงทะเบียนเข้าคอร์ส" icon={LockKeyhole}>
+          <CourseEnrollForm
+            courseId={courseIdStr}
+            courseClosed={course.course_status !== "OPEN"}
+          />
+        </SectionShell>
+
+        {/* 2 columns — รายละเอียด + ข้อมูลคอร์ส */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <SectionShell title="รายละเอียดอบรม" icon={Info}>
+            <div className="text-[15px] leading-7 text-[#14532D]">
+              <div className="rounded-2xl bg-[#F8FFF9] p-5 ring-1 ring-[#BBF7D0]/70 whitespace-pre-wrap">
+                {courseDescription || "ยังไม่มีคำอธิบายคอร์ส"}
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[#CDE3BD] bg-white p-5">
+                {/* สถานที่ */}
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-[#DCFCE7] ring-1 ring-black/5">
+                    <MapPin className="h-5 w-5 text-[#14532D]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-medium text-[#14532D]">
+                      สถานที่จัดอบรม
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="text-[14px] font-semibold text-[#0C6E30]">
+                        {courseLocation || "—"}
+                      </span>
+                      {courseLocation && (
+                        <a
+                          href={buildGoogleMapsUrl(courseLocation)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-xl border border-[#CDE3BD] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#14532D] shadow-[0_0_4px_#CAE0BC]/40 transition hover:bg-[#F6FBF6]"
+                        >
+                          เปิดในแผนที่
+                          <ArrowUpRight className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* วันที่ */}
+                {(startDate || endDate) && (
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-[#DCFCE7] ring-1 ring-black/5">
+                      <CalendarDays className="h-5 w-5 text-[#14532D]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-medium text-[#14532D]">
+                        วันที่จัดอบรม
+                      </div>
+                      <div className="mt-1 text-[14px] font-semibold text-[#0C6E30]">
+                        {startDate}
+                        {endDate ? ` - ${endDate}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </SectionShell>
+
+          <SectionShell title="ข้อมูลคอร์ส" icon={Users}>
+            <div className="grid gap-3">
+              <div className="group flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-black/5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#DCFCE7] text-[16px] font-semibold text-[#14532D] ring-1 ring-black/10">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 font-kanit">
+                  <div className="text-[14px] font-medium text-[#3A532D]">
+                    สมาชิกที่ลงทะเบียนแล้ว
+                  </div>
+                  <div className="text-[20px] font-semibold text-[#14532D]">
+                    {membersCount} คน
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl bg-[#F8FFF9] p-4 text-[12px] text-[#6E8E59] ring-1 ring-[#BBF7D0]/60">
+              * ลงทะเบียนเข้าคอร์สเพื่อเข้าถึงบทเรียน ข้อสอบ
+              และประกาศต่าง ๆ ของคอร์สนี้
+            </div>
+          </SectionShell>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Enrolled / Admin / Instructor: แสดง overview ปกติ ─────────────────────
   const annRows = await prisma.announcements.findMany({
     where: {
       course_id: courseId,
@@ -157,8 +263,6 @@ export default async function CourseOverviewPage({
   const insRows = await prisma.instructor.findMany({
     where: {
       course_id: courseId,
-      // ถ้า migrate + generate แล้ว และ Instructor มี deleted_at จริง ค่อยเปิดบรรทัดนี้กลับ:
-      // deleted_at: null,
     },
     select: {
       user_id: true,
@@ -181,7 +285,6 @@ export default async function CourseOverviewPage({
     email: r.user.email,
   }));
 
-  // ผูกสิทธิ์จริง: เฉพาะ ADMIN หรือ Instructor ของคอร์สนี้เท่านั้น
   const isInstructorOfCourse = sessionUserId
     ? instructors.some((ins) => ins.userId === String(sessionUserId))
     : false;
