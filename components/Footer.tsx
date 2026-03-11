@@ -111,7 +111,7 @@ export default function Footer() {
         {/* Copyright */}
         <div className="mt-6 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#6E8E59]/70">
           <span>&copy; {new Date().getFullYear()} WoodCertify. All rights reserved.</span>
-          <span>Royal Forest Department, Thailand</span>
+          <span>Collaboratively built by IT KMITL &amp; Royal Forest Department</span>
         </div>
       </div>
     </footer>
