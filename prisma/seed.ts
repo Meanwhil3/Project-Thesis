@@ -4,19 +4,19 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting seeding...');
+  console.log('🌱 Starting seeding with Thai names...');
 
-  // 1. สร้าง Roles (ใช้ upsert เพื่อป้องกัน error ถ้ามีข้อมูลอยู่แล้ว)
+  // 1. สร้าง/ตรวจสอบ Roles
   const adminRole = await prisma.role.upsert({
     where: { name: 'ADMIN' },
     update: {},
     create: { name: 'ADMIN' },
   });
 
-  const examinerRole = await prisma.role.upsert({
-    where: { name: 'EXAMINER' },
+  const instructorRole = await prisma.role.upsert({
+    where: { name: 'INSTRUCTOR' },
     update: {},
-    create: { name: 'EXAMINER' },
+    create: { name: 'INSTRUCTOR' },
   });
 
   const traineeRole = await prisma.role.upsert({
@@ -25,30 +25,64 @@ async function main() {
     create: { name: 'TRAINEE' },
   });
 
-  console.log('✅ Roles created: ADMIN, EXAMINER, TRAINEE');
+  console.log('✅ Roles prepared');
 
-  // 2. เตรียมรหัสผ่านที่ผ่านการ Hash แล้ว
+  // 2. เตรียมข้อมูลชื่อสำหรับสุ่ม
+  const thaiFirstNames = [
+    'สมชาย', 'วิภา', 'กิตติ', 'นภา', 'ธนา', 'รุ่งโรจน์', 'สิริพงษ์', 'อัญชลี', 
+    'วีรพล', 'พรทิพย์', 'ปิยะ', 'ณัฐวุฒิ', 'จิราภรณ์', 'ศราวุธ', 'วรรณวิสา'
+  ];
+  const thaiLastNames = [
+    'รักดี', 'ใจงาม', 'รุ่งเรืองกิจ', 'สวัสดิ์ดี', 'มั่งคั่ง', 'ทวีทรัพย์', 'เลิศปัญญา', 
+    'วัฒนพานิช', 'แสงทอง', 'สุขสวัสดิ์', 'พรหมมา', 'เกษมสันต์', 'นันทะวงศ์'
+  ];
+
   const saltRounds = 10;
-  const hashedAdminPassword = await bcrypt.hash('123456', saltRounds);
-  const hashedTestPassword = await bcrypt.hash('password123', saltRounds); // สำหรับ user อื่นๆ
+  const hashedCommonPassword = await bcrypt.hash('123456', saltRounds);
 
-  // 3. สร้าง User Admin
-  const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@gmail.com' },
-    update: {
-      password: hashedAdminPassword, // อัปเดตรหัสผ่านใหม่ให้เป็นแบบ Hash
-    },
-    create: {
-      first_name: 'ad_test',
-      last_name: 'jaja',
-      email: 'admin@gmail.com',
-      password: hashedAdminPassword, // ใช้รหัสผ่านที่ Hash แล้ว
-      is_active: true,
-      role_id: adminRole.role_id,
-    },
-  });
+  // 3. ฟังก์ชันสร้าง Users แบบสุ่มชื่อไทย
+  const createUsers = async (
+    count: number,
+    emailPrefix: string,
+    roleId: bigint
+  ) => {
+    for (let i = 1; i <= count; i++) {
+      const index = i.toString().padStart(2, '0');
+      const email = `${emailPrefix}${index}@gmail.com`;
+      
+      // สุ่มชื่อและนามสกุล
+      const fName = thaiFirstNames[Math.floor(Math.random() * thaiFirstNames.length)];
+      const lName = thaiLastNames[Math.floor(Math.random() * thaiLastNames.length)];
 
-  console.log(`✅ Admin user created/updated with hashed password: ${adminUser.email}`);
+      await prisma.user.upsert({
+        where: { email: email },
+        update: {
+          password: hashedCommonPassword,
+          role_id: roleId,
+        },
+        create: {
+          first_name: fName,
+          last_name: lName,
+          email: email,
+          password: hashedCommonPassword,
+          is_active: true,
+          role_id: roleId,
+        },
+      });
+    }
+  };
+
+  // 4. สั่งสร้าง User ตามเงื่อนไข
+  // Admin 1 คน
+  await createUsers(1, 'adminA', adminRole.role_id);
+  
+  // Instructor 2 คน
+  await createUsers(2, 'instructorT', instructorRole.role_id);
+  
+  // Trainee 9 คน
+  await createUsers(9, 'trainee', traineeRole.role_id);
+
+  console.log('✅ All 12 users created with Thai identities.');
   console.log('🚀 Seeding finished successfully.');
 }
 

@@ -39,13 +39,13 @@ export default function AddWoodPage() {
   // จัดการค่า Select ทั้งหมด
   const [selectValues, setSelectValues] = useState({
     wood_status: 'SHOW',
-    wood_weight: 'MEDIUM',
-    rays_per_mm: 'MEDIUM',
+    wood_weight: '',
+    rays_per_mm: '',
     wood_origin: '',
     wood_colors: '',
     sapwood_heartwood_color_diff: '',
-    wood_odor: 'ไม่มีกลิ่น',
-    wood_taste: 'ไม่มีรส',
+    wood_odor: '',
+    wood_taste: '',
     wood_luster: '',
     wood_texture: '',
     wood_grain: '',
@@ -276,9 +276,9 @@ export default function AddWoodPage() {
                         <SelectItem value="ไม่มีกลิ่น">ไม่มีกลิ่น</SelectItem>
                     </SelectField>
                     <SelectField label="น้ำหนัก (Weight)" value={selectValues.wood_weight} onValueChange={(v: string)=>setSelectValues({...selectValues, wood_weight: v})} icon={Wind}>
-                        <SelectItem value="LIGHT">ต่ำ (น้ำหนัก ≤ 0.40)</SelectItem>
-                        <SelectItem value="MEDIUM">กลาง (น้ำหนัก 0.40 - 0.75)</SelectItem>
-                        <SelectItem value="HEAVY">สูง (น้ำหนัก ≥ 0.75)</SelectItem>
+                        <SelectItem value="ต่ำ (น้ำหนัก ≤ 0.40)">ต่ำ (น้ำหนัก ≤ 0.40)</SelectItem>
+                        <SelectItem value="กลาง (น้ำหนัก 0.40 - 0.75)">กลาง (น้ำหนัก 0.40 - 0.75)</SelectItem>
+                        <SelectItem value="สูง (น้ำหนัก ≥ 0.75)">สูง (น้ำหนัก ≥ 0.75)</SelectItem>
                     </SelectField>
                   </div>
                 </div>
@@ -291,7 +291,7 @@ export default function AddWoodPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <SelectField label="การกระจายของพอร์ (Porosity)" value={selectValues.vp_porosity} onValueChange={(v: string)=>setSelectValues({...selectValues, vp_porosity: v})} icon={Search}>
-                        <SelectItem value="ไม่พอร์วง (Ring-porous wood)">ไม้พอร์วง (Ring-porous wood)</SelectItem>
+                        <SelectItem value="ไม้พอร์วง (Ring-porous wood)">ไม้พอร์วง (Ring-porous wood)</SelectItem>
                         <SelectItem value="ไม้พอร์กระจาย (Diffuse-porous wood)">ไม้พอร์กระจาย (Diffuse-porous wood)</SelectItem>
                         <SelectItem value="ไม้พอร์กึ่งวง (Semi-ring-porous wood)">ไม้พอร์กึ่งวง (Semi-ring-porous wood)</SelectItem>
                     </SelectField>
@@ -342,9 +342,9 @@ export default function AddWoodPage() {
                         <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider">Rays (เรย์)</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <SelectField label="จำนวนของเส้นเรย์" value={selectValues.rays_per_mm} onValueChange={(v: string)=>setSelectValues({...selectValues, rays_per_mm: v})} icon={Layers}>
-                                <SelectItem value="LOW">น้อย (น้อยกว่า 4 เส้น/มม.)</SelectItem>
-                                <SelectItem value="MEDIUM">ปานกลาง (4 - 12 เส้น/มม.)</SelectItem>
-                                <SelectItem value="HIGH">มาก (มากกว่า 12 เส้น/มม.)</SelectItem>
+                                <SelectItem value="น้อย (น้อยกว่า 4 เส้น/มม.)">น้อย (น้อยกว่า 4 เส้น/มม.)</SelectItem>
+                                <SelectItem value="ปานกลาง (4 - 12 เส้น/มม.)">ปานกลาง (4 - 12 เส้น/มม.)</SelectItem>
+                                <SelectItem value="มาก (มากกว่า 12 เส้น/มม.)">มาก (มากกว่า 12 เส้น/มม.)</SelectItem>
                             </SelectField>
                             <SelectField label="ขนาดความกว้างของเส้นเรย์" value={selectValues.rays_width} onValueChange={(v: string)=>setSelectValues({...selectValues, rays_width: v})} icon={Layers}>
                                 <SelectItem value="เล็กมาก คือ ขนาดที่พอเห็นได้ด้วยแว่นขยาย">เล็กมาก (พอเห็นได้ด้วยแว่นขยาย)</SelectItem>
