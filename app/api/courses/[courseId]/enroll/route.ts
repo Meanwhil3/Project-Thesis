@@ -40,15 +40,21 @@ export async function POST(
   } else if (u.email) {
     const found = await prisma.user.findUnique({
       where: { email: String(u.email).toLowerCase() },
-      select: { user_id: true, is_active: true },
+      select: { user_id: true },
     });
-    if (!found?.is_active) {
-      return NextResponse.json({ ok: false, message: "บัญชีไม่ได้เปิดใช้งาน" }, { status: 401 });
-    }
     userId = found?.user_id ?? null;
   }
   if (!userId) {
     return NextResponse.json({ ok: false, message: "ไม่พบผู้ใช้" }, { status: 401 });
+  }
+
+  // ─── ตรวจสอบว่าผู้ใช้ถูกบล็อกหรือไม่ ─────────────────────────────────────
+  const dbUser = await prisma.user.findUnique({
+    where: { user_id: userId },
+    select: { is_active: true },
+  });
+  if (dbUser && !dbUser.is_active) {
+    return NextResponse.json({ ok: false, message: "บัญชีถูกระงับการใช้งาน" }, { status: 403 });
   }
 
   // ─── Parse params & body ───────────────────────────────────────────────────

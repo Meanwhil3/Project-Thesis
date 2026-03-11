@@ -58,13 +58,19 @@ export default async function TakePage({
   } else if (u.email) {
     const found = await prisma.user.findUnique({
       where: { email: String(u.email).toLowerCase() },
-      select: { user_id: true, is_active: true },
+      select: { user_id: true },
     });
-    if (!found?.is_active) redirect("/login");
     userId = found?.user_id ?? null;
   }
 
   if (!userId) redirect("/login");
+
+  // ─── ตรวจสอบว่าผู้ใช้ถูกบล็อกหรือไม่ ──────────────────────────────────────
+  const dbUser = await prisma.user.findUnique({
+    where: { user_id: userId },
+    select: { is_active: true },
+  });
+  if (dbUser && !dbUser.is_active) redirect("/login");
 
   // ─── ตรวจ enrollment – TRAINEE ต้องลงทะเบียนในคอร์สก่อน ──────────────────
   const enrollment = await prisma.courseEnrollments.findFirst({

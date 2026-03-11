@@ -8,6 +8,7 @@ import {
   UploadCloud, MonitorPlay, FileArchive, BookOpen
 } from 'lucide-react';
 import FilterSelect from '@/components/ui/FilterSelect';
+import ConfirmModal from '@/components/modals/ConfirmModal';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
@@ -33,6 +34,14 @@ export default function EditLessonPage() {
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [videoList, setVideoList] = useState<VideoItem[]>([]);
   const [attachments, setAttachments] = useState<{ id: string, name: string, type: string, path?: string, size?: string, file?: File }[]>([]);
+
+  const [modal, setModal] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+    variant?: "danger" | "warning" | "default" | "success";
+    onConfirm: () => void;
+  }>({ open: false, title: '', onConfirm: () => {} });
 
   const modules = useMemo(() => ({
     toolbar: [
@@ -80,7 +89,7 @@ export default function EditLessonPage() {
       setVideoList([...videoList, { url: currentVideoUrl.trim(), title: data.title || "Untitled Video" }]);
       setCurrentVideoUrl('');
     } catch {
-      alert("ไม่สามารถดึงข้อมูลวิดีโอได้");
+      setModal({ open: true, title: 'เกิดข้อผิดพลาด', description: 'ไม่สามารถดึงข้อมูลวิดีโอได้', variant: 'danger', onConfirm: () => setModal(m => ({ ...m, open: false })) });
     } finally {
       setIsFetchingVideo(false);
     }
@@ -103,7 +112,10 @@ export default function EditLessonPage() {
 
   // --- บันทึกการแก้ไข ---
   const handleUpdate = async () => {
-    if (!formData.title.trim()) return alert('กรุณาระบุชื่อบทเรียน');
+    if (!formData.title.trim()) {
+      setModal({ open: true, title: 'กรุณาระบุชื่อบทเรียน', variant: 'warning', onConfirm: () => setModal(m => ({ ...m, open: false })) });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const body = new FormData();
@@ -124,15 +136,16 @@ export default function EditLessonPage() {
         body,
       });
       if (response.ok) {
-        alert("อัปเดตข้อมูลสำเร็จ");
-        router.refresh();
-        router.back();
+        setModal({
+          open: true, title: 'สำเร็จ', description: 'อัปเดตข้อมูลบทเรียนสำเร็จ', variant: 'success',
+          onConfirm: () => { setModal(m => ({ ...m, open: false })); router.refresh(); router.back(); }
+        });
       } else {
-        alert("เกิดข้อผิดพลาดในการบันทึก");
+        setModal({ open: true, title: 'เกิดข้อผิดพลาด', description: 'เกิดข้อผิดพลาดในการบันทึก', variant: 'danger', onConfirm: () => setModal(m => ({ ...m, open: false })) });
       }
     } catch (error) {
       console.error("Update error:", error);
-      alert("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+      setModal({ open: true, title: 'เกิดข้อผิดพลาด', description: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', variant: 'danger', onConfirm: () => setModal(m => ({ ...m, open: false })) });
     } finally {
       setIsSubmitting(false);
     }
@@ -316,6 +329,16 @@ export default function EditLessonPage() {
           </div>
         </div>
       </main>
+
+      <ConfirmModal
+        open={modal.open}
+        title={modal.title}
+        description={modal.description}
+        variant={modal.variant}
+        confirmText={modal.variant === 'success' ? 'ตกลง' : 'รับทราบ'}
+        onConfirm={modal.onConfirm}
+        onClose={() => setModal(m => ({ ...m, open: false }))}
+      />
 
       <style jsx global>{`
         .ql-container.ql-snow { border: none !important; font-family: 'Kanit', sans-serif; }

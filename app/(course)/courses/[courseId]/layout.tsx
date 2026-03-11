@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 import { BookOpen, FileText, Users, Pencil } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import CourseTabs from "@/components/Courses/CourseTabs";
 import BackButton from "@/components/Courses/BackButton";
-import CourseEnrollPage from "@/components/Courses/CourseEnrollPage";
 import { getEnrollmentStatus } from "@/lib/getEnrollmentStatus";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -142,39 +141,44 @@ export default async function CourseLayout({
   params,
   children,
 }: {
-  params: Promise<{ courseId: string }>; 
+  params: Promise<{ courseId: string }>;
   children: ReactNode;
 }) {
-  const { courseId } = await params; 
+  const { courseId } = await params;
   const course = await getCourse(courseId);
 
   const session = await getServerSession(authOptions);
-  const role = String((session?.user as any)?.role ?? "").toUpperCase();
+  if (!session) notFound();
+
+  const u = session.user as any;
+  const role = String(u?.role ?? "").toUpperCase();
   const isTrainee = role === "TRAINEE";
 
-  // ตรวจสอบสถานะการลงทะเบียนสำหรับ Trainee
-  if (isTrainee) {
-    const { status: enrollStatus } = await getEnrollmentStatus(BigInt(courseId));
-    if (enrollStatus !== "enrolled") {
-      return (
-        <CourseEnrollPage
-          courseId={courseId}
-          courseName={course.title}
-          courseDescription={course.description}
-          courseLocation={course.location}
-          courseBannerUrl={course.bannerUrl}
-          startDate={course.startDate}
-          endDate={course.endDate}
-          membersCount={course.membersCount}
-          courseClosed={course.courseStatus !== "OPEN"}
-        />
-      );
+  // ตรวจสอบว่าผู้ใช้ถูกบล็อกหรือไม่
+  const rawUserId = u?.user_id || u?.id || u?.sub;
+  if (rawUserId) {
+    const dbUser = await prisma.user.findUnique({
+      where: { user_id: BigInt(rawUserId) },
+      select: { is_active: true },
+    });
+    if (dbUser && !dbUser.is_active) {
+      redirect("/courses");
     }
   }
 
+  // ตรวจสอบสถานะการลงทะเบียนสำหรับ Trainee
+  let isEnrolled = true;
+  if (isTrainee) {
+    const { status: enrollStatus } = await getEnrollmentStatus(BigInt(courseId));
+    isEnrolled = enrollStatus === "enrolled";
+  }
+
+  // แสดง layout เต็มรูปแบบ (stats, tabs, edit) เฉพาะผู้ที่ลงทะเบียนแล้ว หรือ admin/instructor
+  const showFullLayout = !isTrainee || isEnrolled;
+
   // ตรวจสอบว่าเป็น Instructor ของคอร์สนี้หรือไม่
   let isCourseInstructor = false;
-  if (role !== "ADMIN" && session?.user) {
+  if (showFullLayout && role !== "ADMIN" && session?.user) {
     const user = session.user as any;
     const rawUserId = user.id || user.user_id || user.sub;
     if (rawUserId) {
@@ -192,12 +196,15 @@ export default async function CourseLayout({
 
   const canEditCourse = role === "ADMIN" || isCourseInstructor;
 
+  // BackButton: trainee ที่ยังไม่ลงทะเบียน → /courses, อื่นๆ → /admin/courses
+  const backHref = isTrainee && !isEnrolled ? "/courses" : "/admin/courses";
+
   return (
-    <div >
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
+    <div>
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Back */}
         <div className="mb-6">
-          <BackButton href="/admin/courses" />
+          <BackButton href={backHref} />
         </div>
 
         {/* Banner */}
@@ -225,56 +232,61 @@ export default async function CourseLayout({
           </div>
 
           {/* Edit */}
-          <div className="absolute right-5 top-5">
-            {canEditCourse ? (
-              <Link
-                href={`/admin/courses/${courseId}/edit`}
-                className={[
-                  "inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur transition",
-                  "hover:bg-white active:scale-[0.99]",
-                ].join(" ")}
-              >
-                <Pencil className="h-4 w-4" />
-                แก้ไข
-              </Link>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur opacity-60"
-              >
-                <Pencil className="h-4 w-4" />
-                แก้ไข
-              </button>
-            )}
-          </div>
+          {showFullLayout && (
+            <div className="absolute right-5 top-5">
+              {canEditCourse ? (
+                <Link
+                  href={`/admin/courses/${courseId}/edit`}
+                  className={[
+                    "inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur transition",
+                    "hover:bg-white active:scale-[0.99]",
+                  ].join(" ")}
+                >
+                  <Pencil className="h-4 w-4" />
+                  แก้ไข
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-white/90 px-4 font-kanit text-[13px] text-[#111827] shadow-[0_0_6px_rgba(0,0,0,0.15)] ring-1 ring-black/10 backdrop-blur opacity-60"
+                >
+                  <Pencil className="h-4 w-4" />
+                  แก้ไข
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Stats */}
-        <div className="mt-7 grid gap-4 md:grid-cols-3">
-          <StatCard
-            label="จำนวนบทเรียน"
-            value={course.lessonsCount}
-            icon={BookOpen}
-          />
-          <StatCard
-            label="จำนวนการสอบ"
-            value={course.examsCount}
-            icon={FileText}
-          />
-          <StatCard
-            label="สมาชิกทั้งหมด"
-            value={course.membersCount}
-            icon={Users}
-          />
-        </div>
+        {/* Stats + Tabs — เฉพาะ enrolled / admin / instructor */}
+        {showFullLayout && (
+          <>
+            <div className="mt-7 grid gap-4 md:grid-cols-3">
+              <StatCard
+                label="จำนวนบทเรียน"
+                value={course.lessonsCount}
+                icon={BookOpen}
+              />
+              <StatCard
+                label="จำนวนการสอบ"
+                value={course.examsCount}
+                icon={FileText}
+              />
+              <StatCard
+                label="สมาชิกทั้งหมด"
+                value={course.membersCount}
+                icon={Users}
+              />
+            </div>
 
-        {/* Tabs */}
-        <CourseTabs courseId={courseId} role={role} />
+            <CourseTabs courseId={courseId} role={role} />
+          </>
+        )}
 
-        {/* Content */}
+        {/* Content — render {children} เสมอ */}
         <div className="mt-6">{children}</div>
-      </main>
+      </div>
     </div>
   );
 }

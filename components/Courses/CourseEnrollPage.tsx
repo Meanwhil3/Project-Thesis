@@ -119,7 +119,7 @@ export default function CourseEnrollPage({
 
   return (
     <div>
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Back */}
         <div className="mb-6">
           <BackButton href="/courses" />
@@ -338,7 +338,7 @@ export default function CourseEnrollPage({
             </div>
           </SectionShell>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
