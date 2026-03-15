@@ -8,7 +8,7 @@ export default function CourseGroupLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      <Header showNav />
       <main className="flex-1">{children}</main>
       <Footer />
     </div>
