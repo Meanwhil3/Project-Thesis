@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import WoodCertifyLogo from "@/components/woodlogo";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { signOut, useSession } from "next-auth/react";
@@ -12,8 +13,21 @@ export type HeaderUser = {
   role?: string | null;
 };
 
-export default function Header({ user: userProp }: { user?: HeaderUser }) {
+type NavItem = {
+  key: string;
+  label: string;
+  href: string;
+};
+
+export default function Header({
+  user: userProp,
+  showNav = false,
+}: {
+  user?: HeaderUser;
+  showNav?: boolean;
+}) {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -27,6 +41,26 @@ export default function Header({ user: userProp }: { user?: HeaderUser }) {
   const displayName = (user?.name ?? "").trim();
   const nameToShow = displayName.length > 0 ? displayName : "ผู้ใช้งาน";
   const isAdmin = (user?.role || "").toLowerCase() === "admin";
+  const isInstructor = (user?.role || "").toLowerCase() === "instructor";
+
+  const navItems: NavItem[] = useMemo(() => {
+    if (!showNav) return [];
+    return [
+      ...(isAdmin
+        ? [{ key: "overview", label: "ภาพรวม", href: "/login" }]
+        : []),
+      { key: "training", label: "อบรม", href: "/admin/courses" },
+      { key: "species", label: "พันธุ์ไม้", href: "/tree/treesearch" },
+      ...(isAdmin
+        ? [{ key: "users", label: "ผู้ใช้งาน", href: "/users" }]
+        : []),
+    ];
+  }, [showNav, isAdmin, isInstructor]);
+
+  const activeKey = useMemo(() => {
+    const found = navItems.find((it) => pathname?.startsWith(it.href));
+    return found?.key ?? navItems[0]?.key ?? "";
+  }, [navItems, pathname]);
 
   const initials = useMemo(() => {
     const parts = nameToShow.split(/\s+/).filter(Boolean);
@@ -65,7 +99,9 @@ export default function Header({ user: userProp }: { user?: HeaderUser }) {
   };
 
   return (
-  <header className="sticky top-0 z-50">
+  <>
+  <div aria-hidden className="h-18 w-full" />
+  <header className="fixed top-0 left-0 right-0 z-50">
     {/* ✅ Full-width background layer (ไม่กระทบ layout ด้านใน) */}
     <div
       aria-hidden
@@ -81,8 +117,8 @@ export default function Header({ user: userProp }: { user?: HeaderUser }) {
 
     {/* ✅ Content stays normal, ไม่เละ */}
     <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
-      <div className="flex h-14 items-center justify-between">
-        <Link href="/" className="group flex items-center gap-2">
+      <div className="flex h-18 items-center justify-between">
+        <Link href="/" className="group flex items-center gap-2 shrink-0">
           <WoodCertifyLogo className="scale-80" />
           {isAdmin && (
             <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -91,7 +127,36 @@ export default function Header({ user: userProp }: { user?: HeaderUser }) {
           )}
         </Link>
 
-        <div className="relative" ref={menuRef}>
+        {/* Centered pill navigation */}
+        {navItems.length > 0 && (
+          <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex items-center rounded-full border border-emerald-100 bg-white/80 p-1 backdrop-blur-sm shadow-sm">
+              {navItems.map((item) => {
+                const isActive = item.key === activeKey;
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className={`
+                      relative rounded-full px-6 py-2 text-[15px] font-medium
+                      transition-all duration-300 ease-in-out whitespace-nowrap
+                      ${
+                        isActive
+                          ? "bg-gradient-to-b from-[#d4edda] to-[#c3e6cb] text-[#166534] shadow-sm"
+                          : "text-[#9ca3af] hover:text-[#374151] hover:bg-emerald-50/60"
+                      }
+                    `}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
+
+        <div className="relative shrink-0" ref={menuRef}>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -144,5 +209,6 @@ export default function Header({ user: userProp }: { user?: HeaderUser }) {
       </div>
     </div>
   </header>
+  </>
 );
 }
