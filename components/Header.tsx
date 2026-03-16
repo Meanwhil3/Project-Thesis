@@ -47,7 +47,7 @@ export default function Header({
     if (!showNav) return [];
     return [
       ...(isAdmin
-        ? [{ key: "overview", label: "ภาพรวม", href: "/login" }]
+        ? [{ key: "overview", label: "ภาพรวม", href: "/admin/dashboard" }]
         : []),
       { key: "training", label: "อบรม", href: "/admin/courses" },
       { key: "species", label: "พรรณไม้", href: "/tree/treesearch" },
