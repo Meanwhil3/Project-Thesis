@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
-
   Search,
   Trash2,
   Users,
@@ -115,6 +115,8 @@ export default function MembersClient({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<MemberModel | null>(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [selectedExams, setSelectedExams] = useState<Set<string>>(new Set());
   const pageSize = 5;
 
   const filteredSorted = useMemo(() => {
@@ -149,43 +151,71 @@ export default function MembersClient({
     [currentPage, totalPages],
   );
 
-const onExportCsv = () => {
-  const colKey = (es: { examTitle: string; maxScore: number }) =>
-    `${es.examTitle} (${es.maxScore})`;
-
-  const first = filteredSorted[0];
-  const examTitles = (first?.examScores ?? []).map(colKey);
-  const totalCol = `คะแนนรวม (${first?.maxScore ?? 0})`;
-  const headers = ["name", "email", ...examTitles, totalCol];
-
-  const rows = filteredSorted.map((m) => {
-    const row: Record<string, string | number> = {
-      name: m.name,
-      email: m.email,
-    };
-
-    for (const t of examTitles) row[t] = "";
-
-    for (const es of m.examScores) {
-      row[colKey(es)] = `${es.score}`;
+  // Collect all unique exams across all members
+  const allExams = useMemo(() => {
+    const map = new Map<string, { examId: string; examTitle: string; maxScore: number }>();
+    for (const m of members) {
+      for (const es of m.examScores) {
+        if (!map.has(es.examId)) {
+          map.set(es.examId, { examId: es.examId, examTitle: es.examTitle, maxScore: es.maxScore });
+        }
+      }
     }
-    row[totalCol] = `${m.score}`;
-    return row;
-  });
+    return Array.from(map.values());
+  }, [members]);
 
-  if (rows.length === 0) {
-    const emptyRow: Record<string, string | number> = { name: "", email: "" };
-    for (const t of examTitles) emptyRow[t] = "";
-    emptyRow[totalCol] = "";
-    rows.push(emptyRow);
-  }
+  const openCsvModal = useCallback(() => {
+    setSelectedExams(new Set(allExams.map((e) => e.examId)));
+    setCsvModalOpen(true);
+  }, [allExams]);
 
-  downloadTextFile(
-    `course-${courseId}-members.csv`,
-    toCsv(rows, headers),
-    "text/csv;charset=utf-8",
-  );
-};
+  const onExportCsv = useCallback(() => {
+    const colKey = (es: { examTitle: string; maxScore: number }) =>
+      `${es.examTitle} (${es.maxScore})`;
+
+    const selectedExamList = allExams.filter((e) => selectedExams.has(e.examId));
+
+    const examCols = selectedExamList.map(colKey);
+    const selectedMaxTotal = selectedExamList.reduce((s, e) => s + e.maxScore, 0);
+    const totalCol = `คะแนนรวม (${selectedMaxTotal})`;
+    const passCol = "ผ่าน/ไม่ผ่าน";
+    const headers = ["name", "email", ...examCols, totalCol, passCol];
+
+    const rows = filteredSorted.map((m) => {
+      const row: Record<string, string | number> = {
+        name: m.name,
+        email: m.email,
+      };
+
+      for (const t of examCols) row[t] = "";
+
+      let totalScore = 0;
+      for (const es of m.examScores) {
+        if (selectedExams.has(es.examId)) {
+          row[colKey(es)] = `${es.score}`;
+          totalScore += es.score;
+        }
+      }
+      row[totalCol] = `${totalScore}`;
+      row[passCol] = totalScore >= selectedMaxTotal * 0.8 ? "ผ่าน" : "ไม่ผ่าน";
+      return row;
+    });
+
+    if (rows.length === 0) {
+      const emptyRow: Record<string, string | number> = { name: "", email: "" };
+      for (const t of examCols) emptyRow[t] = "";
+      emptyRow[totalCol] = "";
+      emptyRow[passCol] = "";
+      rows.push(emptyRow);
+    }
+
+    downloadTextFile(
+      `course-${courseId}-members.csv`,
+      toCsv(rows, headers),
+      "text/csv;charset=utf-8",
+    );
+    setCsvModalOpen(false);
+  }, [filteredSorted, allExams, selectedExams, courseId]);
 
   async function doDelete(m: MemberModel) {
     setDeletingId(m.enrollmentId);
@@ -229,7 +259,7 @@ const onExportCsv = () => {
 
         <button
           type="button"
-          onClick={onExportCsv}
+          onClick={openCsvModal}
           className="inline-flex items-center gap-2 rounded-full bg-[#14532D] px-5 py-2 font-kanit text-sm text-white shadow hover:bg-[#166534] active:scale-[0.98]"
         >
           <Download className="h-4 w-4" />
@@ -451,6 +481,106 @@ const onExportCsv = () => {
           </button>
         </div>
       )}
+      {/* ── CSV Export Modal ── */}
+      {csvModalOpen && createPortal(
+        <div className="fixed inset-0 z-[100]">
+          <button
+            aria-label="Close modal"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setCsvModalOpen(false)}
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl font-[Kanit]">
+              <h3 className="text-lg font-semibold text-[#14532D]">
+                เลือกข้อสอบที่ต้องการส่งออก
+              </h3>
+              <p className="mt-1 text-sm text-[#14532D]/60">
+                เลือกข้อสอบที่จะรวมใน CSV (ผ่าน ≥ 80% ของคะแนนรวมที่เลือก)
+              </p>
+
+              <div className="mt-4 max-h-60 space-y-2 overflow-y-auto">
+                {allExams.length === 0 ? (
+                  <p className="text-sm text-[#14532D]/50">ไม่มีข้อสอบในคอร์สนี้</p>
+                ) : (
+                  <>
+                    {/* Select all / Deselect all */}
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-[#F0FDF4] px-4 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedExams.size === allExams.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedExams(new Set(allExams.map((ex) => ex.examId)));
+                          } else {
+                            setSelectedExams(new Set());
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-emerald-600 accent-emerald-600"
+                      />
+                      <span className="text-sm font-medium text-[#14532D]">
+                        เลือกทั้งหมด
+                      </span>
+                    </label>
+
+                    {allExams.map((exam) => (
+                      <label
+                        key={exam.examId}
+                        className="flex cursor-pointer items-center gap-3 rounded-xl bg-white px-4 py-2.5 border border-black/5 hover:bg-[#F0FDF4]/50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedExams.has(exam.examId)}
+                          onChange={(e) => {
+                            setSelectedExams((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) {
+                                next.add(exam.examId);
+                              } else {
+                                next.delete(exam.examId);
+                              }
+                              return next;
+                            });
+                          }}
+                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 accent-emerald-600"
+                        />
+                        <span className="flex-1 text-sm text-[#14532D]/80">
+                          {exam.examTitle}
+                        </span>
+                        <span className="text-xs text-[#14532D]/50">
+                          {exam.maxScore} คะแนน
+                        </span>
+                      </label>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCsvModalOpen(false)}
+                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={onExportCsv}
+                  disabled={selectedExams.size === 0}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-40"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    ดาวน์โหลด CSV
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       <ConfirmModal
         open={confirmTarget !== null}
         title="ลบสมาชิก"

@@ -179,7 +179,7 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen flex-col font-kanit">
       <Header showNav />
-      <main className="flex-1 bg-gradient-to-b from-[#F1FAF0] to-[#fafdf9]">
+      <main className="flex-1">
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
           {/* Page title */}
           <div className="mb-8">
