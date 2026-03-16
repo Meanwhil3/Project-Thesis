@@ -23,6 +23,11 @@ export default function AddWoodPage() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+
+  // ชื่อวิทยาศาสตร์ 3 ส่วน: Genus (ตัวใหญ่เอียง) + species (ตัวเล็กเอียง) + Author (ปกติ)
+  const [sciGenus, setSciGenus] = useState('');
+  const [sciSpecies, setSciSpecies] = useState('');
+  const [sciAuthor, setSciAuthor] = useState('');
   const [successOpen, setSuccessOpen] = useState(false);
 
   // --- ตรวจสอบสิทธิ์ (Role Protection) ---
@@ -72,11 +77,23 @@ export default function AddWoodPage() {
     intercellular_canals: ''
   });
 
+  const MAX_IMAGES = 10;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    setImages(prev => [...prev, ...files]);
-    const newPreviews = files.map(file => URL.createObjectURL(file));
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) {
+      alert(`อัปโหลดได้สูงสุด ${MAX_IMAGES} ภาพเท่านั้น`);
+      e.target.value = '';
+      return;
+    }
+    const allowed = files.slice(0, remaining);
+    if (files.length > remaining) {
+      alert(`เลือกได้อีก ${remaining} ภาพ (สูงสุด ${MAX_IMAGES} ภาพ)`);
+    }
+    setImages(prev => [...prev, ...allowed]);
+    const newPreviews = allowed.map(file => URL.createObjectURL(file));
     setPreviews(prev => [...prev, ...newPreviews]);
     e.target.value = '';
   };
@@ -183,7 +200,52 @@ export default function AddWoodPage() {
                     <h2 className="text-lg font-bold text-[#14532D]">ข้อมูลพื้นฐานและอัตลักษณ์</h2>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Field label="ชื่อวิทยาศาสตร์" name="scientific_name" placeholder="เช่น Dalbergia oliveri" icon={Dna} required />
+                    {/* ชื่อวิทยาศาสตร์ 3 ส่วน */}
+                    <div className="md:col-span-2 space-y-3">
+                      <Label className="text-[#14532D] text-sm font-medium">
+                        ชื่อวิทยาศาสตร์ <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-xs text-[#6E8E59]">Genus (สกุล)</span>
+                          <div className="relative">
+                            <Dna className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86A97A]" />
+                            <Input
+                              value={sciGenus}
+                              onChange={(e) => setSciGenus(e.target.value)}
+                              placeholder="เช่น Tectona"
+                              required
+                              className="h-11 w-full rounded-xl border-[#CDE3BD] bg-white pl-9 pr-4 text-sm italic text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 focus:ring-[#4CA771]/25 focus:border-[#4CA771] transition-all capitalize"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-[#6E8E59]">Species (ชนิด)</span>
+                          <Input
+                            value={sciSpecies}
+                            onChange={(e) => setSciSpecies(e.target.value)}
+                            placeholder="เช่น grandis"
+                            required
+                            className="h-11 w-full rounded-xl border-[#CDE3BD] bg-white px-4 text-sm italic text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 focus:ring-[#4CA771]/25 focus:border-[#4CA771] transition-all lowercase"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-[#6E8E59]">Author (ผู้ตั้งชื่อ)</span>
+                          <Input
+                            value={sciAuthor}
+                            onChange={(e) => setSciAuthor(e.target.value)}
+                            placeholder="เช่น L.f."
+                            className="h-11 w-full rounded-xl border-[#CDE3BD] bg-white px-4 text-sm text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 focus:ring-[#4CA771]/25 focus:border-[#4CA771] transition-all"
+                          />
+                        </div>
+                      </div>
+                      {(sciGenus || sciSpecies || sciAuthor) && (
+                        <p className="text-sm text-[#14532D] bg-[#F6FBF6] rounded-lg px-3 py-2 border border-[#CDE3BD]">
+                          ตัวอย่าง: <em className="italic">{sciGenus} {sciSpecies}</em>{sciAuthor ? ` ${sciAuthor}` : ''}
+                        </p>
+                      )}
+                      <input type="hidden" name="scientific_name" value={`${sciGenus} ${sciSpecies}${sciAuthor ? ` ${sciAuthor}` : ''}`.trim()} />
+                    </div>
                     <Field label="ชื่อสามัญ" name="common_name" placeholder="เช่น ชิงชัน" icon={TextCursorInput} required />
                     <SelectField label="ถิ่นกำเนิดไม้ (Geographic distribution)" value={selectValues.wood_origin} onValueChange={(v: string)=>setSelectValues({...selectValues, wood_origin: v})} icon={MapPin}>
                         <SelectItem value="Europe and temperate Asia">Europe and temperate Asia</SelectItem>
@@ -217,12 +279,18 @@ export default function AddWoodPage() {
                     <div className="bg-[#DCFCE7] p-2 rounded-lg text-[#16A34A]"><ImageIcon size={20} /></div>
                     <h2 className="text-lg font-bold text-[#14532D]">รูปภาพเนื้อไม้</h2>
                   </div>
-                  <label className="group relative flex min-h-[160px] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#CDE3BD] bg-white px-4 py-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50 transition hover:bg-[#F6FBF6] hover:border-[#4CA771] cursor-pointer">
-                    <input type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" />
-                    <UploadCloud className="h-8 w-8 text-[#16A34A]" />
-                    <span className="text-sm font-semibold text-[#14532D]">ลากรูปภาพมาวาง หรือคลิกเพื่อเลือกไฟล์</span>
-                    <span className="text-xs text-[#6E8E59]">รองรับไฟล์ภาพหลายรูป ไม่เกิน 5MB ต่อไฟล์</span>
-                  </label>
+                  {images.length < MAX_IMAGES ? (
+                    <label className="group relative flex min-h-[160px] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#CDE3BD] bg-white px-4 py-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50 transition hover:bg-[#F6FBF6] hover:border-[#4CA771] cursor-pointer">
+                      <input type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" />
+                      <UploadCloud className="h-8 w-8 text-[#16A34A]" />
+                      <span className="text-sm font-semibold text-[#14532D]">ลากรูปภาพมาวาง หรือคลิกเพื่อเลือกไฟล์</span>
+                      <span className="text-xs text-[#6E8E59]">รองรับไฟล์ภาพหลายรูป ไม่เกิน 5MB ต่อไฟล์ (เพิ่มได้อีก {MAX_IMAGES - images.length} ภาพ)</span>
+                    </label>
+                  ) : (
+                    <div className="flex min-h-[80px] w-full items-center justify-center rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 px-4 py-4 text-center">
+                      <span className="text-sm font-medium text-amber-700">อัปโหลดครบ {MAX_IMAGES} ภาพแล้ว (ลบภาพเดิมเพื่อเพิ่มภาพใหม่)</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
                     {previews.map((src, i) => (
                       <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-[#CDE3BD] group shadow-sm">
