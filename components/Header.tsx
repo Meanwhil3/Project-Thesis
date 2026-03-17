@@ -117,19 +117,22 @@ export default function Header({
 
     {/* ✅ Content stays normal, ไม่เละ */}
     <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
-      <div className="flex h-18 items-center justify-between">
-        <Link href="/" className="group flex items-center gap-2 shrink-0">
-          <WoodCertifyLogo className="scale-80" />
-          {isAdmin && (
-            <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-              Admin
-            </span>
-          )}
-        </Link>
+      <div className="grid h-18 grid-cols-[1fr_auto_1fr] items-center">
+        {/* Left: Logo */}
+        <div className="flex items-center justify-start">
+          <Link href="/" className="group flex items-center gap-2 shrink-0">
+            <WoodCertifyLogo className="scale-80" />
+            {isAdmin && (
+              <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                Admin
+              </span>
+            )}
+          </Link>
+        </div>
 
-        {/* Centered pill navigation */}
-        {navItems.length > 0 && (
-          <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        {/* Center: pill navigation */}
+        {navItems.length > 0 ? (
+          <nav>
             <div className="flex items-center rounded-full border border-emerald-100 bg-white/80 p-1 backdrop-blur-sm shadow-sm">
               {navItems.map((item) => {
                 const isActive = item.key === activeKey;
@@ -154,8 +157,12 @@ export default function Header({
               })}
             </div>
           </nav>
+        ) : (
+          <div />
         )}
 
+        {/* Right: User menu */}
+        <div className="flex items-center justify-end">
         <div className="relative shrink-0" ref={menuRef}>
           <button
             type="button"
@@ -214,6 +221,7 @@ export default function Header({
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
