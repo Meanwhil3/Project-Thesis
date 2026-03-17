@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 import SummaryCard from "@/components/Courses/SummaryCard";
 import CourseCard, { type CourseItem } from "@/components/Courses/CourseCard";
 
-import { GraduationCap, Search, Users, FolderOpen, Plus } from "lucide-react";
+import { GraduationCap, Search, Users, FolderOpen, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
 export type CourseManagementMode = "admin" | "instructor" | "trainee";
 
@@ -34,6 +34,8 @@ export default function CourseManagement({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
 
   const resolvedMode: CourseManagementMode = useMemo(() => {
     if (mode) return mode;
@@ -116,6 +118,33 @@ export default function CourseManagement({
       `${c.title} ${c.subtitle} ${c.location}`.toLowerCase().includes(q)
     );
   }, [courseList, search]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / ITEMS_PER_PAGE));
+  const paginatedCourses = filteredCourses.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const getPageNumbers = () => {
+    const pages: (number | "...")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("...");
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   return (
     <div>
@@ -207,8 +236,56 @@ export default function CourseManagement({
                   </div>
                 </div>
               ))
-            : filteredCourses.map((c) => <CourseCard key={c.id} course={c} />)}
+            : paginatedCourses.map((c) => <CourseCard key={c.id} course={c} />)}
         </div>
+
+        {/* Pagination */}
+        {!loading && !error && totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#CDE3BD] bg-white text-[#14532D] transition hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {getPageNumbers().map((page, i) =>
+              page === "..." ? (
+                <span key={`dot-${i}`} className="px-1.5 text-sm text-gray-400">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
+                    currentPage === page
+                      ? "bg-[#14532D] text-white shadow-sm"
+                      : "border border-[#CDE3BD] bg-white text-[#14532D] hover:bg-emerald-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#CDE3BD] bg-white text-[#14532D] transition hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            <span className="ml-3 text-xs text-[#6E8E59]">
+              หน้า {currentPage} / {totalPages}
+            </span>
+          </div>
+        )}
 
         {!loading && !error && filteredCourses.length === 0 && (
           <div className="mt-10 rounded-2xl border border-[#CDE3BD] bg-white p-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50">

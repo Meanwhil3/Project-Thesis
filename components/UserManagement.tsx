@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { Search, Pencil, Ban, Trash2, Users, ShieldAlert, UserCircle, Mail, CalendarDays } from "lucide-react";
+import { Search, Pencil, Ban, Trash2, Users, ShieldAlert, UserCircle, Mail, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { BiBlock } from "react-icons/bi";
 import FilterSelect, { SelectOption } from "@/components/ui/FilterSelect";
 import ConfirmModal from "@/components/modals/ConfirmModal";
@@ -58,6 +58,8 @@ export default function UserManagement({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | Role>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   const [userList, setUserList] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +98,33 @@ export default function UserManagement({
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [userList, search, roleFilter, statusFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const getPageNumbers = () => {
+    const pages: (number | "...")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("...");
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   type PendingAction = "toggleStatus" | "delete";
   const [modalOpen, setModalOpen] = useState(false);
@@ -307,25 +336,75 @@ export default function UserManagement({
 
         {/* User List */}
         {!loading && (
-          <div className="space-y-3">
-            {filteredUsers.map((u) => (
-              <UserCard
-                key={u.id}
-                user={u}
-                onEdit={() => openEditModal(u)}
-                onToggleStatus={() => openToggleStatusModal(u)}
-                onDelete={() => openDeleteModal(u)}
-              />
-            ))}
+          <>
+            <div className="space-y-3">
+              {paginatedUsers.map((u) => (
+                <UserCard
+                  key={u.id}
+                  user={u}
+                  onEdit={() => openEditModal(u)}
+                  onToggleStatus={() => openToggleStatusModal(u)}
+                  onDelete={() => openDeleteModal(u)}
+                />
+              ))}
 
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-[#CDE3BD]">
-                <Search className="mx-auto h-10 w-10 text-[#CDE3BD] mb-3" />
-                <h3 className="text-lg font-bold text-[#14532D]">ไม่พบผู้ใช้งาน</h3>
-                <p className="text-sm text-[#6E8E59]">ลองปรับเปลี่ยนตัวกรองหรือคำค้นหาของคุณอีกครั้ง</p>
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-[#CDE3BD]">
+                  <Search className="mx-auto h-10 w-10 text-[#CDE3BD] mb-3" />
+                  <h3 className="text-lg font-bold text-[#14532D]">ไม่พบผู้ใช้งาน</h3>
+                  <p className="text-sm text-[#6E8E59]">ลองปรับเปลี่ยนตัวกรองหรือคำค้นหาของคุณอีกครั้ง</p>
+                </div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#CDE3BD] bg-white text-[#14532D] transition hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {getPageNumbers().map((page, i) =>
+                  page === "..." ? (
+                    <span key={`dot-${i}`} className="px-1.5 text-sm text-gray-400">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
+                        currentPage === page
+                          ? "bg-[#14532D] text-white shadow-sm"
+                          : "border border-[#CDE3BD] bg-white text-[#14532D] hover:bg-emerald-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#CDE3BD] bg-white text-[#14532D] transition hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                <span className="ml-3 text-xs text-[#6E8E59]">
+                  หน้า {currentPage} / {totalPages}
+                </span>
               </div>
             )}
-          </div>
+          </>
         )}
 
         <ConfirmModal

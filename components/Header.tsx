@@ -195,6 +195,15 @@ export default function Header({
 
               <div className="h-px bg-emerald-100" />
 
+              <Link
+                href="/profile"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="block w-full px-3 py-2 text-left text-sm text-[#14532D] hover:bg-[#F4FBF1]"
+              >
+                ข้อมูลส่วนตัว
+              </Link>
+
               <button
                 type="button"
                 role="menuitem"
