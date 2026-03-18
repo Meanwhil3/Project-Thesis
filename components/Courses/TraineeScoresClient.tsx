@@ -225,7 +225,7 @@ export default function TraineeScoresClient({
 
         {/* Note */}
         <div className="mt-6 rounded-2xl bg-[#F8FFF9] p-4 font-kanit text-[12px] text-[#6E8E59] ring-1 ring-[#BBF7D0]/60">
-          * คะแนนที่แสดงเป็นคะแนนสูงสุดจากการทำข้อสอบทุกครั้ง (Best Score) เกณฑ์ผ่าน ≥ 80%
+          เกณฑ์ผ่าน ≥ 80%
         </div>
       </div>
     </section>
