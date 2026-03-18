@@ -29,6 +29,7 @@ export default function Header({
   const { data: session } = useSession();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // ใช้ prop ถ้าส่งมา มิฉะนั้นใช้จาก session (name/role ดึงจาก DB ตอน login)
@@ -93,6 +94,11 @@ export default function Header({
     };
   }, [open]);
 
+  // close mobile nav on route change
+  useEffect(() => {
+    setMobileNav(false);
+  }, [pathname]);
+
   const handleLogout = async () => {
     setOpen(false);
     await signOut({ callbackUrl: "/login" });
@@ -102,7 +108,7 @@ export default function Header({
   <>
   <div aria-hidden className="h-18 w-full" />
   <header className="fixed top-0 left-0 right-0 z-50">
-    {/* ✅ Full-width background layer (ไม่กระทบ layout ด้านใน) */}
+    {/* Full-width background layer */}
     <div
       aria-hidden
       className="
@@ -115,24 +121,51 @@ export default function Header({
       "
     />
 
-    {/* ✅ Content stays normal, ไม่เละ */}
+    {/* Content */}
     <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
-      <div className="grid h-18 grid-cols-[1fr_auto_1fr] items-center">
-        {/* Left: Logo */}
-        <div className="flex items-center justify-start">
+      <div className="flex h-18 items-center justify-between gap-2">
+        {/* Left: Logo + mobile hamburger */}
+        <div className="flex items-center gap-2">
+          {/* Hamburger — mobile only */}
+          {navItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMobileNav((v) => !v)}
+              className="inline-flex items-center justify-center rounded-lg p-2 text-[#14532D] hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 md:hidden"
+              aria-label="เปิดเมนู"
+              aria-expanded={mobileNav}
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {mobileNav ? (
+                  <path d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          )}
+
           <Link href="/" className="group flex items-center gap-2 shrink-0">
             <WoodCertifyLogo className="scale-80" />
             {isAdmin && (
-              <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+              <span className="ml-2 hidden rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 sm:inline-block">
                 Admin
               </span>
             )}
           </Link>
         </div>
 
-        {/* Center: pill navigation */}
-        {navItems.length > 0 ? (
-          <nav>
+        {/* Center: pill navigation — desktop only */}
+        {navItems.length > 0 && (
+          <nav className="hidden md:block">
             <div className="flex items-center rounded-full border border-emerald-100 bg-white/80 p-1 backdrop-blur-sm shadow-sm">
               {navItems.map((item) => {
                 const isActive = item.key === activeKey;
@@ -157,21 +190,18 @@ export default function Header({
               })}
             </div>
           </nav>
-        ) : (
-          <div />
         )}
 
         {/* Right: User menu */}
-        <div className="flex items-center justify-end">
         <div className="relative shrink-0" ref={menuRef}>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-3 rounded-full px-2 py-1 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 sm:gap-3"
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            <span className="max-w-[180px] truncate text-sm text-[#14532D]">
+            <span className="hidden max-w-[180px] truncate text-sm text-[#14532D] sm:inline">
               {nameToShow}
             </span>
 
@@ -222,9 +252,39 @@ export default function Header({
             </div>
           )}
         </div>
-        </div>
       </div>
     </div>
+
+    {/* Mobile nav drawer */}
+    {navItems.length > 0 && (
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          mobileNav ? "max-h-60 border-b border-emerald-100" : "max-h-0"
+        }`}
+      >
+        <div className="relative bg-white/95 backdrop-blur px-4 pb-3 pt-1">
+          <nav className="flex flex-col gap-1">
+            {navItems.map((item) => {
+              const isActive = item.key === activeKey;
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-emerald-50 text-[#166534]"
+                      : "text-[#14532D]/70 hover:bg-emerald-50/60 hover:text-[#14532D]"
+                  }`}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    )}
   </header>
   </>
 );

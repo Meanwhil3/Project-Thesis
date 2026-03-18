@@ -10,6 +10,7 @@
   body {
     @apply min-h-screen overflow-x-hidden
       bg-[linear-gradient(117deg,_#E9FFEE_0%,_#FFFBE3_100%)]
+      bg-no-repeat bg-fixed
       font-[var(--font-kanit)];
     scrollbar-gutter: stable;
   }

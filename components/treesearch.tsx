@@ -124,9 +124,9 @@ const WoodCard: React.FC<{
   const isHidden = wood.wood_status === 'HIDE';
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-[#CDE3BD] overflow-hidden hover:shadow-md transition-all flex flex-col h-full ${isHidden ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+    <div className={`bg-white rounded-xl sm:rounded-2xl shadow-sm border border-[#CDE3BD] overflow-hidden hover:shadow-md transition-all flex flex-col h-full ${isHidden ? 'opacity-60 grayscale-[0.5]' : ''}`}>
       <Link href={`/tree/${wood.wood_id}`} className="group cursor-pointer relative">
-        <div className="h-44 overflow-hidden bg-[#F6FBF6]">
+        <div className="h-32 sm:h-44 overflow-hidden bg-[#F6FBF6]">
           <img
             src={displayImage}
             alt={wood.common_name || "wood"}
@@ -134,38 +134,36 @@ const WoodCard: React.FC<{
           />
         </div>
         {isHidden && (
-          <div className="absolute top-3 left-3 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-sm">
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-black/70 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md sm:rounded-lg backdrop-blur-sm">
             ซ่อนการแสดงผล
           </div>
         )}
       </Link>
-      <div className="p-1 flex flex-col flex-1">
-        <h3 className="text-lg font-bold text-[#14532D] mb-1 truncate ml-1">
+      <div className="p-1.5 sm:p-1 flex flex-col flex-1">
+        <h3 className="text-sm sm:text-lg font-bold text-[#14532D] mb-0.5 sm:mb-1 truncate ml-0.5 sm:ml-1">
           {wood.common_name || 'ไม่ทราบชื่อ'}
         </h3>
-        <p className="text-xs text-[#6E8E59] italic truncate mb-2 ml-1">
+        <p className="text-[10px] sm:text-xs text-[#6E8E59] italic truncate mb-1.5 sm:mb-2 ml-0.5 sm:ml-1">
           {wood.scientific_name || 'N/A'}
         </p>
         {canManage ? (
-          <>
-            <div className="mt-auto pt-1 border-t border-[#F0F7EB] flex justify-around items-center">
-              <button onClick={() => onDelete(wood)} className="p-2 hover:bg-red-50 rounded-xl transition-colors group">
-                <Trash2 className="h-5 w-5 text-red-400 group-hover:text-red-600" />
-              </button>
-              <button onClick={() => onToggleStatus(wood)} className="p-2 hover:bg-blue-50 rounded-xl transition-colors group">
-                {isHidden ? (
-                  <EyeOff className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
-                ) : (
-                  <Eye className="w-5 h-5 text-blue-400 group-hover:text-blue-600" />
-                )}
-              </button>
-              <Link href={`/tree/edittree/${wood.wood_id}`} className="p-2 hover:bg-green-50 rounded-xl transition-colors group">
-                <Edit className="w-5 h-5 text-green-400 group-hover:text-green-600" />
-              </Link>
-            </div>
-          </>
+          <div className="mt-auto pt-1 border-t border-[#F0F7EB] flex justify-around items-center">
+            <button onClick={() => onDelete(wood)} className="p-1.5 sm:p-2 hover:bg-red-50 rounded-xl transition-colors group">
+              <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 group-hover:text-red-600" />
+            </button>
+            <button onClick={() => onToggleStatus(wood)} className="p-1.5 sm:p-2 hover:bg-blue-50 rounded-xl transition-colors group">
+              {isHidden ? (
+                <EyeOff className="h-4 w-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-gray-600" />
+              ) : (
+                <Eye className="h-4 w-4 sm:w-5 sm:h-5 text-blue-400 group-hover:text-blue-600" />
+              )}
+            </button>
+            <Link href={`/tree/edittree/${wood.wood_id}`} className="p-1.5 sm:p-2 hover:bg-green-50 rounded-xl transition-colors group">
+              <Edit className="h-4 w-4 sm:w-5 sm:h-5 text-green-400 group-hover:text-green-600" />
+            </Link>
+          </div>
         ) : (
-          <div className="py-2 text-[10px] text-[#86A97A] font-light italic"></div>
+          <div className="py-1 sm:py-2 text-[10px] text-[#86A97A] font-light italic"></div>
         )}
       </div>
     </div>
@@ -720,6 +718,7 @@ const Treesearch: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isMoreFiltersOpen, setIsMoreFiltersOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WoodFromDB | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -831,6 +830,10 @@ const Treesearch: React.FC = () => {
     });
   }, [filters, woods, canManage]); // เพิ่ม canManage ใน dependency array
 
+  const activeFilterCount = useMemo(() => {
+    return Object.values(filters).filter((v) => v !== "").length;
+  }, [filters]);
+
   const totalPages = Math.ceil(filteredWoods.length / itemsPerPage);
   const currentWoods = useMemo(() => {
     const firstPageIndex = (currentPage - 1) * itemsPerPage;
@@ -839,74 +842,115 @@ const Treesearch: React.FC = () => {
   }, [currentPage, filteredWoods]);
 
   return (
-    <div className="min-h-screen font-kanit">
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
-        <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="font-kanit">
+      <main className="mx-auto max-w-6xl px-3 sm:px-4 pb-16 pt-6 sm:pt-10">
+        <div className="mb-5 sm:mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[#14532D]">ฐานข้อมูลพันธุ์ไม้</h1>
-            <p className="text-sm text-[#6E8E59]">จัดการและสืบค้นข้อมูลโครงสร้างเนื้อไม้</p>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#14532D]">ฐานข้อมูลพันธุ์ไม้</h1>
+            <p className="text-xs sm:text-sm text-[#6E8E59]">จัดการและสืบค้นข้อมูลโครงสร้างเนื้อไม้</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {canManage && (
               <Link
                 href="/tree/addtree"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#14532D] px-4 text-sm font-semibold text-white shadow-[0_10px_30px_-18px_rgba(20,83,45,0.65)] transition hover:bg-[#0F3F22] active:scale-[0.99]"
+                className="inline-flex h-9 sm:h-10 items-center justify-center gap-2 rounded-xl bg-[#14532D] px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white shadow-[0_10px_30px_-18px_rgba(20,83,45,0.65)] transition hover:bg-[#0F3F22] active:scale-[0.99]"
               >
                 <Plus className="h-4 w-4" />
                 เพิ่มข้อมูลใหม่
               </Link>
             )}
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CDE3BD] bg-white px-3 py-1 text-xs text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/60">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CDE3BD] bg-white px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/60">
               <span>ทั้งหมด {filteredWoods.length} รายการ</span>
             </div>
           </div>
         </div>
 
+        {/* Mobile filter toggle */}
+        <div className="mb-4 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((v) => !v)}
+            className="inline-flex w-full items-center justify-between gap-2 rounded-2xl border border-[#CDE3BD] bg-white px-4 py-3 text-sm font-medium text-[#14532D] shadow-sm transition hover:bg-[#F6FBF6]"
+          >
+            <span className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              ตัวกรอง
+              {activeFilterCount > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#14532D] px-1.5 text-[10px] font-bold text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </span>
+            <ChevronRight className={`h-4 w-4 text-[#86A97A] transition-transform duration-200 ${mobileFiltersOpen ? "rotate-90" : ""}`} />
+          </button>
+
+          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${mobileFiltersOpen ? "mt-3 max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
+            <SidebarFilters
+              filters={filters}
+              setFilters={setFilters}
+              onOpenMoreFilters={() => setIsMoreFiltersOpen(true)}
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-8">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50">
-                {[1, 2, 3].map(i => <div key={i} className="h-64 bg-slate-100 animate-pulse rounded-2xl" />)}
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 opacity-50">
+                {[1, 2, 3].map(i => <div key={i} className="h-48 sm:h-64 bg-slate-100 animate-pulse rounded-2xl" />)}
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                   {currentWoods.map(wood => (
                     <WoodCard
                       key={wood.wood_id}
                       wood={wood}
                       onDelete={setDeleteTarget}
                       onToggleStatus={handleToggleStatus}
-                      canManage={canManage} // ส่งสิทธิไปให้ Card
+                      canManage={canManage}
                     />
                   ))}
                 </div>
 
                 {filteredWoods.length > itemsPerPage && (
-                  <div className="mt-12 flex justify-center items-center gap-2">
+                  <div className="mt-8 sm:mt-12 flex justify-center items-center gap-1 sm:gap-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="rounded-xl border-[#CDE3BD] hover:bg-[#F6FBF6] disabled:opacity-30"
+                      className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border-[#CDE3BD] hover:bg-[#F6FBF6] disabled:opacity-30"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
 
                     <div className="flex gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${currentPage === page
-                            ? 'bg-[#14532D] text-white shadow-md'
-                            : 'bg-white text-[#6E8E59] border border-[#CDE3BD] hover:border-[#14532D] hover:text-[#14532D]'
-                            }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        // On mobile, show limited page numbers
+                        const showOnMobile = page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                        const showEllipsis = !showOnMobile && (page === currentPage - 2 || page === currentPage + 2);
+
+                        if (!showOnMobile && !showEllipsis && totalPages > 5) {
+                          return null;
+                        }
+                        if (showEllipsis && totalPages > 5) {
+                          return <span key={page} className="flex h-9 w-6 items-center justify-center text-xs text-[#6E8E59] sm:h-10 sm:w-8">...</span>;
+                        }
+
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`h-9 w-9 sm:w-10 sm:h-10 rounded-xl text-xs sm:text-sm font-bold transition-all ${currentPage === page
+                              ? 'bg-[#14532D] text-white shadow-md'
+                              : 'bg-white text-[#6E8E59] border border-[#CDE3BD] hover:border-[#14532D] hover:text-[#14532D]'
+                              }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     <Button
@@ -914,7 +958,7 @@ const Treesearch: React.FC = () => {
                       size="icon"
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="rounded-xl border-[#CDE3BD] hover:bg-[#F6FBF6] disabled:opacity-30"
+                      className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border-[#CDE3BD] hover:bg-[#F6FBF6] disabled:opacity-30"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -924,15 +968,16 @@ const Treesearch: React.FC = () => {
             )}
 
             {!loading && filteredWoods.length === 0 && (
-              <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-[#CDE3BD]">
-                <Search className="mx-auto h-12 w-12 text-[#CDE3BD] mb-4" />
-                <h3 className="text-lg font-bold text-[#14532D]">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</h3>
-                <p className="text-[#6E8E59]">ลองปรับเปลี่ยนตัวกรองหรือคำค้นหาของคุณอีกครั้ง</p>
+              <div className="text-center py-12 sm:py-20 bg-white rounded-3xl border-2 border-dashed border-[#CDE3BD]">
+                <Search className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-[#CDE3BD] mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-bold text-[#14532D]">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</h3>
+                <p className="text-sm text-[#6E8E59]">ลองปรับเปลี่ยนตัวกรองหรือคำค้นหาของคุณอีกครั้ง</p>
               </div>
             )}
           </div>
 
-          <aside className="w-full lg:w-80 flex-none">
+          {/* Desktop sidebar */}
+          <aside className="hidden lg:block w-80 flex-none">
             <SidebarFilters
               filters={filters}
               setFilters={setFilters}

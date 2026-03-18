@@ -240,7 +240,7 @@ export default function UserManagement({
   }
 
   return (
-    <div className="min-h-screen font-kanit">
+    <div className="font-kanit">
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Header */}
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

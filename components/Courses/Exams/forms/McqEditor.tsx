@@ -78,23 +78,14 @@ export default function McqEditor(props: {
 
   return (
     <>
-      <div className="mt-8 flex items-center justify-between gap-3">
+      <div className="mt-8">
         <div className="text-base text-[#14532D]">
           ข้อสอบทั้งหมด: <span className="font-medium">{questions.length}</span> • คะแนนรวม:{" "}
           <span className="font-medium">{totalScore}</span>
         </div>
-
-        <button
-          type="button"
-          onClick={addQuestion}
-          className="inline-flex items-center gap-2 rounded-full bg-[#16A34A] px-4 py-2 font-kanit text-sm text-white shadow"
-        >
-          <Plus className="h-4 w-4" />
-          เพิ่มข้อ
-        </button>
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 pb-20">
         {questions.map((q, idx) => (
           <McqQuestionItem
             key={q.key}
@@ -108,6 +99,16 @@ export default function McqEditor(props: {
           />
         ))}
       </div>
+
+      {/* Floating "เพิ่มข้อ" button */}
+      <button
+        type="button"
+        onClick={addQuestion}
+        className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-[#16A34A] px-5 py-3 font-kanit text-sm text-white shadow-lg hover:bg-[#15803D] transition-colors"
+      >
+        <Plus className="h-5 w-5" />
+        เพิ่มข้อ
+      </button>
     </>
   );
 }

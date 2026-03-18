@@ -7,6 +7,7 @@ import { AlertCircle, ArrowLeft, Loader2, Save } from "lucide-react";
 
 import ExamMetaForm, { type ExamStatus } from "@/components/Courses/Exams/forms/ExamMetaForm";
 import WoodFillEditor from "@/components/Courses/Exams/forms/WoodFillEditor";
+import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 import type { WoodFillQuestionDraft } from "@/components/Courses/Exams/forms/WoodFillQuestionItem";
 
 function gen6Digits() {
@@ -181,6 +182,8 @@ export default function WoodFillExamCreateClient({ courseId }: { courseId: strin
           <WoodFillEditor questions={questions} setQuestions={setQuestions} />
         </section>
       </main>
+
+      <ScrollToTopButton />
     </div>
   );
 }

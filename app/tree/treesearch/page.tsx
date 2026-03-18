@@ -10,8 +10,8 @@ export default function TreesearchPage() {
 
       <main className="flex-1">
         <Treesearch />
-        <Footer />
       </main>
+      <Footer />
     </div>
   );
 }
