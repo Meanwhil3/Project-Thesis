@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { ArrowLeft, Mail, User, Shield, CalendarDays, Lock } from "lucide-react";
+import { ArrowLeft, Mail, User, Shield, CalendarDays, Lock, Pencil } from "lucide-react";
 
 type ProfileData = {
   first_name: string;
@@ -16,11 +16,19 @@ type ProfileData = {
 };
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+
+  // edit name state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [nameSuccess, setNameSuccess] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   // change password state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -72,6 +80,57 @@ export default function ProfilePage() {
     : "-";
 
   const initials = `${profile.first_name?.[0] ?? ""}${profile.last_name?.[0] ?? ""}`.toUpperCase();
+
+  const startEditingName = () => {
+    setEditFirstName(profile.first_name);
+    setEditLastName(profile.last_name);
+    setNameError("");
+    setNameSuccess("");
+    setIsEditingName(true);
+  };
+
+  const cancelEditingName = () => {
+    setIsEditingName(false);
+    setNameError("");
+  };
+
+  const handleSaveName = async () => {
+    setNameError("");
+    setNameSuccess("");
+
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      setNameError("กรุณากรอกชื่อและนามสกุล");
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: editFirstName.trim(),
+          last_name: editLastName.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setNameError(data.message || "เกิดข้อผิดพลาด");
+        return;
+      }
+
+      setProfile(data);
+      setIsEditingName(false);
+      setNameSuccess("บันทึกข้อมูลสำเร็จ");
+      await updateSession();
+    } catch {
+      setNameError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,61 +228,168 @@ export default function ProfilePage() {
             <div className="space-y-6 lg:col-span-2">
               {/* Info card */}
               <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-                <h2 className="mb-5 text-base font-semibold text-[#14532D]">
-                  ข้อมูลส่วนตัว
-                </h2>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
-                    <User size={18} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">ชื่อ</p>
-                      <p className="mt-0.5 text-sm font-medium text-gray-800">
-                        {profile.first_name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
-                    <User size={18} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">นามสกุล</p>
-                      <p className="mt-0.5 text-sm font-medium text-gray-800">
-                        {profile.last_name}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
-                    <Mail size={18} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">อีเมล</p>
-                      <p className="mt-0.5 text-sm font-medium text-gray-800">
-                        {profile.email}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
-                    <Shield size={18} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">สิทธิ์การใช้งาน</p>
-                      <p className="mt-0.5 text-sm font-medium text-gray-800">
-                        {roleLabel}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4 sm:col-span-2">
-                    <CalendarDays size={18} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">วันที่สมัคร</p>
-                      <p className="mt-0.5 text-sm font-medium text-gray-800">
-                        {createdDate}
-                      </p>
-                    </div>
-                  </div>
+                <div className="mb-5 flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-[#14532D]">
+                    ข้อมูลส่วนตัว
+                  </h2>
+                  {!isEditingName && (
+                    <button
+                      type="button"
+                      onClick={startEditingName}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                    >
+                      <Pencil size={13} />
+                      แก้ไข
+                    </button>
+                  )}
                 </div>
+
+                {nameSuccess && (
+                  <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {nameSuccess}
+                  </div>
+                )}
+
+                {isEditingName ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-600">
+                          ชื่อ
+                        </label>
+                        <input
+                          type="text"
+                          value={editFirstName}
+                          onChange={(e) => setEditFirstName(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                          placeholder="กรอกชื่อ"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-sm font-medium text-gray-600">
+                          นามสกุล
+                        </label>
+                        <input
+                          type="text"
+                          value={editLastName}
+                          onChange={(e) => setEditLastName(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                          placeholder="กรอกนามสกุล"
+                        />
+                      </div>
+                    </div>
+
+                    {nameError && (
+                      <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                        {nameError}
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={cancelEditingName}
+                        disabled={savingName}
+                        className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        ยกเลิก
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveName}
+                        disabled={savingName}
+                        className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-50"
+                      >
+                        {savingName ? "กำลังบันทึก..." : "บันทึก"}
+                      </button>
+                    </div>
+
+                    {/* Non-editable fields shown below */}
+                    <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
+                        <Mail size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">อีเมล</p>
+                          <p className="mt-0.5 text-sm font-medium text-gray-800">
+                            {profile.email}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
+                        <Shield size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">สิทธิ์การใช้งาน</p>
+                          <p className="mt-0.5 text-sm font-medium text-gray-800">
+                            {roleLabel}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4 sm:col-span-2">
+                        <CalendarDays size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">วันที่สมัคร</p>
+                          <p className="mt-0.5 text-sm font-medium text-gray-800">
+                            {createdDate}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
+                      <User size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-400">ชื่อ</p>
+                        <p className="mt-0.5 text-sm font-medium text-gray-800">
+                          {profile.first_name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
+                      <User size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-400">นามสกุล</p>
+                        <p className="mt-0.5 text-sm font-medium text-gray-800">
+                          {profile.last_name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
+                      <Mail size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-400">อีเมล</p>
+                        <p className="mt-0.5 text-sm font-medium text-gray-800">
+                          {profile.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4">
+                      <Shield size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-400">สิทธิ์การใช้งาน</p>
+                        <p className="mt-0.5 text-sm font-medium text-gray-800">
+                          {roleLabel}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-xl bg-emerald-50/50 p-4 sm:col-span-2">
+                      <CalendarDays size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-400">วันที่สมัคร</p>
+                        <p className="mt-0.5 text-sm font-medium text-gray-800">
+                          {createdDate}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Change password card */}

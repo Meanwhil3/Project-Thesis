@@ -75,11 +75,21 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     // ✅ เก็บ role/user_id ลง token เพื่อให้ session callback เอาไปใช้ได้ :contentReference[oaicite:1]{index=1}
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.user_id = (user as any).user_id ?? user.id;
         token.role = (user as any).role ?? null;
-        token.role = (user as any).role ?? null;
+        token.name = user.name;
+      }
+      // เมื่อ client เรียก update() ให้ดึงชื่อล่าสุดจาก DB
+      if (trigger === "update" && token.user_id) {
+        const freshUser = await prisma.user.findUnique({
+          where: { user_id: BigInt(String(token.user_id)) },
+          select: { first_name: true, last_name: true },
+        });
+        if (freshUser) {
+          token.name = `${freshUser.first_name ?? ""} ${freshUser.last_name ?? ""}`.trim();
+        }
       }
       return token;
     },
@@ -89,7 +99,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).user_id = token.user_id;
         (session.user as any).role = token.role;
-        (session.user as any).role = token.role;
+        session.user.name = token.name as string;
       }
       return session;
     },
