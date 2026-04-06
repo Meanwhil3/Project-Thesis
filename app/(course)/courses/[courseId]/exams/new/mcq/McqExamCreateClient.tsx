@@ -7,6 +7,7 @@ import { AlertCircle, ArrowLeft, Loader2, Save } from "lucide-react";
 
 import ExamMetaForm from "@/components/Courses/Exams/forms/ExamMetaForm";
 import McqEditor from "@/components/Courses/Exams/forms/McqEditor";
+import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 
 type ExamStatus = "HIDE" | "SHOW";
 type StatusFilter = ExamStatus;
@@ -199,6 +200,8 @@ export default function McqExamCreateClient({
           <McqEditor questions={questions} setQuestions={setQuestions} />
         </section>
       </main>
+
+      <ScrollToTopButton />
     </div>
   );
 }

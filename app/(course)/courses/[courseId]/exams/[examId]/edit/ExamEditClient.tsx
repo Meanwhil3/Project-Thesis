@@ -9,6 +9,7 @@ import { ExamType } from "@prisma/client";
 import ExamMetaForm from "@/components/Courses/Exams/forms/ExamMetaForm";
 import McqEditor from "@/components/Courses/Exams/forms/McqEditor";
 import WoodFillEditor from "@/components/Courses/Exams/forms/WoodFillEditor";
+import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 
 import type { McqQuestionDraft } from "@/components/Courses/Exams/forms/McqQuestionItem";
 import type { WoodFillQuestionDraft } from "@/components/Courses/Exams/forms/WoodFillQuestionItem";
@@ -374,6 +375,8 @@ export default function ExamEditClient({
           </div>
         </section>
       </main>
+
+      <ScrollToTopButton />
 
       <ConfirmModal
         open={showDeleteConfirm}

@@ -9,13 +9,15 @@ export default function CourseTabs({ courseId, role }: { courseId: string; role?
   const pathname = usePathname();
   const base = `/courses/${courseId}`;
 
-  const hideMembersTab = role !== "ADMIN";
+  const isAdmin = role === "ADMIN";
+  const isTrainee = role === "TRAINEE";
 
   const tabs: Tab[] = [
     { label: "ภาพรวม", href: base, exact: true },
     { label: "เนื้อหา", href: `${base}/lessons` },
     { label: "สอบ", href: `${base}/exams` },
-    ...(!hideMembersTab ? [{ label: "สมาชิก", href: `${base}/members` }] : []),
+    ...(isAdmin ? [{ label: "สมาชิก", href: `${base}/members` }] : []),
+    ...(isTrainee ? [{ label: "คะแนน", href: `${base}/scores` }] : []),
   ];
 
   const isActive = (t: Tab) => (t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(`${t.href}/`));

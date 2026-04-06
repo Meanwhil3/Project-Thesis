@@ -10,8 +10,8 @@ export default function Page() {
 
       <main className="flex-1">
         <CourseManagement />
-        <Footer />
       </main>
+      <Footer />
     </div>
   );
 }

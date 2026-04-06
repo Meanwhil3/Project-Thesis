@@ -178,8 +178,9 @@ export default function MembersClient({
     const examCols = selectedExamList.map(colKey);
     const selectedMaxTotal = selectedExamList.reduce((s, e) => s + e.maxScore, 0);
     const totalCol = `คะแนนรวม (${selectedMaxTotal})`;
+    const pctCol = "ร้อยละ";
     const passCol = "ผ่าน/ไม่ผ่าน";
-    const headers = ["name", "email", ...examCols, totalCol, passCol];
+    const headers = ["name", "email", ...examCols, totalCol, pctCol, passCol];
 
     const rows = filteredSorted.map((m) => {
       const row: Record<string, string | number> = {
@@ -197,6 +198,9 @@ export default function MembersClient({
         }
       }
       row[totalCol] = `${totalScore}`;
+      row[pctCol] = selectedMaxTotal > 0
+        ? `${((totalScore / selectedMaxTotal) * 100).toFixed(2)}`
+        : "0.00";
       row[passCol] = totalScore >= selectedMaxTotal * 0.8 ? "ผ่าน" : "ไม่ผ่าน";
       return row;
     });
@@ -205,6 +209,7 @@ export default function MembersClient({
       const emptyRow: Record<string, string | number> = { name: "", email: "" };
       for (const t of examCols) emptyRow[t] = "";
       emptyRow[totalCol] = "";
+      emptyRow[pctCol] = "";
       emptyRow[passCol] = "";
       rows.push(emptyRow);
     }

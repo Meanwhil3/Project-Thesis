@@ -24,6 +24,11 @@ export default function EditWoodPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [selectedFiles, setSelectedFiles] = useState<{file: File, preview: string}[]>([]);
 
+  // ชื่อวิทยาศาสตร์ 3 ส่วน: Genus (ตัวใหญ่เอียง) + species (ตัวเล็กเอียง) + Author (ปกติ)
+  const [sciGenus, setSciGenus] = useState('');
+  const [sciSpecies, setSciSpecies] = useState('');
+  const [sciAuthor, setSciAuthor] = useState('');
+
   // --- ตรวจสอบสิทธิ์ (Role Protection) ---
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -50,6 +55,13 @@ export default function EditWoodPage() {
           wood_taste: 'ไม่มีรส',
           ...data
         });
+        // แยกชื่อวิทยาศาสตร์ออกเป็น 3 ส่วน
+        if (data.scientific_name) {
+          const parts = data.scientific_name.trim().split(/\s+/);
+          setSciGenus(parts[0] || '');
+          setSciSpecies(parts[1] || '');
+          setSciAuthor(parts.slice(2).join(' ') || '');
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -88,12 +100,16 @@ export default function EditWoodPage() {
     e.preventDefault();
     setSaving(true);
     const formData = new FormData();
-    
+
+    // รวมชื่อวิทยาศาสตร์จาก 3 ส่วน
+    const combinedSciName = `${sciGenus} ${sciSpecies}${sciAuthor ? ` ${sciAuthor}` : ''}`.trim();
+
     Object.keys(wood).forEach(key => {
-      if (key !== 'images' && key !== 'wood_id') {
+      if (key !== 'images' && key !== 'wood_id' && key !== 'scientific_name') {
         formData.append(key, wood[key] ?? "");
       }
     });
+    formData.append('scientific_name', combinedSciName);
     
     formData.append('existing_images', JSON.stringify(wood.images || []));
     selectedFiles.forEach(f => formData.append('new_images', f.file));
@@ -191,7 +207,51 @@ export default function EditWoodPage() {
                 <div className={activeTab === 'basic' ? 'block p-6 animate-in fade-in duration-300' : 'hidden'}>
                   <SectionHeader icon={Info} title="ข้อมูลพื้นฐานและอัตลักษณ์" color="text-[#16A34A]" bgColor="bg-[#DCFCE7]" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Field label="ชื่อวิทยาศาสตร์" name="scientific_name" value={wood.scientific_name} onChange={handleChange} icon={Dna} required />
+                    {/* ชื่อวิทยาศาสตร์ 3 ส่วน */}
+                    <div className="md:col-span-2 space-y-3">
+                      <Label className="text-[#14532D] text-sm font-medium">
+                        ชื่อวิทยาศาสตร์ <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <span className="text-xs text-[#6E8E59]">Genus (สกุล)</span>
+                          <div className="relative">
+                            <Dna className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86A97A]" />
+                            <Input
+                              value={sciGenus}
+                              onChange={(e) => setSciGenus(e.target.value)}
+                              placeholder="เช่น Tectona"
+                              required
+                              className="h-11 w-full rounded-xl border-[#CDE3BD] bg-white pl-9 pr-4 text-sm italic text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 focus:ring-[#4CA771]/25 focus:border-[#4CA771] transition-all capitalize"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-[#6E8E59]">Species (ชนิด)</span>
+                          <Input
+                            value={sciSpecies}
+                            onChange={(e) => setSciSpecies(e.target.value)}
+                            placeholder="เช่น grandis"
+                            required
+                            className="h-11 w-full rounded-xl border-[#CDE3BD] bg-white px-4 text-sm italic text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 focus:ring-[#4CA771]/25 focus:border-[#4CA771] transition-all lowercase"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-[#6E8E59]">Author (ผู้ตั้งชื่อ)</span>
+                          <Input
+                            value={sciAuthor}
+                            onChange={(e) => setSciAuthor(e.target.value)}
+                            placeholder="เช่น L.f."
+                            className="h-11 w-full rounded-xl border-[#CDE3BD] bg-white px-4 text-sm text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2 focus:ring-[#4CA771]/25 focus:border-[#4CA771] transition-all"
+                          />
+                        </div>
+                      </div>
+                      {(sciGenus || sciSpecies || sciAuthor) && (
+                        <p className="text-sm text-[#14532D] bg-[#F6FBF6] rounded-lg px-3 py-2 border border-[#CDE3BD]">
+                          ตัวอย่าง: <em className="italic">{sciGenus} {sciSpecies}</em>{sciAuthor ? ` ${sciAuthor}` : ''}
+                        </p>
+                      )}
+                    </div>
                     <Field label="ชื่อสามัญ" name="common_name" value={wood.common_name} onChange={handleChange} icon={TextCursorInput} required />
                     <SelectField label="ถิ่นกำเนิดไม้ (Geographic distribution)" value={wood.wood_origin} onValueChange={(v: string)=>handleSelectChange('wood_origin', v)} icon={MapPin}>
                         <SelectItem value="Europe and temperate Asia">Europe and temperate Asia</SelectItem>
