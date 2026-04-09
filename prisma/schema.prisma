@@ -296,7 +296,6 @@ model Wood_Images {
   image_id          BigInt   @id @default(autoincrement())
   wood_id           BigInt?
   image_url         String   @unique @db.Text
-  image_description String?  @db.Text
   date_added        DateTime @default(now()) @db.Timestamptz
 
   wood Wood? @relation(fields: [wood_id], references: [wood_id], onDelete: Cascade)
