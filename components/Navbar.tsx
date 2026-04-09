@@ -22,6 +22,9 @@ type NavbarProps = {
 
   /** ✅ ถ้า scroll ไม่ได้เกิดที่ window ให้ส่ง ref ของ scroll container */
   scrollRef?: React.RefObject<HTMLElement | null>;
+
+  /** ✅ ความสูง navbar สำหรับทำ spacer กัน layout กระโดด (default เผื่อ pt-2 + bar) */
+  heightClassName?: string; // e.g. "h-[51px]"
 };
 
 function cn(...classes: Array<string | undefined | false>) {
@@ -36,6 +39,7 @@ export default function Navbar({
   threshold = 12,
   topOffsetClassName = "top-0",
   scrollRef,
+  heightClassName = "h-[51px]",
 }: NavbarProps) {
   const pathname = usePathname();
 
@@ -67,8 +71,7 @@ export default function Navbar({
         if (y <= 0) {
           setIsVisible(true);
         } else if (Math.abs(delta) >= threshold) {
-          // ✅ เลื่อนลงซ่อน, เลื่อนขึ้นแสดง
-          setIsVisible(delta < 0);
+          setIsVisible(delta < 0); // ลง=ซ่อน, ขึ้น=โชว์
           lastYRef.current = y;
         }
 
@@ -85,71 +88,76 @@ export default function Navbar({
   const cols = Math.max(1, items.length);
 
   return (
-    <div
-      className={cn(
-        "sticky z-100 w-full transition-transform duration-300 will-change-transform",
-        topOffsetClassName,
-        isVisible ? "translate-y-0" : "-translate-y-[120%]"
-      )}
-    >
-      <div className="mx-auto w-full max-w-6xl px-4">
-        <div className="relative h-[41px] w-full overflow-hidden rounded-[10px] bg-white shadow-[0px_0px_4px_rgba(0,0,0,0.25)]">
-          <div
-            className="absolute top-0 h-full rounded-[10px] bg-[#D6EBDD] transition-all duration-300"
-            style={{
-              width: `${100 / cols}%`,
-              left: `${(idx * 100) / cols}%`,
-            }}
-          />
+    <>
+      {/* ✅ spacer กัน content กระโดด เพราะ navbar เป็น fixed */}
+      <div aria-hidden className={cn("w-full", heightClassName)} />
 
-          <div
-            className="relative grid h-full w-full"
-            style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-          >
-            {items.map((item) => {
-              const isActive = item.key === derivedActiveKey;
+      <div
+        className={cn(
+          "fixed left-0 right-0 z-40 w-full transition-transform duration-300 will-change-transform",
+          topOffsetClassName,
+          isVisible ? "translate-y-0" : "-translate-y-full"
+        )}
+      >
+        <div className="mx-auto w-full max-w-6xl px-4 pt-2">
+          <div className="relative h-[41px] w-full overflow-hidden rounded-[10px] bg-white shadow-[0px_0px_4px_rgba(0,0,0,0.25)]">
+            <div
+              className="absolute top-0 h-full rounded-[10px] bg-[#D6EBDD] transition-all duration-300"
+              style={{
+                width: `${100 / cols}%`,
+                left: `${(idx * 100) / cols}%`,
+              }}
+            />
 
-              const base =
-                "h-full w-full select-none px-2 text-center text-[16px] flex items-center justify-center transition-colors duration-200";
-              const text = item.disabled
-                ? "text-[#BDBDBD]"
-                : isActive
-                ? "text-[#1C803D]"
-                : "text-[#878787] hover:text-[#2f2f2f]";
+            <div
+              className="relative grid h-full w-full"
+              style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+            >
+              {items.map((item) => {
+                const isActive = item.key === derivedActiveKey;
 
-              const common = {
-                className: cn(base, text),
-                "aria-current": isActive ? ("page" as const) : undefined,
-              };
+                const base =
+                  "h-full w-full select-none px-2 text-center text-[16px] flex items-center justify-center transition-colors duration-200";
+                const text = item.disabled
+                  ? "text-[#BDBDBD]"
+                  : isActive
+                  ? "text-[#1C803D]"
+                  : "text-[#878787] hover:text-[#2f2f2f]";
 
-              if (item.href && !item.disabled) {
+                const common = {
+                  className: cn(base, text),
+                  "aria-current": isActive ? ("page" as const) : undefined,
+                };
+
+                if (item.href && !item.disabled) {
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      {...common}
+                      onClick={() => onChange?.(item.key)}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                }
+
                 return (
-                  <Link
+                  <button
                     key={item.key}
-                    href={item.href}
+                    type="button"
                     {...common}
-                    onClick={() => onChange?.(item.key)}
+                    disabled={item.disabled}
+                    onClick={() => !item.disabled && onChange?.(item.key)}
                   >
                     {item.label}
-                  </Link>
+                  </button>
                 );
-              }
-
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  {...common}
-                  disabled={item.disabled}
-                  onClick={() => !item.disabled && onChange?.(item.key)}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+              })}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

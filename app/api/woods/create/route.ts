@@ -2,9 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from "next-auth"; // เพิ่มการดึง Session
+import { authOptions } from "@/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. ตรวจสอบ Session และสิทธิ์ในฝั่ง Server
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const role = String((session.user as any).role ?? "").toUpperCase();
+    if (role !== "ADMIN" && role !== "INSTRUCTOR") {
+      return NextResponse.json({ error: "Forbidden: No permission" }, { status: 403 });
+    }
+
     const formData = await req.formData();
     const commonName = formData.get('common_name') as string;
 
@@ -12,8 +25,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Common name is required" }, { status: 400 });
     }
 
-    // 1. ดึงค่าผู้สร้าง
-    const createdByRaw = (formData.get('created_by') || formData.get('user_id')) as string;
+    // 2. ดึงค่า ID ผู้ใช้งานจาก Session เพื่อความปลอดภัย
+    const user = session.user as any;
+    const userId = user.id || user.user_id || user.sub;
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID not found in session" }, { status: 400 });
+    }
 
     const data: any = {
       common_name: commonName,
@@ -22,17 +40,14 @@ export async function POST(req: NextRequest) {
       wood_description: formData.get('wood_description') as string,
       wood_status: (formData.get('wood_status') as any) || 'SHOW',
       
-      // ✅ แก้ไขจุดที่ 1: ใช้ relation 'author' แทนการใส่ scalar field 'created_by' โดยตรง
-      author: createdByRaw ? {
-        connect: { user_id: BigInt(createdByRaw) }
-      } : undefined,
+      // ✅ ใช้ relation 'author' เชื่อมต่อกับ User ID จาก Session โดยตรง
+      author: {
+        connect: { user_id: BigInt(userId) }
+      },
       
       wood_taste: formData.get('wood_taste') as string,
       wood_odor: formData.get('wood_odor') as string,
-
-      // ✅ แก้ไขจุดที่ 2: เปลี่ยนจาก wood_Texture เป็น wood_texture (t ตัวเล็ก) ให้ตรงกับ schema
       wood_texture: formData.get('wood_texture') as string, 
-
       wood_luster: formData.get('wood_luster') as string,
       wood_grain: formData.get('wood_grain') as string,
       wood_weight: (formData.get('wood_weight') as any),
@@ -65,7 +80,7 @@ export async function POST(req: NextRequest) {
     // 3. บันทึก Wood ลง DB
     const newWood = await prisma.wood.create({ data });
 
-    // 4. จัดการรูปภาพ
+    // 4. จัดการรูปภาพ (รักษา Logic เดิม)
     const images = formData.getAll('images') as File[];
     const folderName = commonName.replace(/\s+/g, '_');
     const uploadDir = path.join(process.cwd(), 'public/images/woods', folderName);

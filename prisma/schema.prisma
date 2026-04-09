@@ -7,14 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CourseStatus {
-  HIDE
-  SHOW
+enum LessonStatus {
+  OPEN   @map("SHOW")
+  CLOSED @map("HIDE")
 }
 
-enum LessonStatus {
-  OPEN
-  CLOSE
+enum CourseStatus {
+  OPEN   @map("SHOW")
+  CLOSED @map("HIDE")
 }
 
 enum ExamType {
@@ -37,17 +37,6 @@ enum WoodStatus {
   SHOW
 }
 
-enum WoodWeight {
-  LIGHT
-  MEDIUM
-  HEAVY
-}
-
-enum RaysPerMm {
-  LOW
-  MEDIUM
-  HIGH
-}
 
 // --- Models ---
 
@@ -94,7 +83,7 @@ model Course {
   course_status      CourseStatus?
   start_date         DateTime?     @db.Timestamptz
   end_date           DateTime?     @db.Timestamptz
-  created_at         DateTime      @default(now()) @db.Timestamptz
+  created_at         DateTime?     @db.Timestamptz
   deleted_at         DateTime?     @db.Timestamptz
 
   enrollments   CourseEnrollments[]
@@ -113,23 +102,21 @@ model CourseEnrollments {
   enrollment_date DateTime  @default(now()) @db.Timestamptz
   deleted_at      DateTime? @db.Timestamptz
 
-  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
-  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  user   User?   @relation(fields: [user_id], references: [user_id])
+  course Course? @relation(fields: [course_id], references: [course_id])
 
-  @@unique([user_id, course_id])
   @@index([course_id])
   @@index([user_id])
+  @@index([user_id, course_id])
   @@map("Course_Enrollments")
 }
 
 model Instructor {
-  user_id    BigInt
-  course_id  BigInt
-  created_at DateTime  @default(now()) @db.Timestamptz
-  deleted_at DateTime? @db.Timestamptz
+  user_id   BigInt
+  course_id BigInt
 
-  user   User   @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
-  course Course @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  user   User   @relation(fields: [user_id], references: [user_id])
+  course Course @relation(fields: [course_id], references: [course_id])
 
   @@id([user_id, course_id])
   @@index([course_id])
@@ -154,19 +141,20 @@ model Announcements {
 
 model Lessons {
   lesson_id      BigInt        @id @default(autoincrement())
-  course_id      BigInt
+  course_id      BigInt?       
   lesson_title   String        @db.Text
   lesson_content String        @db.Text
   lesson_status  LessonStatus?
+  order_index    Int           @default(0) // สำหรับสลับลำดับบทเรียน
   created_at     DateTime      @default(now()) @db.Timestamptz
   created_by     BigInt?
   deleted_at     DateTime?     @db.Timestamptz
 
-  course      Course               @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
-  author      User?                @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
+  course      Course?             @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
+  author      User?               @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
   attachments Lesson_Attachments[]
 
-  @@index([course_id])
+  @@index([course_id, order_index])
   @@map("Lessons")
 }
 
@@ -174,7 +162,7 @@ model Lesson_Attachments {
   attachment_id BigInt   @id @default(autoincrement())
   lesson_id     BigInt
   display_name  String   @db.VarChar(255)
-  file_path     String   @unique @db.Text
+  file_path     String   @db.Text
   file_type     String   @db.Text
   created_at    DateTime @default(now()) @db.Timestamptz
 
@@ -186,22 +174,27 @@ model Lesson_Attachments {
 
 model Exams {
   exam_id          BigInt      @id @default(autoincrement())
-  course_id        BigInt
+  course_id        BigInt?
   exam_title       String      @db.Text
   exam_description String?     @db.Text
   exam_type        ExamType?
   duration_minute  Int
   exam_status      ExamStatus?
+  examAccessCode   String?     @map("exam_access_code") @db.VarChar(6)
   created_at       DateTime    @default(now()) @db.Timestamptz
   created_by       BigInt?
   deleted_at       DateTime?   @db.Timestamptz
+  open_at          DateTime?   @db.Timestamptz
+  close_at         DateTime?   @db.Timestamptz
 
-  course    Course          @relation(fields: [course_id], references: [course_id], onDelete: Restrict)
-  author    User?           @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
+  course    Course?         @relation(fields: [course_id], references: [course_id])
+  author    User?           @relation(fields: [created_by], references: [user_id])
   questions Questions[]
   attempts  Exam_Attempts[]
 
-  @@index([course_id])
+  @@unique([course_id, examAccessCode], map: "Exams_course_id_exam_access_code_key")
+  @@index([open_at])
+  @@index([close_at])
   @@map("Exams")
 }
 
@@ -210,10 +203,10 @@ model Questions {
   exam_id         BigInt
   score           Int
   question_detail String    @db.Text
-  created_at      DateTime  @default(now()) @db.Timestamptz
+  created_at      DateTime? @default(now())
   deleted_at      DateTime? @db.Timestamptz
 
-  exam    Exams     @relation(fields: [exam_id], references: [exam_id], onDelete: Restrict)
+  exam    Exams?    @relation(fields: [exam_id], references: [exam_id])
   choices Choices[]
 
   @@index([exam_id])
@@ -225,30 +218,31 @@ model Choices {
   question_id   BigInt
   choice_detail String    @db.Text
   is_correct    Boolean   @default(false)
-  created_at    DateTime  @default(now()) @db.Timestamptz
+  created_at    DateTime? @default(now())
   deleted_at    DateTime? @db.Timestamptz
 
-  question Questions @relation(fields: [question_id], references: [question_id], onDelete: Restrict)
+  question Questions? @relation(fields: [question_id], references: [question_id])
 
   @@index([question_id])
   @@map("Choices")
 }
 
 model Exam_Attempts {
-  attempt_id      BigInt         @id @default(autoincrement())
+  attempt_id      BigInt        @id @default(autoincrement())
   user_id         BigInt
   exam_id         BigInt
-  attempt_status  AttemptStatus?
-  total_score     Int            @default(0)
-  submit_datetime DateTime?      @db.Timestamptz
-  created_at      DateTime       @default(now()) @db.Timestamptz
-  deleted_at      DateTime?      @db.Timestamptz
+  attempt_status  AttemptStatus @default(IN_PROGRESS)
+  total_score     Int           @default(0)
+  started_at      DateTime      @default(now()) @db.Timestamptz
+  submit_datetime DateTime?     @db.Timestamptz
+  created_at      DateTime      @default(now()) @db.Timestamptz
+  deleted_at      DateTime?     @db.Timestamptz
 
-  user User  @relation(fields: [user_id], references: [user_id], onDelete: Restrict)
-  exam Exams @relation(fields: [exam_id], references: [exam_id], onDelete: Restrict)
+  user User  @relation(fields: [user_id], references: [user_id])
+  exam Exams @relation(fields: [exam_id], references: [exam_id])
 
-  @@index([user_id])
-  @@index([exam_id])
+  @@index([exam_id, user_id])
+  @@index([submit_datetime])
   @@map("Exam_Attempts")
 }
 
@@ -261,10 +255,10 @@ model Wood {
   wood_status                  WoodStatus?
   wood_taste                   String?     @db.VarChar(255)
   wood_odor                    String?     @db.VarChar(255)
-  wood_texture                 String?     @db.VarChar(255)
+  wood_texture                 String?     @db.VarChar(255) // ปรับเป็นพิมพ์เล็กตามมาตรฐาน
   wood_luster                  String?     @db.VarChar(255)
   wood_grain                   String?     @db.VarChar(255)
-  wood_weight                  WoodWeight?
+  wood_weight                  String?     @db.VarChar(255)
   wood_colors                  String?     @db.VarChar(255)
   sapwood_heartwood_color_diff String?     @db.VarChar(255)
   growth_rings                 String?     @db.VarChar(255)
@@ -277,7 +271,7 @@ model Wood {
   vp_Pores_frequency           String?     @db.VarChar(255)
   vp_Pores_size                String?     @db.VarChar(255)
   vp_Pores_rays_ratio          String?     @db.VarChar(255)
-  rays_per_mm                  RaysPerMm?
+  rays_per_mm                  String?     @db.VarChar(255)
   rays_width                   String?     @db.VarChar(255)
   rays_two_distinct_sizes      String?     @db.VarChar(255)
   rays_aggregate               String?     @db.VarChar(255)
@@ -289,10 +283,10 @@ model Wood {
   ap_banded                    String?     @db.VarChar(255)
   created_by                   BigInt?
   deleted_at                   DateTime?   @db.Timestamptz
-  created_at                   DateTime?   @db.Timestamptz
-  updated_at                   DateTime?   @db.Timestamptz
+  created_at                   DateTime?   @default(now()) @db.Timestamptz
+  updated_at                   DateTime?   @updatedAt @db.Timestamptz
 
-  author User?         @relation(fields: [created_by], references: [user_id])
+  author User?         @relation(fields: [created_by], references: [user_id], onDelete: SetNull)
   images Wood_Images[]
 
   @@map("Wood")
@@ -302,10 +296,9 @@ model Wood_Images {
   image_id          BigInt   @id @default(autoincrement())
   wood_id           BigInt?
   image_url         String   @unique @db.Text
-  image_description String?  @db.Text
-  date_added        DateTime @db.Timestamptz
+  date_added        DateTime @default(now()) @db.Timestamptz
 
-  wood Wood? @relation(fields: [wood_id], references: [wood_id])
+  wood Wood? @relation(fields: [wood_id], references: [wood_id], onDelete: Cascade)
 
   @@map("Wood_Images")
 }

@@ -1,90 +1,41 @@
+//components/CoursesManagement.tsx
 "use client";
 
-import type { ElementType } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ArrowUpRight,
-  CalendarDays,
-  GraduationCap,
-  MapPin,
-  Search,
-  UserCheck,
-  Users,
-  FolderOpen,
-  Plus,
-} from "lucide-react";
 
-/* -------------------------------------------------------------------------- */
-/*                                    TYPES                                   */
-/* -------------------------------------------------------------------------- */
+import SummaryCard from "@/components/Courses/SummaryCard";
+import CourseCard, { type CourseItem } from "@/components/Courses/CourseCard";
 
-export type CourseStatus = "open" | "closed";
+import { GraduationCap, Search, Users, FolderOpen, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+
 export type CourseManagementMode = "admin" | "instructor" | "trainee";
 
-export interface CourseItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  imageUrl: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  enrolledCount: number;
-  status: CourseStatus;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                  MOCK DATA                                 */
-/* -------------------------------------------------------------------------- */
-
-const mockCourses: CourseItem[] = [
-  {
-    id: "1",
-    title: "อบรมรุ่นที่ 1",
-    subtitle: "อบรมพื้นฐานการพิสูจน์ไม้",
-    imageUrl: "https://placehold.co/380x190",
-    location: "M 02",
-    startDate: "15 มี.ค 2568",
-    endDate: "17 มี.ค 2568",
-    enrolledCount: 10,
-    status: "open",
-  },
-  {
-    id: "2",
-    title: "อบรมรุ่นที่ 2",
-    subtitle: "อบรมเชิงปฏิบัติการ (ภาคสนาม)",
-    imageUrl: "https://placehold.co/380x190",
-    location: "ห้องประชุม A",
-    startDate: "20 มี.ค 2568",
-    endDate: "22 มี.ค 2568",
-    enrolledCount: 24,
-    status: "open",
-  },
-  {
-    id: "3",
-    title: "อบรมรุ่นที่ 3",
-    subtitle: "อบรมทบทวนก่อนสอบ",
-    imageUrl: "https://placehold.co/380x190",
-    location: "M 03",
-    startDate: "28 มี.ค 2568",
-    endDate: "28 มี.ค 2568",
-    enrolledCount: 16,
-    status: "closed",
-  },
-];
+// trainee → ดูคอร์สทั้งหมด (OPEN) พร้อม enrolled flag
+// admin / instructor → endpoint ของตัวเอง
+const API_ENDPOINT: Record<CourseManagementMode, string> = {
+  admin: "/api/admin/courses",
+  instructor: "/api/instructor/courses",
+  trainee: "/api/courses",
+};
 
 export default function CourseManagement({
   title = "อบรมทั้งหมด",
-  mode, // ถ้าไม่ส่งมา จะเดาจาก pathname
+  mode,
 }: {
   title?: string;
   mode?: CourseManagementMode;
 }) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-  const [courseList] = useState<CourseItem[]>(mockCourses);
+  const [courseList, setCourseList] = useState<CourseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
 
   const resolvedMode: CourseManagementMode = useMemo(() => {
     if (mode) return mode;
@@ -93,7 +44,10 @@ export default function CourseManagement({
     return "trainee";
   }, [mode, pathname]);
 
-  const canCreateCourse = resolvedMode === "admin" || resolvedMode === "instructor";
+  const { data: session } = useSession();
+  const userRole = String((session?.user as any)?.role ?? "").toUpperCase();
+  const canCreateCourse =
+    (resolvedMode === "admin" || resolvedMode === "instructor") && userRole !== "TRAINEE";
   const createHref =
     resolvedMode === "admin"
       ? "/admin/courses/new"
@@ -101,9 +55,61 @@ export default function CourseManagement({
         ? "/instructor/courses/new"
         : "#";
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const endpoint = API_ENDPOINT[resolvedMode];
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const fetchCourses = fetch(endpoint, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        // ดึงจำนวนผู้ใช้งานจริง (เฉพาะ admin / instructor)
+        const fetchUsers =
+          resolvedMode !== "trainee"
+            ? fetch("/api/admin/users/count", {
+                cache: "no-store",
+                signal: controller.signal,
+              })
+            : null;
+
+        const [coursesRes, usersRes] = await Promise.all([
+          fetchCourses,
+          fetchUsers,
+        ]);
+
+        if (!coursesRes.ok) {
+          const msg = await coursesRes.text().catch(() => "");
+          throw new Error(msg || "โหลดข้อมูลคอร์สไม่สำเร็จ");
+        }
+
+        const data = (await coursesRes.json()) as CourseItem[];
+        setCourseList(Array.isArray(data) ? data : []);
+
+        if (usersRes?.ok) {
+          const usersData = await usersRes.json();
+          setTotalUsers(usersData.count ?? 0);
+        }
+      } catch (e) {
+        if ((e as any)?.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "โหลดข้อมูลคอร์สไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [resolvedMode]);
+
   const totalCourses = courseList.length;
   const openCount = courseList.filter((c) => c.status === "open").length;
-  const totalUsers = 127; // mock
+  const enrolledCount = courseList.filter((c) => c.enrolled).length;
 
   const filteredCourses = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -113,9 +119,36 @@ export default function CourseManagement({
     );
   }, [courseList, search]);
 
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / ITEMS_PER_PAGE));
+  const paginatedCourses = filteredCourses.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const getPageNumbers = () => {
+    const pages: (number | "...")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("...");
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
+    <div>
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-10">
         {/* Header */}
         <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -123,7 +156,9 @@ export default function CourseManagement({
               {title}
             </h1>
             <p className="text-sm text-[#6E8E59]">
-              จัดการและค้นหาอบรมในระบบได้จากหน้านี้
+              {resolvedMode === "trainee"
+                ? "ลงทะเบียนคอร์สที่สนใจเพื่อเข้าถึงบทเรียนและข้อสอบ"
+                : "จัดการและค้นหาอบรมในระบบได้จากหน้านี้"}
             </p>
           </div>
 
@@ -137,7 +172,6 @@ export default function CourseManagement({
                 เพิ่มคอร์ส
               </Link>
             )}
-
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CDE3BD] bg-white px-3 py-1 text-xs text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/60">
               <FolderOpen className="h-4 w-4 text-[#16A34A]" />
               <span>ทั้งหมด {totalCourses} รายการ</span>
@@ -147,32 +181,24 @@ export default function CourseManagement({
 
         {/* Summary cards */}
         <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <SummaryCard
-            label="อบรมทั้งหมด"
-            value={totalCourses}
-            icon={GraduationCap}
-            iconBg="bg-[#E8F7ED]"
-            iconColor="text-[#16A34A]"
-          />
-          <SummaryCard
-            label="ผู้ใช้งานทั้งหมด"
-            value={totalUsers}
-            icon={Users}
-            iconBg="bg-[#EAF2FF]"
-            iconColor="text-[#2563EB]"
-          />
-          <SummaryCard
-            label="เปิดรับสมัคร"
-            value={openCount}
-            icon={FolderOpen}
-            iconBg="bg-[#FFF7ED]"
-            iconColor="text-[#EA580C]"
-          />
+          {resolvedMode === "trainee" ? (
+            <>
+              <SummaryCard label="คอร์สทั้งหมด" value={totalCourses} icon={GraduationCap} iconBg="bg-[#E8F7ED]" iconColor="text-[#16A34A]" />
+              <SummaryCard label="ลงทะเบียนแล้ว" value={enrolledCount} icon={Users} iconBg="bg-[#EAF2FF]" iconColor="text-[#2563EB]" />
+              <SummaryCard label="เปิดรับสมัคร" value={openCount} icon={FolderOpen} iconBg="bg-[#FFF7ED]" iconColor="text-[#EA580C]" />
+            </>
+          ) : (
+            <>
+              <SummaryCard label="อบรมทั้งหมด" value={totalCourses} icon={GraduationCap} iconBg="bg-[#E8F7ED]" iconColor="text-[#16A34A]" />
+              <SummaryCard label="ผู้ใช้งานทั้งหมด" value={totalUsers} icon={Users} iconBg="bg-[#EAF2FF]" iconColor="text-[#2563EB]" />
+              <SummaryCard label="เปิดรับสมัคร" value={openCount} icon={FolderOpen} iconBg="bg-[#FFF7ED]" iconColor="text-[#EA580C]" />
+            </>
+          )}
         </div>
 
         {/* Search */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="relative w-full md:flex-1">
+        <div className="mb-6">
+          <div className="relative w-full">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86A97A]" />
             <input
               type="text"
@@ -180,145 +206,94 @@ export default function CourseManagement({
               className="h-11 w-full rounded-xl border border-[#CDE3BD] bg-white pl-9 pr-4 text-sm text-[#14532D] placeholder:text-[#93B08A] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:border-[#4CA771] focus:ring-2 focus:ring-[#4CA771]/25"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              disabled={loading}
             />
           </div>
         </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-white p-5 text-sm text-red-700 shadow-[0_0_4px_0_#CAE0BC]/50">
+            โหลดข้อมูลไม่สำเร็จ: {error}
+          </div>
+        )}
 
         {/* Grid */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCourses.map((c) => (
-            <CourseCard key={c.id} course={c} />
-          ))}
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-[360px] w-full max-w-[380px] justify-self-center overflow-hidden rounded-[20px] border border-[#E6F1DF] bg-white shadow-[0_0_4px_0_#CAE0BC]/50">
+                  <div className="h-[190px] w-full animate-pulse bg-[#F6FBF6]" />
+                  <div className="p-5">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-[#F6FBF6]" />
+                    <div className="mt-3 h-3 w-full animate-pulse rounded bg-[#F6FBF6]" />
+                    <div className="mt-2 h-3 w-5/6 animate-pulse rounded bg-[#F6FBF6]" />
+                    <div className="mt-6 space-y-3">
+                      <div className="h-3 w-1/2 animate-pulse rounded bg-[#F6FBF6]" />
+                      <div className="h-3 w-2/3 animate-pulse rounded bg-[#F6FBF6]" />
+                      <div className="h-3 w-3/5 animate-pulse rounded bg-[#F6FBF6]" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            : paginatedCourses.map((c) => <CourseCard key={c.id} course={c} />)}
         </div>
 
-        {filteredCourses.length === 0 && (
-          <div className="mt-10 rounded-2xl border border-[#CDE3BD] bg-white p-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50">
-            <p className="text-sm font-medium text-[#14532D]">
-              ไม่พบอบรมตามเงื่อนไขที่ค้นหา
-            </p>
-            <p className="mt-1 text-xs text-[#6E8E59]">
-              ลองปรับคำค้นหาให้สั้นลง หรือค้นด้วยชื่อสถานที่
-            </p>
+        {/* Pagination */}
+        {!loading && !error && totalPages > 1 && (
+          <div className="mt-8 flex items-center justify-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#CDE3BD] bg-white text-[#14532D] transition hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {getPageNumbers().map((page, i) =>
+              page === "..." ? (
+                <span key={`dot-${i}`} className="px-1.5 text-sm text-gray-400">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition ${
+                    currentPage === page
+                      ? "bg-[#14532D] text-white shadow-sm"
+                      : "border border-[#CDE3BD] bg-white text-[#14532D] hover:bg-emerald-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#CDE3BD] bg-white text-[#14532D] transition hover:bg-emerald-50 disabled:opacity-40 disabled:hover:bg-white"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            <span className="ml-3 text-xs text-[#6E8E59]">
+              หน้า {currentPage} / {totalPages}
+            </span>
           </div>
         )}
-      </main>
-    </div>
-  );
-}
 
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  iconBg,
-  iconColor,
-}: {
-  label: string;
-  value: number;
-  icon: ElementType;
-  iconBg: string;
-  iconColor: string;
-}) {
-  return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white px-7 py-6 shadow-[0_0_4px_0_#CAE0BC]">
-      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#DCFCE7]/35 blur-2xl" />
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[#6E8E59]">{label}</p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight text-[#14532D]">
-            {value}
-          </p>
-        </div>
-
-        <div
-          className={[
-            "flex h-14 w-14 items-center justify-center rounded-2xl ring-1 ring-black/5 transition group-hover:scale-[1.02]",
-            iconBg,
-          ].join(" ")}
-        >
-          <Icon className={["h-7 w-7", iconColor].join(" ")} />
-        </div>
+        {!loading && !error && filteredCourses.length === 0 && (
+          <div className="mt-10 rounded-2xl border border-[#CDE3BD] bg-white p-8 text-center shadow-[0_0_4px_0_#CAE0BC]/50">
+            <p className="text-sm font-medium text-[#14532D]">ไม่พบอบรมตามเงื่อนไขที่ค้นหา</p>
+            <p className="mt-1 text-xs text-[#6E8E59]">ลองปรับคำค้นหาให้สั้นลง หรือค้นด้วยชื่อสถานที่</p>
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function CourseCard({ course }: { course: CourseItem }) {
-  const isOpen = course.status === "open";
-
-  return (
-    <div className="group relative w-full max-w-[380px] justify-self-center overflow-hidden rounded-[28px] bg-white shadow-[0_0_4px_0_#CAE0BC] transition hover:-translate-y-0.5 hover:shadow-[0_10px_30px_-18px_rgba(20,83,45,0.45)]">
-      <div className="relative">
-        <img
-          src={course.imageUrl}
-          alt={course.title}
-          className="h-[190px] w-full object-cover"
-        />
-
-        <div className="absolute left-4 top-4">
-          <span
-            className={[
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium shadow-sm backdrop-blur",
-              isOpen
-                ? "border-[#86EFAC] bg-[#DCFCE7]/80 text-[#14532D]"
-                : "border-[#E5E7EB] bg-white/80 text-[#6B7280]",
-            ].join(" ")}
-          >
-            <span
-              className={[
-                "h-2 w-2 rounded-full",
-                isOpen ? "bg-[#16A34A]" : "bg-[#9CA3AF]",
-              ].join(" ")}
-            />
-            {isOpen ? "เปิดรับสมัคร" : "ปิดรับสมัคร"}
-          </span>
-        </div>
-      </div>
-
-      <div className="px-5 pb-14 pt-4 font-kanit">
-        <h3 className="text-[18px] font-semibold leading-[28px] text-[#14532D]">
-          {course.title}
-        </h3>
-        <p className="mt-1 line-clamp-2 text-[12px] font-medium leading-[18px] text-[#6E8E59]">
-          {course.subtitle}
-        </p>
-
-        <div className="mt-6 space-y-3 text-[14px] font-medium leading-[22px] text-[#111827]">
-          <Row icon={UserCheck} text={`${course.enrolledCount} คนลงทะเบียน`} />
-          <Row
-            icon={CalendarDays}
-            text={`${course.startDate} - ${course.endDate}`}
-          />
-          <Row icon={MapPin} text={course.location} />
-        </div>
-      </div>
-
-      <button
-        type="button"
-        className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full border border-[#14532D]/70 bg-white text-[#14532D] shadow-sm transition hover:bg-[#14532D] hover:text-white active:scale-95"
-        aria-label="รายละเอียดอบรม"
-      >
-        <ArrowUpRight className="h-[18px] w-[18px]" />
-      </button>
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-r from-[#DCFCE7] via-[#CDE3BD] to-transparent opacity-0 transition group-hover:opacity-100" />
-    </div>
-  );
-}
-
-function Row({
-  icon: Icon,
-  text,
-}: {
-  icon: ElementType;
-  text: string;
-}) {
-  return (
-    <div className="flex items-start gap-2">
-      <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-[#F0FDF4] text-[#16A34A] ring-1 ring-black/5">
-        <Icon className="h-4 w-4" />
-      </div>
-      <span className="text-[#111827]">{text}</span>
     </div>
   );
 }
