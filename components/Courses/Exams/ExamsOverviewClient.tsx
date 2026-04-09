@@ -14,7 +14,7 @@ type StatusFilter = "all" | ExamStatus;
 
 const typeOptions: ReadonlyArray<SelectOption<TypeFilter>> = [
   { value: "all", label: "ประเภท: ทั้งหมด" },
-  { value: "wood_fill", label: "เติมข้อมูลพันธุ์ไม้" },
+  { value: "wood_fill", label: "เติมข้อมูลพรรณไม้" },
   { value: "mcq", label: "ปรนัย" },
 ] as const;
 
@@ -65,7 +65,7 @@ export default function ExamsOverviewClient({
       {canManage ? (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <ExamTypeCard
-            title="เติมข้อมูลพันธุ์ไม้"
+            title="เติมข้อมูลพรรณไม้"
             description="สร้างข้อสอบแบบกรอกคำตอบ/รหัสคำตอบ พร้อมกำหนดคะแนน"
             href={`/courses/${courseId}/exams/new/wood-fill`}
             Icon={FileText}

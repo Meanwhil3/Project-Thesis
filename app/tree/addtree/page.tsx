@@ -152,7 +152,7 @@ export default function AddWoodPage() {
                 <ArrowLeft size={18} /> กลับ
               </button>
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-[#14532D]">ลงทะเบียนข้อมูลพันธุ์ไม้</h1>
+                <h1 className="text-2xl font-semibold tracking-tight text-[#14532D]">ลงทะเบียนข้อมูลพรรณไม้</h1>
                 <p className="text-sm text-[#6E8E59]">จัดหมวดหมู่ตามโครงสร้างพฤกษศาสตร์</p>
               </div>
             </div>
@@ -500,8 +500,8 @@ export default function AddWoodPage() {
 
       <ConfirmModal
         open={successOpen}
-        title="บันทึกข้อมูลพันธุ์ไม้สำเร็จ"
-        description="ข้อมูลพันธุ์ไม้ถูกบันทึกเข้าสู่ระบบเรียบร้อยแล้ว"
+        title="บันทึกข้อมูลพรรณไม้สำเร็จ"
+        description="ข้อมูลพรรณไม้ถูกบันทึกเข้าสู่ระบบเรียบร้อยแล้ว"
         confirmText="ตกลง"
         variant="success"
         onConfirm={() => router.push('/tree/treesearch')}

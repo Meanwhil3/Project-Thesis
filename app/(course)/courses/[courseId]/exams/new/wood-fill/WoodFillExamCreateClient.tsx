@@ -68,7 +68,7 @@ export default function WoodFillExamCreateClient({ courseId }: { courseId: strin
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.woodName.trim()) return setError(`ข้อที่ ${i + 1}: กรุณากรอกชื่อพันธุ์ไม้/คำถาม`);
+      if (!q.woodName.trim()) return setError(`ข้อที่ ${i + 1}: กรุณากรอกชื่อพรรณไม้/คำถาม`);
       if (!Number.isFinite(q.score) || q.score <= 0) return setError(`ข้อที่ ${i + 1}: คะแนนต้องมากกว่า 0`);
 
       const codes = Array.from(
@@ -152,8 +152,8 @@ export default function WoodFillExamCreateClient({ courseId }: { courseId: strin
 
         <section className="mt-6 rounded-3xl bg-white/85 p-6 shadow-[0_0_6px_#CAE0BC] ring-1 ring-black/5 backdrop-blur">
           <div>
-            <div className="text-2xl font-medium text-[#14532D]">สร้างข้อสอบ: เติมข้อมูลพันธุ์ไม้</div>
-            <div className="mt-1 text-sm text-[#14532D]/70">กำหนดชื่อพันธุ์ไม้ + รหัสคำตอบที่ยอมรับได้ + คะแนน</div>
+            <div className="text-2xl font-medium text-[#14532D]">สร้างข้อสอบ: เติมข้อมูลพรรณไม้</div>
+            <div className="mt-1 text-sm text-[#14532D]/70">กำหนดชื่อพรรณไม้ + รหัสคำตอบที่ยอมรับได้ + คะแนน</div>
           </div>
 
           {error ? (

@@ -164,7 +164,7 @@ export default function EditWoodPage() {
                 <ArrowLeft size={18} /> กลับ
               </button>
               <div>
-                <h1 className="text-2xl font-semibold text-[#14532D]">แก้ไขข้อมูลพันธุ์ไม้</h1>
+                <h1 className="text-2xl font-semibold text-[#14532D]">แก้ไขข้อมูลพรรณไม้</h1>
                 <p className="text-sm text-[#6E8E59]">{wood.scientific_name || 'กำลังแก้ไขข้อมูล'}</p>
               </div>
             </div>

@@ -27,7 +27,7 @@ export type ExamListItemModel = {
 };
 
 function typeLabel(t: ExamType) {
-  return t === "wood_fill" ? "เติมข้อมูลพันธุ์ไม้" : "ปรนัย";
+  return t === "wood_fill" ? "เติมข้อมูลพรรณไม้" : "ปรนัย";
 }
 
 function typeIcon(t: ExamType) {

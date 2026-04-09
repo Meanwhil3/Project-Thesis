@@ -598,7 +598,7 @@ const SidebarFilters: React.FC<{
 
       {/* 1. ค้นหาชื่อ */}
       <div className="space-y-2">
-        <Label className="text-sm font-semibold text-[#14532D]">ค้นหาชื่อพันธุ์ไม้</Label>
+        <Label className="text-sm font-semibold text-[#14532D]">ค้นหาชื่อพรรณไม้</Label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86A97A] w-4 h-4" />
           <input
@@ -846,7 +846,7 @@ const Treesearch: React.FC = () => {
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pb-16 pt-6 sm:pt-10">
         <div className="mb-5 sm:mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#14532D]">ฐานข้อมูลพันธุ์ไม้</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#14532D]">ฐานข้อมูลพรรณไม้</h1>
             <p className="text-xs sm:text-sm text-[#6E8E59]">จัดการและสืบค้นข้อมูลโครงสร้างเนื้อไม้</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
