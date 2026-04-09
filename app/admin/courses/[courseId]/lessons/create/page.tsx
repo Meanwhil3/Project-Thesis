@@ -290,12 +290,12 @@ export default function CreateLessonPage() {
         confirmText="ตกลง"
         onConfirm={() => {
           setShowSuccessModal(false);
-          router.push(`/admin/courses/${courseId}`);
+          router.push(`/courses/${courseId}/lessons`);
           router.refresh();
         }}
         onClose={() => {
           setShowSuccessModal(false);
-          router.push(`/admin/courses/${courseId}`);
+          router.push(`/courses/${courseId}/lessons`);
           router.refresh();
         }}
       />
