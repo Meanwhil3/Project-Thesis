@@ -11,7 +11,7 @@ export default function MainNavbar() {
   const items = [
     { key: "overview", label: "ภาพรวม", href: "/login" },
     { key: "training", label: "อบรม", href: "/admin/courses" },
-    { key: "species", label: "พันธุ์ไม้", href: "/tree/treesearch" },
+    { key: "species", label: "พรรณไม้", href: "/tree/treesearch" },
     ...(isAdmin
       ? [{ key: "users", label: "ผู้ใช้งาน", href: "/users" }]
       : []),

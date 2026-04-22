@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   useEffect,
+  forwardRef,
   type ElementType,
   type FormEvent,
 } from "react";
@@ -14,9 +15,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowUpRight,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
   Image as ImageIcon,
   MapPin,
   Plus,
@@ -24,6 +29,17 @@ import {
   TextCursorInput,
   UploadCloud,
 } from "lucide-react";
+import DatePicker, { registerLocale } from "react-datepicker";
+import { th } from "date-fns/locale";
+import "react-datepicker/dist/react-datepicker.css";
+
+registerLocale("th", th);
+
+const MONTHS_TH = [
+  "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน",
+  "พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม",
+  "กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม",
+];
 
 type CourseStatus = "open" | "closed";
 
@@ -273,23 +289,48 @@ export default function NewCoursePage() {
                 onChange={(v) => setField("location", v)}
               />
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <DateField
-                  label="วันที่เริ่ม"
-                  icon={CalendarDays}
-                  value={form.startDate}
-                  error={touched.startDate ? errors.startDate : undefined}
-                  onChange={(v) => setField("startDate", v)}
-                  onBlur={() => setTouched((p) => ({ ...p, startDate: true }))}
-                />
-                <DateField
-                  label="วันที่สิ้นสุด"
-                  icon={CalendarDays}
-                  value={form.endDate}
-                  error={touched.endDate ? errors.endDate : undefined}
-                  onChange={(v) => setField("endDate", v)}
-                  onBlur={() => setTouched((p) => ({ ...p, endDate: true }))}
-                />
+              {/* วันที่อบรม */}
+              <div>
+                <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[#14532D]">
+                  <CalendarDays className="h-4 w-4" />
+                  ช่วงวันที่อบรม
+                </label>
+                <div className="rounded-2xl border border-[#CDE3BD] bg-[#F4FBF1]/50 p-4">
+                  <div className="grid items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+                    <div>
+                      <div className="mb-1.5 text-xs text-[#14532D]/60">วันที่เริ่ม</div>
+                      <CourseDatePicker
+                        value={form.startDate}
+                        onChange={(v) => setField("startDate", v)}
+                        onBlur={() => setTouched((p) => ({ ...p, startDate: true }))}
+                        hasError={!!(touched.startDate && errors.startDate)}
+                        placeholder="เลือกวันที่เริ่ม"
+                      />
+                    </div>
+                    <div className="hidden items-center justify-center pt-4 sm:flex">
+                      <ArrowRight className="h-5 w-5 text-[#4CA771]" />
+                    </div>
+                    <div>
+                      <div className="mb-1.5 text-xs text-[#14532D]/60">วันที่สิ้นสุด</div>
+                      <CourseDatePicker
+                        value={form.endDate}
+                        onChange={(v) => setField("endDate", v)}
+                        onBlur={() => setTouched((p) => ({ ...p, endDate: true }))}
+                        hasError={!!(touched.endDate && errors.endDate)}
+                        placeholder="เลือกวันที่สิ้นสุด"
+                        minDate={form.startDate ? new Date(form.startDate) : undefined}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {touched.endDate && errors.endDate ? (
+                  <p className="mt-2 flex items-center gap-1 text-xs font-medium text-red-500">
+                    <Clock className="h-3.5 w-3.5" />
+                    {errors.endDate}
+                  </p>
+                ) : touched.startDate && errors.startDate ? (
+                  <p className="mt-2 text-xs font-medium text-red-500">{errors.startDate}</p>
+                ) : null}
               </div>
 
               <div>
@@ -577,45 +618,82 @@ function Field({
   );
 }
 
-function DateField({
-  label,
-  icon: Icon,
+function parseDate(v: string): Date | null {
+  if (!v) return null;
+  const d = new Date(v + "T00:00:00");
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function toDateString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const CourseDateInput = forwardRef<
+  HTMLButtonElement,
+  { value?: string; onClick?: () => void; placeholder?: string; hasError?: boolean }
+>(({ value, onClick, placeholder, hasError }, ref) => (
+  <button
+    type="button"
+    ref={ref}
+    onClick={onClick}
+    className={`flex h-11 w-full items-center gap-2.5 rounded-xl border bg-white px-4 text-left text-sm outline-none transition focus:ring-2 ${
+      hasError
+        ? "border-red-300 text-red-600 focus:border-red-400 focus:ring-red-200/50"
+        : "border-[#CDE3BD] text-[#14532D] focus:border-[#4CA771] focus:ring-[#4CA771]/25"
+    }`}
+  >
+    <CalendarDays className={`h-4 w-4 shrink-0 ${hasError ? "text-red-400" : "text-[#4CA771]"}`} />
+    <span className={value ? "" : "text-[#14532D]/40"}>{value || placeholder || "เลือกวันที่"}</span>
+  </button>
+));
+CourseDateInput.displayName = "CourseDateInput";
+
+function CourseDatePicker({
   value,
-  error,
   onChange,
   onBlur,
+  hasError,
+  placeholder,
+  minDate,
 }: {
-  label: string;
-  icon: ElementType;
   value: string;
-  error?: string;
   onChange: (v: string) => void;
   onBlur?: () => void;
+  hasError?: boolean;
+  placeholder?: string;
+  minDate?: Date;
 }) {
   return (
-    <div>
-      <label className="mb-2 block text-sm font-medium text-[#14532D]">
-        {label}
-      </label>
-      <div className="relative">
-        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86A97A]" />
-        <input
-          type="date"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          className={[
-            "h-11 w-full rounded-xl border bg-white pl-9 pr-4 text-sm text-[#14532D] shadow-[0_0_4px_0_#CAE0BC]/50 outline-none focus:ring-2",
-            error
-              ? "border-red-300 focus:border-red-400 focus:ring-red-200"
-              : "border-[#CDE3BD] focus:border-[#4CA771] focus:ring-[#4CA771]/25",
-          ].join(" ")}
-        />
-      </div>
-      {error && (
-        <p className="mt-2 text-xs font-medium text-red-600">{error}</p>
+    <DatePicker
+      selected={parseDate(value)}
+      onChange={(date: Date | null) => { if (date) onChange(toDateString(date)); }}
+      onBlur={onBlur}
+      dateFormat="d MMMM yyyy"
+      locale="th"
+      minDate={minDate}
+      placeholderText={placeholder}
+      customInput={<CourseDateInput hasError={hasError} />}
+      wrapperClassName="w-full"
+      calendarClassName="green-datepicker"
+      showPopperArrow={false}
+      popperPlacement="bottom-start"
+      renderCustomHeader={({ date, decreaseMonth, increaseMonth, prevMonthButtonDisabled, nextMonthButtonDisabled }) => (
+        <div className="flex items-center justify-between px-3 py-2">
+          <button type="button" onClick={decreaseMonth} disabled={prevMonthButtonDisabled}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#14532D] transition hover:bg-[#E9FFEE] disabled:opacity-30">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="font-kanit text-sm font-medium text-[#14532D]">
+            {MONTHS_TH[date.getMonth()]} {date.getFullYear() + 543}
+          </span>
+          <button type="button" onClick={increaseMonth} disabled={nextMonthButtonDisabled}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#14532D] transition hover:bg-[#E9FFEE] disabled:opacity-30">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       )}
-    </div>
+    />
   );
 }
 
