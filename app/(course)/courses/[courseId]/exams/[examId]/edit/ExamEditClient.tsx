@@ -181,7 +181,7 @@ export default function ExamEditClient({
       for (let i = 0; i < fillQuestions.length; i++) {
         const q = fillQuestions[i];
         if (!q.woodName.trim())
-          return setError(`ข้อที่ ${i + 1}: กรุณากรอกชื่อพันธุ์ไม้/คำถาม`);
+          return setError(`ข้อที่ ${i + 1}: กรุณากรอกชื่อพรรณไม้/คำถาม`);
         if (!Number.isFinite(q.score) || q.score <= 0)
           return setError(`ข้อที่ ${i + 1}: คะแนนต้องมากกว่า 0`);
 

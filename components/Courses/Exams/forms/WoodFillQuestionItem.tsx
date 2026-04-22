@@ -42,7 +42,7 @@ export default function WoodFillQuestionItem(props: {
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
-          <div className="font-kanit text-sm text-[#14532D]">ชื่อพันธุ์ไม้ / คำถาม *</div>
+          <div className="font-kanit text-sm text-[#14532D]">ชื่อพรรณไม้ / คำถาม *</div>
           <input
             value={q.woodName}
             onChange={(e) => onPatch({ woodName: e.target.value })}

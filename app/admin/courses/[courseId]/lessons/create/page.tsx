@@ -8,6 +8,7 @@ import {
   UploadCloud, MonitorPlay, FileArchive, BookOpen
 } from 'lucide-react';
 import FilterSelect from '@/components/ui/FilterSelect';
+import ConfirmModal from '@/components/modals/ConfirmModal';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
@@ -26,6 +27,7 @@ export default function CreateLessonPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isFetchingVideo, setIsFetchingVideo] = useState(false);
   const [formData, setFormData] = useState({ title: '', content: '', status: 'HIDE' });
 
@@ -95,9 +97,7 @@ export default function CreateLessonPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert("บันทึกบทเรียนเรียบร้อยแล้ว");
-        router.push(`/courses/${courseId}`);
-        router.refresh();
+        setShowSuccessModal(true);
       } else {
         alert(`เกิดข้อผิดพลาด: ${data.error || 'ไม่สามารถบันทึกได้'}`);
       }
@@ -281,6 +281,24 @@ export default function CreateLessonPage() {
           </div>
         </div>
       </main>
+
+      <ConfirmModal
+        open={showSuccessModal}
+        variant="success"
+        title="เพิ่มเนื้อหาการเรียนสำเร็จ"
+        description="บันทึกบทเรียนเข้าสู่ระบบเรียบร้อยแล้ว"
+        confirmText="ตกลง"
+        onConfirm={() => {
+          setShowSuccessModal(false);
+          router.push(`/courses/${courseId}/lessons`);
+          router.refresh();
+        }}
+        onClose={() => {
+          setShowSuccessModal(false);
+          router.push(`/courses/${courseId}/lessons`);
+          router.refresh();
+        }}
+      />
 
       <style jsx global>{`
         .ql-container.ql-snow { border: none !important; font-family: 'Kanit', sans-serif; }
