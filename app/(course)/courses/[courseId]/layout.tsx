@@ -280,7 +280,7 @@ export default async function CourseLayout({
               />
             </div>
 
-            <CourseTabs courseId={courseId} role={role} />
+            <CourseTabs courseId={courseId} role={role} isCourseInstructor={isCourseInstructor} />
           </>
         )}
 

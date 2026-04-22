@@ -5,18 +5,27 @@ import { usePathname } from "next/navigation";
 
 type Tab = { label: string; href: string; exact?: boolean };
 
-export default function CourseTabs({ courseId, role }: { courseId: string; role?: string }) {
+export default function CourseTabs({
+  courseId,
+  role,
+  isCourseInstructor = false,
+}: {
+  courseId: string;
+  role?: string;
+  isCourseInstructor?: boolean;
+}) {
   const pathname = usePathname();
   const base = `/courses/${courseId}`;
 
   const isAdmin = role === "ADMIN";
   const isTrainee = role === "TRAINEE";
+  const canViewMembers = isAdmin || isCourseInstructor;
 
   const tabs: Tab[] = [
     { label: "ภาพรวม", href: base, exact: true },
     { label: "เนื้อหา", href: `${base}/lessons` },
     { label: "สอบ", href: `${base}/exams` },
-    ...(isAdmin ? [{ label: "สมาชิก", href: `${base}/members` }] : []),
+    ...(canViewMembers ? [{ label: "สมาชิก", href: `${base}/members` }] : []),
     ...(isTrainee ? [{ label: "คะแนน", href: `${base}/scores` }] : []),
   ];
 
